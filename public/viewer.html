@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DICOM Viewer</title>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #viewer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>DICOM VTP Viewer</h1>
+    <div id="viewer"></div>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const vtpFile = urlParams.get('file');
+
+        if (vtpFile) {
+            const reader = vtk.IO.Core.vtkHttpDataSetReader.newInstance();
+            reader.setUrl(vtpFile).then(() => {
+                const mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+                const actor = vtk.Rendering.Core.vtkActor.newInstance();
+                const renderer = vtk.Rendering.Core.vtkRenderer.newInstance();
+                const renderWindow = vtk.Rendering.Core.vtkRenderWindow.newInstance();
+                const renderWindowInteractor = vtk.Rendering.Core.vtkRenderWindowInteractor.newInstance();
+
+                mapper.setInputConnection(reader.getOutputPort());
+                actor.setMapper(mapper);
+                renderer.addActor(actor);
+                renderWindow.addRenderer(renderer);
+                renderWindowInteractor.setRenderWindow(renderWindow);
+
+                renderWindowInteractor.initialize();
+                renderWindow.render();
+                renderWindowInteractor.start();
+            });
+        } else {
+            document.getElementById('viewer').innerText = 'No VTP file specified.';
+        }
+    </script>
+    <p>
+        <a href="upload.html">Upload DICOM Files</a> | 
+        <a href="images.html">View Images</a>
+    </p>
+</body>
+</html>

@@ -1,23 +1,30 @@
 {
-  "name": "upload_dicom",
+  "name": "dicom-processor",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A Node.js application for processing DICOM files, converting them to JPG and VTP formats, and providing a viewer for the converted files.",
+  "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/app.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/willyci/upload_dicom.git"
-  },
-  "author": "Willy Ci",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/willyci/upload_dicom/issues"
-  },
-  "homepage": "https://github.com/willyci/upload_dicom#readme",
-  "description": "",
   "dependencies": {
-    "express": "^4.21.2"
-  }
+    "adm-zip": "^0.5.9",
+    "express": "^4.17.1",
+    "multer": "^1.4.2",
+    "sharp": "^0.33.5",
+    "unzipper": "^0.12.3",
+    "dicom-parser": "^1.8.11",
+    "vtk.js": "^24.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7"
+  },
+  "keywords": [
+    "DICOM",
+    "file upload",
+    "image processing",
+    "vtk"
+  ],
+  "author": "Willy Ci",
+  "license": "ISC"
 }

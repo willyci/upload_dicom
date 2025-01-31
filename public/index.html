@@ -3,9 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Node App</title>
+    <title>DICOM File Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .progress {
+            margin-top: 20px;
+            display: none;
+        }
+        #status {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to My Node App!</h1>
+    <div class="upload-section">
+        <h2>DICOM File Upload</h2>
+        <input type="file" id="fileInput" accept=".zip" />
+        <button onclick="uploadFile()">Upload and Process</button>
+        <div class="progress">
+            <progress id="progressBar" value="0" max="100"></progress>
+            <span id="progressStatus"></span>
+        </div>
+    </div>
+    <div id="status"></div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const progressBar = document.getElementById('progressBar');
+            const progressStatus = document.getElementById('progressStatus');
+            const statusDiv = document.getElementById('status');
+
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                alert('Please select a ZIP file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                document.querySelector('.progress').style.display = 'block';
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `
+                        <h3>Processing Complete</h3>
+                        <p>Folder: ${result.folder}</p>
+                        <p>Processed ${result.processedFiles} files</p>
+                        <p>Created JPG and VTP files</p>
+                    `;
+                } else {
+                    throw new Error(result.message || 'Upload failed');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            } finally {
+                document.querySelector('.progress').style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
