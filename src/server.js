@@ -44,13 +44,19 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         console.log('Starting file processing...');
         const files = await processDirectory(extractPath+"/"+req.file.originalname.replace('.zip', ''));
 
+        // Create JSON file
+        const jsonData = JSON.stringify(files, null, 2);
+        const jsonPath = path.join(extractPath+"/"+req.file.originalname.replace('.zip', ''), 'dicom_info.json');
+        await fs.promises.writeFile(jsonPath, jsonData);
+
         // Clean up the uploaded ZIP file
         fs.unlinkSync(req.file.path);
 
         res.json({
             success: true,
             folder: folderName,
-            processedFiles: files
+            processedFiles: files,
+            jsonPath: jsonPath
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -91,10 +97,11 @@ async function processDirectory(dirPath) {
                     if (currentPath.toLowerCase().endsWith('.dcm')) {
                         const outputPath = `${currentPath}.jpg`;
                         await convertToJpg(currentPath, outputPath);
-                        //await convertDicomToImage(currentPath, outputPath);
+                        const dicomInfo = showDicomInfo(filePath);
                         processedFiles.push({
-                            original: file,
-                            jpg: `${file}.jpg`
+                            dicomPath: filePath,
+                            jpgPath: outputPath,
+                            dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
                     }
@@ -426,22 +433,27 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
       const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
       
       console.log('DICOM Info:');
-      console.log('------------');
-      console.log(`Modality: ${dataset.Modality}`);
-      console.log(`Dimensions: ${dataset.Columns}x${dataset.Rows}`);
-      console.log(`Bits Allocated: ${dataset.BitsAllocated}`);
-      console.log(`Bits Stored: ${dataset.BitsStored}`);
-      console.log(`High Bit: ${dataset.HighBit}`);
-      console.log(`Pixel Representation: ${dataset.PixelRepresentation}`);
-      console.log(`Samples Per Pixel: ${dataset.SamplesPerPixel}`);
-      console.log(`Photometric Interpretation: ${dataset.PhotometricInterpretation}`);
-      console.log(`Window Center: ${dataset.WindowCenter}`);
-      console.log(`Window Width: ${dataset.WindowWidth}`);
-      console.log(`Rescale Intercept: ${dataset.RescaleIntercept}`);
-      console.log(`Rescale Slope: ${dataset.RescaleSlope}`);
+      console.log('============');
       
-      // Check pixel data format
+      // First show common important tags
+      const importantTags = [
+        'Modality', 'Columns', 'Rows', 'BitsAllocated', 'BitsStored', 'HighBit',
+        'PixelRepresentation', 'SamplesPerPixel', 'PhotometricInterpretation',
+        'WindowCenter', 'WindowWidth', 'RescaleIntercept', 'RescaleSlope',
+        'TransferSyntaxUID', 'SOPClassUID'
+      ];
+      
+      console.log('Important Tags:');
+      console.log('--------------');
+      importantTags.forEach(tag => {
+        if (dataset[tag] !== undefined) {
+          console.log(`${tag}: ${dataset[tag]}`);
+        }
+      });
+      
+      // Check pixel data format specifically
       console.log('\nPixel Data:');
+      console.log('-----------');
       if (dataset.PixelData) {
         console.log(`Type: ${typeof dataset.PixelData}`);
         if (typeof dataset.PixelData === 'object') {
@@ -464,8 +476,8 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         }
         
         const expectedLength = dataset.Columns * dataset.Rows * 
-                             (dataset.BitsAllocated === 16 ? 2 : 1) * 
-                             (dataset.SamplesPerPixel || 1);
+                            (dataset.BitsAllocated === 16 ? 2 : 1) * 
+                            (dataset.SamplesPerPixel || 1);
         
         console.log(`Pixel Data Length: ${pixelDataLength}, Expected: ${expectedLength}`);
         
@@ -488,6 +500,92 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         }
       } else {
         console.log('No Pixel Data found!');
+      }
+      
+      // Display all available tags in the dataset
+      console.log('\nAll DICOM Tags:');
+      console.log('--------------');
+      
+      // Get all keys and sort them alphabetically for easier reading
+      const allKeys = Object.keys(dataset).sort();
+      
+      allKeys.forEach(key => {
+        // Skip PixelData as we've already handled it specially
+        if (key === 'PixelData') {
+          return;
+        }
+        
+        let value = dataset[key];
+        
+        // Format the output based on the type of value
+        if (Array.isArray(value)) {
+          if (value.length > 10) {
+            // Truncate long arrays
+            console.log(`${key}: Array[${value.length}] = [${value.slice(0, 5).join(', ')}... and ${value.length - 5} more items]`);
+          } else {
+            console.log(`${key}: [${value.join(', ')}]`);
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          // Handle objects and buffers
+          if (value.buffer) {
+            console.log(`${key}: TypedArray(length=${value.length})`);
+          } else {
+            try {
+              // Try to stringify if it's a simple object
+              const objStr = JSON.stringify(value);
+              if (objStr.length > 100) {
+                console.log(`${key}: ${objStr.substring(0, 100)}...`);
+              } else {
+                console.log(`${key}: ${objStr}`);
+              }
+            } catch (e) {
+              console.log(`${key}: [Complex Object]`);
+            }
+          }
+        } else {
+          // Handle primitive values
+          console.log(`${key}: ${value}`);
+        }
+      });
+      
+      // Check for key transfer syntax info that might indicate compression
+      console.log('\nCompression Check:');
+      console.log('----------------');
+      
+      const transferSyntax = dataset.TransferSyntaxUID;
+      if (transferSyntax) {
+        const compressionTypes = {
+          '1.2.840.10008.1.2': 'Implicit VR Little Endian (uncompressed)',
+          '1.2.840.10008.1.2.1': 'Explicit VR Little Endian (uncompressed)',
+          '1.2.840.10008.1.2.2': 'Explicit VR Big Endian (uncompressed)',
+          '1.2.840.10008.1.2.4.50': 'JPEG Baseline (Process 1)',
+          '1.2.840.10008.1.2.4.51': 'JPEG Baseline (Process 2 & 4)',
+          '1.2.840.10008.1.2.4.57': 'JPEG Lossless, Non-Hierarchical',
+          '1.2.840.10008.1.2.4.70': 'JPEG Lossless, Non-Hierarchical, First-Order Prediction',
+          '1.2.840.10008.1.2.4.80': 'JPEG-LS Lossless',
+          '1.2.840.10008.1.2.4.81': 'JPEG-LS Lossy',
+          '1.2.840.10008.1.2.4.90': 'JPEG 2000 Lossless',
+          '1.2.840.10008.1.2.4.91': 'JPEG 2000 Lossy',
+          '1.2.840.10008.1.2.5': 'RLE Lossless'
+        };
+        
+        if (compressionTypes[transferSyntax]) {
+          console.log(`Transfer Syntax: ${transferSyntax} - ${compressionTypes[transferSyntax]}`);
+          
+          if (transferSyntax !== '1.2.840.10008.1.2' && 
+              transferSyntax !== '1.2.840.10008.1.2.1' && 
+              transferSyntax !== '1.2.840.10008.1.2.2') {
+            console.log('WARNING: This file uses compressed pixel data format.');
+            console.log('dcmjs may not be able to handle this compression type.');
+            console.log('Consider using a library like cornerstone or dicom-parser with decompression support.');
+          } else {
+            console.log('This file uses uncompressed pixel data, which should be compatible with dcmjs.');
+          }
+        } else {
+          console.log(`Transfer Syntax: ${transferSyntax} - Unknown format`);
+        }
+      } else {
+        console.log('No TransferSyntaxUID found. Cannot determine compression type.');
       }
       
       return dataset;
