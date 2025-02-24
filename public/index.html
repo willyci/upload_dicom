@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DICOM File Processor</title>
+    <title>Upload DICOM Files</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,22 +27,19 @@
     </style>
 </head>
 <body>
-    <div class="upload-section">
-        <h2>DICOM File Upload</h2>
-        <input type="file" id="fileInput" accept=".zip" />
-        <button onclick="uploadFile()">Upload and Process</button>
-        <div class="progress">
-            <progress id="progressBar" value="0" max="100"></progress>
-            <span id="progressStatus"></span>
-        </div>
-    </div>
+    <h1>Upload DICOM Files</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="dicomZip">Upload ZIP file:</label>
+        <input type="file" id="dicomZip" name="file" accept=".zip" required>
+        <button type="submit">Upload</button>
+    </form>
+    <div class="progress" style="display: none;">Uploading...</div>
     <div id="status"></div>
 
     <script>
-        async function uploadFile() {
-            const fileInput = document.getElementById('fileInput');
-            const progressBar = document.getElementById('progressBar');
-            const progressStatus = document.getElementById('progressStatus');
+        document.querySelector('form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('dicomZip');
             const statusDiv = document.getElementById('status');
 
             if (!fileInput.files.length) {
@@ -73,7 +70,7 @@
                     statusDiv.innerHTML = `
                         <h3>Processing Complete</h3>
                         <p>Folder: ${result.folder}</p>
-                        <p>Processed ${result.processedFiles} files</p>
+                        <p>Processed ${result.processedFiles.length} files</p>
                         <p>Created JPG and VTP files</p>
                     `;
                 } else {
@@ -84,7 +81,7 @@
             } finally {
                 document.querySelector('.progress').style.display = 'none';
             }
-        }
+        });
     </script>
 </body>
 </html>

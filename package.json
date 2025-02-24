@@ -9,11 +9,14 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.9",
+    "canvas": "^3.1.0",
+    "dcmjs": "^0.38.1",
+    "dcmjs-imaging": "^0.1.27",
+    "dicom-parser": "^1.8.11",
     "express": "^4.17.1",
     "multer": "^1.4.2",
     "sharp": "^0.33.5",
     "unzipper": "^0.12.3",
-    "dicom-parser": "^1.8.11",
     "vtk.js": "^24.0.0"
   },
   "devDependencies": {
