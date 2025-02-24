@@ -56,7 +56,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             success: true,
             folder: folderName,
             processedFiles: files,
-            jsonPath: jsonPath
+            jsonPath: removePathBeforeUploads(jsonPath)
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -66,6 +66,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         });
     }
 });
+
+function removePathBeforeUploads(fullPath) {
+    const normalizedPath = fullPath.replace(/\\/g, '/');
+    const parts = normalizedPath.split('/uploads');
+    console.log("parts", parts[1]);
+    return '/uploads' + parts[1];
+}
 
 async function processDirectory(dirPath) {
     try {
@@ -99,8 +106,8 @@ async function processDirectory(dirPath) {
                         await convertToJpg(currentPath, outputPath);
                         const dicomInfo = showDicomInfo(filePath);
                         processedFiles.push({
-                            dicomPath: filePath,
-                            jpgPath: outputPath,
+                            dicomPath: removePathBeforeUploads(filePath),
+                            jpgPath: removePathBeforeUploads(outputPath),
                             dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
