@@ -788,13 +788,25 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         
         
         // Format the results with normalized paths
-        const normalizedPaths = jsonFiles.map(filePath => ({
-            path: filePath.replace(/\\/g, '/') // Normalize path separators
+        const normalizedPaths = jsonFiles.map((filePath, index) => ({
+          index: index + 1,  
+          path: removePathBeforeUploads(filePath.replace(/\\/g, '/')) // Normalize path separators
         }));
 
-        console.log('Found JSON files:', normalizedPaths);
+        // Write to index.json
+        const indexPath = path.join(uploadsPath, 'index.json');
+        await fs.promises.writeFile(
+            indexPath, 
+            JSON.stringify({ folders: normalizedPaths }, null, 2)
+        );
 
-        res.json({ folders: normalizedPaths });
+        console.log('Found JSON files:', normalizedPaths);
+        console.log('Index file written to:', indexPath);
+
+        res.json({ 
+            folders: normalizedPaths,
+            indexPath: removePathBeforeUploads(indexPath)
+        });
     } catch (error) {
         console.error('Error listing JSON files:', error);
         res.status(500).json({ error: 'Error listing JSON files' });
