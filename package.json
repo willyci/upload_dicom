@@ -17,10 +17,10 @@
     "multer": "^1.4.2",
     "sharp": "^0.33.5",
     "unzipper": "^0.12.3",
-    "vtk.js": "^24.0.0"
+    "vtk.js": "^24.19.2"
   },
   "devDependencies": {
-    "nodemon": "^2.0.7"
+    "nodemon": "^2.0.22"
   },
   "keywords": [
     "DICOM",

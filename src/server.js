@@ -11,7 +11,8 @@ const dcmjs = require('dcmjs');
 const { DicomMetaDictionary, DicomMessage } = dcmjs.data;
 const dcmjsImaging = require('dcmjs-imaging');
 const { createCanvas } = require('canvas');
-//const Jimp = require('jimp');
+//const vtkDICOMImageReader = require('vtk.js/Sources/IO/Misc/ITKImageReader');
+//const sharp = require('sharp');
 
 const app = express();
 const upload = multer({ dest: 'public/uploads/' });
@@ -56,7 +57,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             success: true,
             folder: folderName,
             processedFiles: files,
-            jsonPath: removePathBeforeUploads(jsonPath)
+            jsonPath: removePathBeforeUploads(jsonPath),
+            vtkPaths: files.map(file => file.vtkPath)
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -104,10 +106,15 @@ async function processDirectory(dirPath) {
                     if (currentPath.toLowerCase().endsWith('.dcm')) {
                         const outputPath = `${currentPath}.jpg`;
                         await convertToJpg(currentPath, outputPath);
+
+                        const outputPathVtk = `${filePath}.vtk`;
+                        //await convertToVtk(filePath, outputPathVtk);
+
                         const dicomInfo = showDicomInfo(filePath);
                         processedFiles.push({
                             dicomPath: removePathBeforeUploads(filePath),
                             jpgPath: removePathBeforeUploads(outputPath),
+                            vtkPath: removePathBeforeUploads(outputPathVtk),
                             dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
@@ -327,6 +334,49 @@ async function convertToJpg(inputPath, outputPath) {
 }
 
 
+async function generateBumpMap(dataSet, outputPath) {
+    // Get image dimensions
+    const width = dataSet.uint16('x00280010');
+    const height = dataSet.uint16('x00280011');
+    const pixelData = new Int16Array(dataSet.byteArray.buffer, dataSet.elements.x7fe00010.dataOffset);
+
+    // Create canvas for bump map
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(width, height);
+
+    // Calculate surface normals and create bump map
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const idx = (y * width + x);
+            
+            // Calculate gradients
+            const gx = pixelData[idx + 1] - pixelData[idx - 1];
+            const gy = pixelData[idx + width] - pixelData[idx - width];
+            
+            // Convert to normal map values (0-255)
+            const normalX = Math.floor(((gx / 255) + 1) * 127.5);
+            const normalY = Math.floor(((gy / 255) + 1) * 127.5);
+            
+            // Set pixel in imageData
+            const outIdx = idx * 4;
+            imageData.data[outIdx] = normalX;     // R
+            imageData.data[outIdx + 1] = normalY; // G
+            imageData.data[outIdx + 2] = 255;     // B
+            imageData.data[outIdx + 3] = 255;     // Alpha
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    // Save bump map
+    const buffer = canvas.toBuffer('image/jpeg');
+    await sharp(buffer)
+        .normalize()
+        .jpeg({ quality: 90 })
+        .toFile(outputPath);
+}
+// not working correctly
 async function convertDicomToImage(dicomFilePath, outputPath) {
     try {
       // Read the DICOM file
@@ -675,6 +725,81 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
     
     console.log('Batch conversion complete');
   }
+
+
+  async function convertToVtk(inputPath, outputPath) {
+    try {
+      // Read the DICOM file
+      const dicomFileBuffer = fs.readFileSync(inputPath);
+  
+      // Set the DICOM data on the reader
+      vtkDICOMImageReader.parseAsArrayBuffer(dicomFileBuffer);
+  
+      // Get the image data from the reader
+      const imageData = vtkDICOMImageReader.getOutputData();
+  
+      // Write the image data to a VTK file
+      const writer = vtkXMLImageDataWriter.newInstance();
+      writer.setInputData(imageData);
+      writer.setFileName(outputPath);
+      writer.write();
+  
+      console.log(`Successfully converted ${inputPath} to ${outputPath}`);
+    } catch (error) {
+      console.error('Error converting DICOM to VTK:', error);
+      throw error;
+    }
+  }
+
+
+  app.get('/list-uploads', async (req, res) => {
+    try {
+        const uploadsPath = path.join(__dirname, '../public/uploads');
+        
+        // Check if uploads directory exists
+        if (!fs.existsSync(uploadsPath)) {
+            return res.json({ jsonFiles: [] });
+        }
+
+        // Function to recursively find JSON files
+        async function findJsonFiles(dir) {
+            const jsonFiles = [];
+            const items = await fs.promises.readdir(dir, { withFileTypes: true });
+            
+            for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                
+                if (item.isDirectory()) {
+                    // Recursively search subdirectories
+                    const nestedFiles = await findJsonFiles(fullPath);
+                    jsonFiles.push(...nestedFiles);
+                } else if (item.name === 'dicom_info.json') {
+                    // Found a JSON file
+                    jsonFiles.push(fullPath);
+                }
+            }
+            
+            return jsonFiles;
+        }
+
+        // Find all JSON files recursively
+        const jsonFiles = await findJsonFiles(uploadsPath);
+
+        
+        
+        // Format the results with normalized paths
+        const normalizedPaths = jsonFiles.map(filePath => ({
+            path: filePath.replace(/\\/g, '/') // Normalize path separators
+        }));
+
+        console.log('Found JSON files:', normalizedPaths);
+
+        res.json({ folders: normalizedPaths });
+    } catch (error) {
+        console.error('Error listing JSON files:', error);
+        res.status(500).json({ error: 'Error listing JSON files' });
+    }
+  });
 
 
 const PORT = process.env.PORT || 3000;

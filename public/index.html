@@ -24,6 +24,26 @@
         #status {
             margin-top: 20px;
         }
+        .upload-list {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .upload-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        .upload-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .dicom-files {
+            margin-left: 20px;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -35,6 +55,13 @@
     </form>
     <div class="progress" style="display: none;">Uploading...</div>
     <div id="status"></div>
+
+    <hr/>
+    <div class="upload-list">
+        <h2>Uploaded DICOM Files</h2>
+        <div id="uploadsList">Loading...</div>
+    </div>
+    <hr/>
 
     <script>
         document.querySelector('form').addEventListener('submit', async function(event) {
@@ -74,6 +101,10 @@
                         <p>Json file: <a href="${result.jsonPath}" target="_blank">${result.jsonPath}</a></p>
                         <p>Created JPG and VTP files</p>
                     `;
+                    // Reload the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000); // 1 second delay
                 } else {
                     throw new Error(result.message || 'Upload failed');
                 }
@@ -81,6 +112,48 @@
                 statusDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             } finally {
                 document.querySelector('.progress').style.display = 'none';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/list-uploads');
+                const data = await response.json();
+                
+                const uploadsListDiv = document.getElementById('uploadsList');
+                
+                if (data.folders.length === 0) {
+                    uploadsListDiv.innerHTML = '<p>No uploads found</p>';
+                    return;
+                }
+
+                uploadsListDiv.innerHTML = data.folders.map((folder, index) => {
+                    const date = new Date(folder.date).toLocaleString();
+                    let filesHtml = '';
+                    
+                    // if (folder.info) {
+                    //     filesHtml = `
+                    //         <div class="dicom-files">
+                    //             ${folder.info.map(file => `
+                    //                 <div>
+                    //                     <a href="${file.jpgPath}" target="_blank">View Image</a>
+                    //                     ${file.vtkPath ? `| <a href="${file.vtkPath}" target="_blank">Download VTK</a>` : ''}
+                    //                 </div>
+                    //             `).join('')}
+                    //         </div>
+                    //     `;
+                    // }
+
+                    return `
+                        <div class="upload-item">
+                            <div><a href="${folder.path}" target="_blank">${index+1}. View json: ${folder.path}</a></div>                            
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error fetching uploads:', error);
+                document.getElementById('uploadsList').innerHTML = 
+                    '<p style="color: red;">Error loading uploads</p>';
             }
         });
     </script>
