@@ -17,7 +17,10 @@ const vtkITKImageReader = require('@kitware/vtk.js/IO/Misc/ITKImageReader');
 const vtkXMLImageDataWriter = require('@kitware/vtk.js/IO/XML/XMLImageDataWriter');
 const vtkImageData = require('@kitware/vtk.js/Common/DataModel/ImageData');
 const vtkDataArray = require('@kitware/vtk.js/Common/Core/DataArray');
-const itk = require('itk/dist/itkjs.js');
+//const itk = require('itk/dist/itkjs.js');
+const itkWasm = require('itk-wasm');
+require('itk-dicom-io');
+require('itk-image-io');
 const vtkWriter = require('@kitware/vtk.js/IO/Misc/ITKImageWriter');
 
 // vkt vti
@@ -974,39 +977,65 @@ async function convertToVtp(dicomFiles, outputPath) {
 
 
 async function convertToVti(dicomFiles, outputPath) {
-    try {
-      // First use ITK to read the DICOM series
-      const directory = path.dirname(dicomFiles[0]);
-      console.log('Reading DICOM series from:', directory);
-      
-      // Read the DICOM series using ITK
-      const itkImage = await itk.readImageDICOMFileSeries(directory);
-      console.log('ITK Image loaded:', itkImage);
+  try {
+    // Initialize ITK-WASM
+    await itkWasm.ready;
+    
+    const directory = path.dirname(dicomFiles[0]);
+    console.log('Reading DICOM series from:', directory);
 
-      // Convert ITK image to VTK image
-      const vtkImage = vtkITKImageReader.convertItkToVtkImage(itkImage);
-      console.log('Converted to VTK image');
+    // Create a temporary directory for the DICOM files
+    const tempDir = path.join(directory, 'temp_dicom');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-      // Set up the writer
-      const writer = vtkWriter.newInstance();
-      writer.setFileName(outputPath);
-      writer.setInputData(vtkImage);
+    // Copy DICOM files to temp directory
+    for (const file of dicomFiles) {
+        const destPath = path.join(tempDir, path.basename(file));
+        fs.copyFileSync(file, destPath);
+    }
 
-      // Write the VTI file
-      console.log('Writing VTI file to:', outputPath);
-      await writer.write();
+    // Read the DICOM series
+    console.log('Reading DICOM series...');
+    const image = await itkWasm.readImageDICOMFileSeries(tempDir);
 
-      // Verify the file was written
-      if (fs.existsSync(outputPath)) {
-          console.log('Successfully wrote VTI file');
-          return outputPath;
-      } else {
-          throw new Error('VTI file was not created');
-      }
-  } catch (error) {
-      console.error('Error converting DICOM to VTI:', error);
-      throw error;
-  }
+    // Create VTK image data
+    const vtkImage = vtkImageData.newInstance();
+    
+    // Set dimensions
+    vtkImage.setDimensions(image.size);
+    vtkImage.setSpacing(image.spacing);
+    vtkImage.setOrigin(image.origin);
+
+    // Set pixel data
+    const scalars = vtkDataArray.newInstance({
+        name: 'Scalars',
+        values: new Float32Array(image.data.buffer),
+        numberOfComponents: 1
+    });
+    vtkImage.getPointData().setScalars(scalars);
+
+    // Write VTI file
+    const writer = vtkXMLImageDataWriter.newInstance();
+    writer.setInputData(vtkImage);
+    writer.setFileName(outputPath);
+    writer.setBinaryOutputType(true);
+    await writer.write();
+
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+
+    if (fs.existsSync(outputPath)) {
+        console.log('Successfully wrote VTI file');
+        return outputPath;
+    } else {
+        throw new Error('VTI file was not created');
+    }
+} catch (error) {
+    console.error('Error converting DICOM to VTI:', error);
+    throw error;
+}
 }
 
 function generatePointsData(slices) {
