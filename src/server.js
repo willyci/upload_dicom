@@ -13,6 +13,17 @@ const dcmjsImaging = require('dcmjs-imaging');
 const { createCanvas } = require('canvas');
 //const vtkDICOMImageReader = require('vtk.js/Sources/IO/Misc/ITKImageReader');
 //const sharp = require('sharp');
+const vtkITKImageReader = require('@kitware/vtk.js/IO/Misc/ITKImageReader');
+const vtkXMLImageDataWriter = require('@kitware/vtk.js/IO/XML/XMLImageDataWriter');
+const vtkImageData = require('@kitware/vtk.js/Common/DataModel/ImageData');
+const vtkDataArray = require('@kitware/vtk.js/Common/Core/DataArray');
+const itk = require('itk/dist/itkjs.js');
+const vtkWriter = require('@kitware/vtk.js/IO/Misc/ITKImageWriter');
+
+// vkt vti
+// The current vti supported format is ascii, binary and binary+zlib compression.
+//https://kitware.github.io/vtk-js/examples/VolumeViewer.html#Source
+
 
 const app = express();
 const upload = multer({ dest: 'public/uploads/' });
@@ -963,87 +974,35 @@ async function convertToVtp(dicomFiles, outputPath) {
 
 
 async function convertToVti(dicomFiles, outputPath) {
-  try {
-      // Create an array to store all slices
-      const slices = [];
+    try {
+      // First use ITK to read the DICOM series
+      const directory = path.dirname(dicomFiles[0]);
+      console.log('Reading DICOM series from:', directory);
       
-      // Load and sort all DICOM files
-      for (const filePath of dicomFiles) {
-          const dicomFileBuffer = fs.readFileSync(filePath);
-          const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
-          const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
-          
-          // Extract position and orientation information
-          const position = dataset.ImagePositionPatient || [0, 0, 0];
-          const spacing = dataset.PixelSpacing || [1, 1];
-          const sliceThickness = dataset.SliceThickness || 1;
-          
-          slices.push({
-              dataset,
-              position,
-              spacing: [...spacing, sliceThickness],
-              imageData: dataset.PixelData,
-              rows: dataset.Rows,
-              columns: dataset.Columns,
-              zPosition: position[2]
-          });
+      // Read the DICOM series using ITK
+      const itkImage = await itk.readImageDICOMFileSeries(directory);
+      console.log('ITK Image loaded:', itkImage);
+
+      // Convert ITK image to VTK image
+      const vtkImage = vtkITKImageReader.convertItkToVtkImage(itkImage);
+      console.log('Converted to VTK image');
+
+      // Set up the writer
+      const writer = vtkWriter.newInstance();
+      writer.setFileName(outputPath);
+      writer.setInputData(vtkImage);
+
+      // Write the VTI file
+      console.log('Writing VTI file to:', outputPath);
+      await writer.write();
+
+      // Verify the file was written
+      if (fs.existsSync(outputPath)) {
+          console.log('Successfully wrote VTI file');
+          return outputPath;
+      } else {
+          throw new Error('VTI file was not created');
       }
-      
-      // Sort slices by z-position
-      slices.sort((a, b) => a.zPosition - b.zPosition);
-      
-      // Get dimensions from first slice
-      const dimensions = [
-          slices[0].columns,
-          slices[0].rows,
-          slices.length
-      ];
-      
-      const spacing = [
-          slices[0].spacing[0],
-          slices[0].spacing[1],
-          slices[0].spacing[2]
-      ];
-
-      // Create volume data
-      const volumeData = new Float32Array(dimensions[0] * dimensions[1] * dimensions[2]);
-      
-      // Fill volume data from slices
-      slices.forEach((slice, zIndex) => {
-          const pixelData = new Float32Array(slice.imageData.buffer);
-          const sliceOffset = zIndex * dimensions[0] * dimensions[1];
-          
-          for (let y = 0; y < dimensions[1]; y++) {
-              for (let x = 0; x < dimensions[0]; x++) {
-                  const sourceIndex = y * dimensions[0] + x;
-                  const targetIndex = sliceOffset + sourceIndex;
-                  volumeData[targetIndex] = pixelData[sourceIndex];
-              }
-          }
-      });
-
-      // Create VTI file content
-      const vtiContent = `<?xml version="1.0"?>
-<VTKFile type="ImageData" version="1.0" byte_order="LittleEndian" header_type="UInt32">
-<ImageData WholeExtent="0 ${dimensions[0]-1} 0 ${dimensions[1]-1} 0 ${dimensions[2]-1}"
-           Origin="${slices[0].position.join(' ')}"
-           Spacing="${spacing.join(' ')}">
-  <Piece Extent="0 ${dimensions[0]-1} 0 ${dimensions[1]-1} 0 ${dimensions[2]-1}">
-    <PointData>
-      <DataArray type="Float32" Name="ImageScalars" NumberOfComponents="1" format="binary">
-        ${Buffer.from(volumeData.buffer).toString('base64')}
-      </DataArray>
-    </PointData>
-    <CellData>
-    </CellData>
-  </Piece>
-</ImageData>
-</VTKFile>`;
-
-      // Write VTI file
-      fs.writeFileSync(outputPath.replace('.vtp', '.vti'), vtiContent);
-      console.log(`Successfully converted ${dicomFiles.length} files to VTI: ${outputPath}`);
-      return outputPath.replace('.vtp', '.vti');
   } catch (error) {
       console.error('Error converting DICOM to VTI:', error);
       throw error;
