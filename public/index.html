@@ -58,7 +58,7 @@
 
     <hr/>
     <div class="upload-list">
-        <h2>Uploaded DICOM Files <a href="/uploads/index.json">index.json</a></h2>
+        <h2>Uploaded DICOM Files <a href="/uploads/index.json" target="_blank">index.json</a></h2>
         <div id="uploadsList">Loading...</div>
     </div>
     <hr/>
@@ -146,8 +146,10 @@
 
                     return `
                         <div class="upload-item">
-                            <div><a href="${folder.path}" target="_blank">${index+1}. View json: ${folder.path}</a></div>                            
-                        </div>
+                            <div><a href="${folder.path}" target="_blank">${index+1}. View json: ${folder.path}</a></div>                             
+                                        
+            ${folder.vtiPath ? ` | <a href="volumeviewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank">View Volume</a>` : ''}
+                            </div>
                     `;
                 }).join('');
             } catch (error) {

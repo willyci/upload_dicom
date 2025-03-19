@@ -37,17 +37,32 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
         // Extract ZIP file
         console.log('Extracting ZIP file to:', extractPath);
-        await fs.createReadStream(req.file.path)
-            .pipe(unzipper.Extract({ path: extractPath }))
-            .promise();
+        await new Promise((resolve, reject) => {
+          const unzipStream = unzipper.Parse();
+          fs.createReadStream(req.file.path)
+              .pipe(unzipStream)
+              .on('entry', (entry) => {
+                  const fileName = path.basename(entry.path); // Get just the filename
+                  const writePath = path.join(extractPath, fileName);
+                  
+                  if (entry.type === 'File') {
+                      entry.pipe(fs.createWriteStream(writePath));
+                  } else {
+                      entry.autodrain();
+                  }
+              })
+              .on('finish', resolve)
+              .on('error', reject);
+      });
 
         // Process extracted files
         console.log('Starting file processing...');
-        const files = await processDirectory(extractPath+"/"+req.file.originalname.replace('.zip', ''));
+        //const files = await processDirectory(extractPath+"/"+req.file.originalname.replace('.zip', ''));
+        const files = await processDirectory(extractPath+"/");
 
         // Create JSON file
         const jsonData = JSON.stringify(files, null, 2);
-        const jsonPath = path.join(extractPath+"/"+req.file.originalname.replace('.zip', ''), 'dicom_info.json');
+        const jsonPath = path.join(extractPath+"/", 'dicom_info.json');
         await fs.promises.writeFile(jsonPath, jsonData);
 
         // Clean up the uploaded ZIP file
@@ -58,7 +73,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             folder: folderName,
             processedFiles: files,
             jsonPath: removePathBeforeUploads(jsonPath),
-            vtkPaths: files.map(file => file.vtkPath)
+            vtiPaths: files.map(file => file.vtiPath)
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -76,12 +91,76 @@ function removePathBeforeUploads(fullPath) {
     return '/uploads' + parts[1];
 }
 
+async function generateSagittalCoronalImages(dataset, outputDir) {
+    // Extract pixel data and dimensions
+    const pixelData = dataset.PixelData;
+    const width = dataset.Columns;
+    const height = dataset.Rows;
+
+    // Create sagittal image
+    const sagittalImage = createCanvas(height, width);
+    const sagittalCtx = sagittalImage.getContext('2d');
+    const sagittalData = sagittalCtx.createImageData(height, width);
+
+    // Create coronal image
+    const coronalImage = createCanvas(height, width);
+    const coronalCtx = coronalImage.getContext('2d');
+    const coronalData = coronalCtx.createImageData(height, width);
+
+    // Fill in the images with pixel data
+    for (let i = 0; i < width; i++) {
+        for (let j = 0; j < height; j++) {
+            const pixelIndex = (i * width + j) * 4; // RGBA
+            const value = pixelData[i * height + j]; // Assuming grayscale
+
+            // Set pixel data for sagittal image
+            sagittalData.data[pixelIndex] = value;     // R
+            sagittalData.data[pixelIndex + 1] = value; // G
+            sagittalData.data[pixelIndex + 2] = value; // B
+            sagittalData.data[pixelIndex + 3] = 255;   // A
+
+            // Set pixel data for coronal image
+            coronalData.data[pixelIndex] = value;       // R
+            coronalData.data[pixelIndex + 1] = value;   // G
+            coronalData.data[pixelIndex + 2] = value;   // B
+            coronalData.data[pixelIndex + 3] = 255;     // A
+        }
+    }
+
+    sagittalCtx.putImageData(sagittalData, 0, 0);
+    coronalCtx.putImageData(coronalData, 0, 0);
+
+    // Save images
+    const sagittalPath = path.join(outputDir, 'sagittal.jpg');
+    const coronalPath = path.join(outputDir, 'coronal.jpg');
+    fs.writeFileSync(sagittalPath, sagittalImage.toBuffer('image/jpeg'));
+    fs.writeFileSync(coronalPath, coronalImage.toBuffer('image/jpeg'));
+
+    return { sagittalPath, coronalPath };
+}
+
 async function processDirectory(dirPath) {
+
     try {
         const files = await fs.promises.readdir(dirPath);
         const processedFiles = [];
+        const dicomFiles = [];
 
         console.log(`Processing ${files.length} files in directory:`, dirPath);
+
+        // First pass: collect all DICOM files
+        for (const file of files) {
+          const filePath = path.join(dirPath, file);
+          if (filePath.toLowerCase().endsWith('.dcm')) {
+              dicomFiles.push(filePath);
+          }
+        }
+
+        console.log(`Found ${dicomFiles.length} DICOM files to process.`);
+
+        const vtiPath = path.join(dirPath, 'volume.vti');
+        await convertToVti(dicomFiles, vtiPath);
+
 
         for (const file of files) {
             const filePath = path.join(dirPath, file);
@@ -107,14 +186,14 @@ async function processDirectory(dirPath) {
                         const outputPath = `${currentPath}.jpg`;
                         await convertToJpg(currentPath, outputPath);
 
-                        const outputPathVtk = `${filePath}.vtk`;
+                        //const outputPathVtk = `${filePath}.vtk`;
                         //await convertToVtk(filePath, outputPathVtk);
 
                         const dicomInfo = showDicomInfo(filePath);
                         processedFiles.push({
                             dicomPath: removePathBeforeUploads(filePath),
                             jpgPath: removePathBeforeUploads(outputPath),
-                            vtkPath: removePathBeforeUploads(outputPathVtk),
+                            vtiPath: removePathBeforeUploads(vtiPath),
                             dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
@@ -124,6 +203,9 @@ async function processDirectory(dirPath) {
                 }
             }
         }
+
+        console.log(`Found ${dicomFiles.length} DICOM files to process.`);
+        
 
         return processedFiles;
     } catch (error) {
@@ -204,7 +286,7 @@ async function convertToJpg(inputPath, outputPath) {
             pixelData = new Int16Array(rawPixelData);
         }
 
-        console.log("PixelData:",pixelData, "rawPixelData: ", rawPixelData  );
+        //console.log("PixelData:",pixelData, "rawPixelData: ", rawPixelData  );
         
         // Get windowing values from DICOM or use defaults
         let windowCenter = dataset.WindowCenter;
@@ -504,7 +586,7 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
       console.log('--------------');
       importantTags.forEach(tag => {
         if (dataset[tag] !== undefined) {
-          console.log(`${tag}: ${dataset[tag]}`);
+          //console.log(`${tag}: ${dataset[tag]}`);
         }
       });
       
@@ -514,11 +596,11 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
       if (dataset.PixelData) {
         console.log(`Type: ${typeof dataset.PixelData}`);
         if (typeof dataset.PixelData === 'object') {
-          console.log(`Is Array: ${Array.isArray(dataset.PixelData)}`);
-          console.log(`Has Buffer: ${!!dataset.PixelData.buffer}`);
-          console.log(`Has ByteArray: ${!!dataset.PixelData.byteArray}`);
+          //console.log(`Is Array: ${Array.isArray(dataset.PixelData)}`);
+          //console.log(`Has Buffer: ${!!dataset.PixelData.buffer}`);
+          //console.log(`Has ByteArray: ${!!dataset.PixelData.byteArray}`);
           if (dataset.PixelData.byteArray) {
-            console.log(`ByteArray length: ${dataset.PixelData.byteArray.length}`);
+            //console.log(`ByteArray length: ${dataset.PixelData.byteArray.length}`);
           }
         }
         
@@ -536,7 +618,7 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
                             (dataset.BitsAllocated === 16 ? 2 : 1) * 
                             (dataset.SamplesPerPixel || 1);
         
-        console.log(`Pixel Data Length: ${pixelDataLength}, Expected: ${expectedLength}`);
+        //console.log(`Pixel Data Length: ${pixelDataLength}, Expected: ${expectedLength}`);
         
         // Show a few values from pixel data if possible
         try {
@@ -551,9 +633,9 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
               }
             }
           }
-          console.log(`Sample values: ${sampleValues.join(', ')}`);
+          //console.log(`Sample values: ${sampleValues.join(', ')}`);
         } catch (e) {
-          console.log(`Could not extract sample values: ${e.message}`);
+          //console.log(`Could not extract sample values: ${e.message}`);
         }
       } else {
         console.log('No Pixel Data found!');
@@ -578,30 +660,30 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         if (Array.isArray(value)) {
           if (value.length > 10) {
             // Truncate long arrays
-            console.log(`${key}: Array[${value.length}] = [${value.slice(0, 5).join(', ')}... and ${value.length - 5} more items]`);
+            //console.log(`${key}: Array[${value.length}] = [${value.slice(0, 5).join(', ')}... and ${value.length - 5} more items]`);
           } else {
-            console.log(`${key}: [${value.join(', ')}]`);
+            //console.log(`${key}: [${value.join(', ')}]`);
           }
         } else if (typeof value === 'object' && value !== null) {
           // Handle objects and buffers
           if (value.buffer) {
-            console.log(`${key}: TypedArray(length=${value.length})`);
+            //console.log(`${key}: TypedArray(length=${value.length})`);
           } else {
             try {
               // Try to stringify if it's a simple object
               const objStr = JSON.stringify(value);
               if (objStr.length > 100) {
-                console.log(`${key}: ${objStr.substring(0, 100)}...`);
+                //console.log(`${key}: ${objStr.substring(0, 100)}...`);
               } else {
-                console.log(`${key}: ${objStr}`);
+                //console.log(`${key}: ${objStr}`);
               }
             } catch (e) {
-              console.log(`${key}: [Complex Object]`);
+              //console.log(`${key}: [Complex Object]`);
             }
           }
         } else {
           // Handle primitive values
-          console.log(`${key}: ${value}`);
+          //console.log(`${key}: ${value}`);
         }
       });
       
@@ -627,27 +709,27 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         };
         
         if (compressionTypes[transferSyntax]) {
-          console.log(`Transfer Syntax: ${transferSyntax} - ${compressionTypes[transferSyntax]}`);
+          //console.log(`Transfer Syntax: ${transferSyntax} - ${compressionTypes[transferSyntax]}`);
           
           if (transferSyntax !== '1.2.840.10008.1.2' && 
               transferSyntax !== '1.2.840.10008.1.2.1' && 
               transferSyntax !== '1.2.840.10008.1.2.2') {
-            console.log('WARNING: This file uses compressed pixel data format.');
-            console.log('dcmjs may not be able to handle this compression type.');
-            console.log('Consider using a library like cornerstone or dicom-parser with decompression support.');
+            //console.log('WARNING: This file uses compressed pixel data format.');
+            //console.log('dcmjs may not be able to handle this compression type.');
+            //console.log('Consider using a library like cornerstone or dicom-parser with decompression support.');
           } else {
-            console.log('This file uses uncompressed pixel data, which should be compatible with dcmjs.');
+           // console.log('This file uses uncompressed pixel data, which should be compatible with dcmjs.');
           }
         } else {
-          console.log(`Transfer Syntax: ${transferSyntax} - Unknown format`);
+          //console.log(`Transfer Syntax: ${transferSyntax} - Unknown format`);
         }
       } else {
-        console.log('No TransferSyntaxUID found. Cannot determine compression type.');
+        //console.log('No TransferSyntaxUID found. Cannot determine compression type.');
       }
       
       return dataset;
     } catch (error) {
-      console.error('Error reading DICOM info:', error);
+      //console.error('Error reading DICOM info:', error);
       return null;
     }
   }
@@ -727,30 +809,282 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
   }
 
 
-  async function convertToVtk(inputPath, outputPath) {
+  async function convertToVtk(dicomFiles, outputPath) {
     try {
-      // Read the DICOM file
-      const dicomFileBuffer = fs.readFileSync(inputPath);
-  
-      // Set the DICOM data on the reader
-      vtkDICOMImageReader.parseAsArrayBuffer(dicomFileBuffer);
-  
-      // Get the image data from the reader
-      const imageData = vtkDICOMImageReader.getOutputData();
-  
-      // Write the image data to a VTK file
-      const writer = vtkXMLImageDataWriter.newInstance();
-      writer.setInputData(imageData);
-      writer.setFileName(outputPath);
-      writer.write();
-  
-      console.log(`Successfully converted ${inputPath} to ${outputPath}`);
-    } catch (error) {
-      console.error('Error converting DICOM to VTK:', error);
-      throw error;
-    }
-  }
+        // Create an array to store all slices
+        const slices = [];
+        
+        // Load and sort all DICOM files
+        for (const filePath of dicomFiles) {
+            const dicomFileBuffer = fs.readFileSync(filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+            
+            // Extract position and orientation information
+            const position = dataset.ImagePositionPatient || [0, 0, 0];
+            const orientation = dataset.ImageOrientationPatient || [1, 0, 0, 0, 1, 0];
+            const spacing = dataset.PixelSpacing || [1, 1];
+            const sliceThickness = dataset.SliceThickness || 1;
+            
+            slices.push({
+                dataset,
+                position,
+                orientation,
+                spacing: [...spacing, sliceThickness],
+                imageData: dataset.PixelData,
+                rows: dataset.Rows,
+                columns: dataset.Columns,
+                zPosition: position[2] // For sorting slices
+            });
+        }
+        
+        // Sort slices by z-position
+        slices.sort((a, b) => a.zPosition - b.zPosition);
+        
+        // Create VTK data structure
+        const dimensions = [
+            slices[0].columns,
+            slices[0].rows,
+            slices.length
+        ];
+        
+        const spacing = [
+            slices[0].spacing[0],
+            slices[0].spacing[1],
+            slices[0].spacing[2]
+        ];
+        
+        // Create the volume data
+        const volumeData = new Float32Array(dimensions[0] * dimensions[1] * dimensions[2]);
+        
+        // Fill volume data from slices
+        slices.forEach((slice, zIndex) => {
+            const pixelData = new Float32Array(slice.imageData.buffer);
+            const sliceOffset = zIndex * dimensions[0] * dimensions[1];
+            
+            for (let y = 0; y < dimensions[1]; y++) {
+                for (let x = 0; x < dimensions[0]; x++) {
+                    const sourceIndex = y * dimensions[0] + x;
+                    const targetIndex = sliceOffset + sourceIndex;
+                    volumeData[targetIndex] = pixelData[sourceIndex];
+                }
+            }
+        });
+        
+        // Write VTK file
+        const vtkContent = `# vtk DataFile Version 3.0
+                            converted from DICOM
+                            BINARY
+                            DATASET STRUCTURED_POINTS
+                            DIMENSIONS ${dimensions.join(' ')}
+                            ORIGIN ${slices[0].position.join(' ')}
+                            SPACING ${spacing.join(' ')}
+                            POINT_DATA ${volumeData.length}
+                            SCALARS intensity float
+                            LOOKUP_TABLE default
+                            `;
 
+        // Write header as ASCII
+        fs.writeFileSync(outputPath, vtkContent);
+        
+        // Append binary data
+        const buffer = Buffer.from(volumeData.buffer);
+        fs.appendFileSync(outputPath, buffer);
+        
+        console.log(`Successfully converted ${dicomFiles.length} files to VTP: ${outputPath}`);
+        return outputPath;
+    } catch (error) {
+        console.error('Error converting DICOM to VTK:', error);
+        throw error;
+    }
+}
+
+
+async function convertToVtp(dicomFiles, outputPath) {
+  try {
+      // Create an array to store all slices
+      const slices = [];
+      
+      // Load and sort all DICOM files
+      for (const filePath of dicomFiles) {
+          const dicomFileBuffer = fs.readFileSync(filePath);
+          const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+          const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+          
+          // Extract position and orientation information
+          const position = dataset.ImagePositionPatient || [0, 0, 0];
+          const orientation = dataset.ImageOrientationPatient || [1, 0, 0, 0, 1, 0];
+          const spacing = dataset.PixelSpacing || [1, 1];
+          const sliceThickness = dataset.SliceThickness || 1;
+          
+          slices.push({
+              dataset,
+              position,
+              orientation,
+              spacing: [...spacing, sliceThickness],
+              imageData: dataset.PixelData,
+              rows: dataset.Rows,
+              columns: dataset.Columns,
+              zPosition: position[2]
+          });
+      }
+      
+      // Sort slices by z-position
+      slices.sort((a, b) => a.zPosition - b.zPosition);
+      
+      // Create XML structure for VTP file
+      const vtpContent = `<?xml version="1.0"?>
+<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian" header_type="UInt32" compressor="vtkZLibDataCompressor">
+<PolyData>
+  <Piece NumberOfPoints="${slices.length * slices[0].rows * slices[0].columns}" NumberOfVerts="0" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="0">
+    <Points>
+      <DataArray type="Float32" NumberOfComponents="3" format="binary">
+        ${generatePointsData(slices)}
+      </DataArray>
+    </Points>
+    <PointData Scalars="ImageScalars">
+      <DataArray type="Float32" Name="ImageScalars" format="binary">
+        ${generateScalarsData(slices)}
+      </DataArray>
+    </PointData>
+  </Piece>
+</PolyData>
+</VTKFile>`;
+
+      // Write VTP file
+      fs.writeFileSync(outputPath, vtpContent);
+      console.log(`Successfully converted ${dicomFiles.length} files to VTP: ${outputPath}`);
+      return outputPath;
+  } catch (error) {
+      console.error('Error converting DICOM to VTP:', error);
+      throw error;
+  }
+}
+
+
+async function convertToVti(dicomFiles, outputPath) {
+  try {
+      // Create an array to store all slices
+      const slices = [];
+      
+      // Load and sort all DICOM files
+      for (const filePath of dicomFiles) {
+          const dicomFileBuffer = fs.readFileSync(filePath);
+          const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+          const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+          
+          // Extract position and orientation information
+          const position = dataset.ImagePositionPatient || [0, 0, 0];
+          const spacing = dataset.PixelSpacing || [1, 1];
+          const sliceThickness = dataset.SliceThickness || 1;
+          
+          slices.push({
+              dataset,
+              position,
+              spacing: [...spacing, sliceThickness],
+              imageData: dataset.PixelData,
+              rows: dataset.Rows,
+              columns: dataset.Columns,
+              zPosition: position[2]
+          });
+      }
+      
+      // Sort slices by z-position
+      slices.sort((a, b) => a.zPosition - b.zPosition);
+      
+      // Get dimensions from first slice
+      const dimensions = [
+          slices[0].columns,
+          slices[0].rows,
+          slices.length
+      ];
+      
+      const spacing = [
+          slices[0].spacing[0],
+          slices[0].spacing[1],
+          slices[0].spacing[2]
+      ];
+
+      // Create volume data
+      const volumeData = new Float32Array(dimensions[0] * dimensions[1] * dimensions[2]);
+      
+      // Fill volume data from slices
+      slices.forEach((slice, zIndex) => {
+          const pixelData = new Float32Array(slice.imageData.buffer);
+          const sliceOffset = zIndex * dimensions[0] * dimensions[1];
+          
+          for (let y = 0; y < dimensions[1]; y++) {
+              for (let x = 0; x < dimensions[0]; x++) {
+                  const sourceIndex = y * dimensions[0] + x;
+                  const targetIndex = sliceOffset + sourceIndex;
+                  volumeData[targetIndex] = pixelData[sourceIndex];
+              }
+          }
+      });
+
+      // Create VTI file content
+      const vtiContent = `<?xml version="1.0"?>
+<VTKFile type="ImageData" version="1.0" byte_order="LittleEndian" header_type="UInt32">
+<ImageData WholeExtent="0 ${dimensions[0]-1} 0 ${dimensions[1]-1} 0 ${dimensions[2]-1}"
+           Origin="${slices[0].position.join(' ')}"
+           Spacing="${spacing.join(' ')}">
+  <Piece Extent="0 ${dimensions[0]-1} 0 ${dimensions[1]-1} 0 ${dimensions[2]-1}">
+    <PointData>
+      <DataArray type="Float32" Name="ImageScalars" NumberOfComponents="1" format="binary">
+        ${Buffer.from(volumeData.buffer).toString('base64')}
+      </DataArray>
+    </PointData>
+    <CellData>
+    </CellData>
+  </Piece>
+</ImageData>
+</VTKFile>`;
+
+      // Write VTI file
+      fs.writeFileSync(outputPath.replace('.vtp', '.vti'), vtiContent);
+      console.log(`Successfully converted ${dicomFiles.length} files to VTI: ${outputPath}`);
+      return outputPath.replace('.vtp', '.vti');
+  } catch (error) {
+      console.error('Error converting DICOM to VTI:', error);
+      throw error;
+  }
+}
+
+function generatePointsData(slices) {
+  // Create points array for all voxels
+  const points = [];
+  const spacing = slices[0].spacing;
+  
+  slices.forEach((slice, z) => {
+      for (let y = 0; y < slice.rows; y++) {
+          for (let x = 0; x < slice.columns; x++) {
+              points.push(
+                  x * spacing[0],
+                  y * spacing[1],
+                  z * spacing[2]
+              );
+          }
+      }
+  });
+
+  // Convert to base64
+  const buffer = Buffer.from(new Float32Array(points).buffer);
+  return buffer.toString('base64');
+}
+
+function generateScalarsData(slices) {
+  // Create scalar array for all voxels
+  const scalars = [];
+  
+  slices.forEach(slice => {
+      const pixelData = new Float32Array(slice.imageData.buffer);
+      scalars.push(...Array.from(pixelData));
+  });
+
+  // Convert to base64
+  const buffer = Buffer.from(new Float32Array(scalars).buffer);
+  return buffer.toString('base64');
+}
 
   app.get('/list-uploads', async (req, res) => {
     try {
@@ -774,8 +1108,12 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
                     const nestedFiles = await findJsonFiles(fullPath);
                     jsonFiles.push(...nestedFiles);
                 } else if (item.name === 'dicom_info.json') {
-                    // Found a JSON file
-                    jsonFiles.push(fullPath);
+                    // Find associated VTI file in the same directory
+                    const vtiPath = path.join(path.dirname(fullPath), 'volume.vti');
+                    jsonFiles.push({
+                        jsonPath: fullPath,
+                        vtiPath: fs.existsSync(vtiPath) ? vtiPath : null
+                    });
                 }
             }
             
@@ -790,7 +1128,8 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
         // Format the results with normalized paths
         const normalizedPaths = jsonFiles.map((filePath, index) => ({
           index: index + 1,  
-          path: removePathBeforeUploads(filePath.replace(/\\/g, '/')) // Normalize path separators
+          path: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/')), // Normalize path separators
+          vtiPath:removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vti')) // filePath.vtiPath ? removePathBeforeUploads(filePath.vtiPath.replace(/\\/g, '/')) : null
         }));
 
         // Write to index.json
