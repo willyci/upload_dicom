@@ -188,7 +188,7 @@
                         <span>📄 Files: ${result.processedFiles.length}</span>
                     </div>
                     <div class="flex gap-sm flex-wrap">
-                        <a href="${result.jsonPath}" target="_blank" class="btn btn-secondary">View JSON</a>
+                        <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">View JSON</a>
                         <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D</a>
                         <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
                     </div>
@@ -217,7 +217,11 @@
                 const uploadsGrid = document.getElementById('uploadsGrid');
                 const uploadCount = document.getElementById('uploadCount');
 
-                uploadCount.textContent = `${data.folders.length} uploads`;
+                if (data.folders.length > 0) {
+                    uploadCount.innerHTML = `<a href="/json-viewer.html?path=${encodeURIComponent(data.indexPath)}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed currentColor;">${data.folders.length} uploads</a>`;
+                } else {
+                    uploadCount.textContent = `${data.folders.length} uploads`;
+                }
 
                 if (data.folders.length === 0) {
                     uploadsGrid.innerHTML = `
@@ -248,7 +252,7 @@
                                     <span>⏰ ${date.toLocaleTimeString()}</span>
                                 </div>
                                 <div class="folder-actions">
-                                    <a href="${folder.path}" target="_blank" class="action-btn">📄 JSON</a>
+                                    <a href="/json-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📄 JSON</a>
                                     <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 3D View</a>
                                     <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
                                 </div>

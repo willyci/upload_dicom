@@ -180,6 +180,9 @@
                 <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy JSON</button>
                 <button class="btn btn-primary" onclick="downloadJSON()">⬇️ Download</button>
             </div>
+            <div id="jsonPathDisplay"
+                style="font-family: monospace; color: var(--text-muted); margin-bottom: var(--spacing-md); word-break: break-all; padding: 0 var(--spacing-sm);">
+            </div>
 
             <div id="jsonViewer" class="json-viewer">
                 <div class="spinner"></div>
@@ -209,8 +212,11 @@
                 renderJSON();
 
                 // Update page title
-                const folderName = jsonPath.split('/').pop().replace('.json', '').split('_')[1] || 'DICOM Data';
+                const parts = jsonPath.split('/');
+                const dirName = parts[parts.length - 2];
+                const folderName = dirName.split('_').slice(1).join('_') || 'DICOM Data';
                 document.getElementById('pageTitle').textContent = `${folderName} - JSON Data`;
+                document.getElementById('jsonPathDisplay').textContent = window.location.origin + jsonPath;
 
             } catch (error) {
                 console.error('Error loading JSON:', error);
