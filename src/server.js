@@ -1003,10 +1003,12 @@ async function convertToVtp(dicomFiles, outputPath) {
 
 async function convertToVti(dicomFiles, outputPath) {
     try {
-        console.log('Converting DICOM to VTI using dcmjs/vtk.js...');
+        console.log('Converting DICOM to VTI using dcmjs/vtk.js (Two-Pass Memory Optimized)...');
         
         const slices = [];
         
+        // Pass 1: Metadata only
+        console.log('Pass 1: Reading metadata...');
         for (const filePath of dicomFiles) {
             const dicomFileBuffer = fs.readFileSync(filePath);
             const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
@@ -1017,7 +1019,7 @@ async function convertToVti(dicomFiles, outputPath) {
             const sliceThickness = dataset.SliceThickness || 1;
             
             slices.push({
-                dataset,
+                filePath, // Store path instead of dataset
                 position,
                 spacing: [...spacing, sliceThickness],
                 rows: dataset.Rows,
@@ -1039,11 +1041,18 @@ async function convertToVti(dicomFiles, outputPath) {
         const origin = slices[0].position;
         
         const totalSize = rows * columns * depth;
+        console.log(`Allocating volume data: ${rows}x${columns}x${depth} (${(totalSize * 4 / 1024 / 1024).toFixed(2)} MB)`);
         const volumeData = new Float32Array(totalSize);
         
+        // Pass 2: Pixel Data
+        console.log('Pass 2: Reading pixel data...');
         for (let z = 0; z < depth; z++) {
             const slice = slices[z];
-            const dataset = slice.dataset;
+            
+            // Read file again to get pixel data
+            const dicomFileBuffer = fs.readFileSync(slice.filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
             
             let pixelData;
             try {
@@ -1056,6 +1065,11 @@ async function convertToVti(dicomFiles, outputPath) {
             // Copy to volumeData
             for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
                 volumeData[z * rows * columns + i] = pixelData[i];
+            }
+            
+            // Optional: Trigger garbage collection if exposed (usually not in standard node without flags)
+            if (z % 50 === 0) {
+                 // console.log(`Processed slice ${z}/${depth}`);
             }
         }
         
