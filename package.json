@@ -6,8 +6,7 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node --experimental-modules src/server.js",
-    "dev": "nodemon --experimental-modules src/server.js",
-    "postinstall": "(python3 -m pip install -r requirements.txt --break-system-packages || python -m pip install -r requirements.txt --break-system-packages) || (python3 -m pip install -r requirements.txt || python -m pip install -r requirements.txt)"
+    "dev": "nodemon --experimental-modules src/server.js"
   },
   "dependencies": {
     "@itk-wasm/dicom": "^7.6.0",
