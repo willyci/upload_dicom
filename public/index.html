@@ -1,81 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload DICOM Files, convert to jpg</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .upload-section {
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .progress {
-            margin-top: 20px;
-            display: none;
-        }
-        #status {
-            margin-top: 20px;
-        }
-        .upload-list {
-            margin: 20px;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .upload-item {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 3px;
-        }
-        .upload-date {
-            color: #666;
-            font-size: 0.9em;
-        }
-        .dicom-files {
-            margin-left: 20px;
-            font-size: 0.9em;
-        }
-    </style>
+    <title>DICOM Processor - Upload & Process Medical Images</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h1>Upload DICOM Files</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="dicomZip">Upload ZIP file:</label>
-        <input type="file" id="dicomZip" name="file" accept=".zip" required>
-        <button type="submit">Upload</button>
-    </form>
-    <div class="progress" style="display: none;">Uploading...</div>
-    <div id="status"></div>
 
-    <hr/>
-    <div class="upload-list">
-        <h2>Uploaded DICOM Files <a href="/uploads/index.json" target="_blank">index.json</a></h2>
-        <div id="uploadsList">Loading....</div>
-    </div>
-    <hr/>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">📊 DICOM Processor</div>
+                <nav>
+                    <ul>
+                        <li><a href="/">Home</a></li>
+                        <li><a href="#uploads">Uploads</a></li>
+                        <li><a href="/VolumeViewer.html">3D Viewer</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="text-center mt-xl mb-xl fade-in">
+            <h1>Medical Image Processing</h1>
+            <p style="font-size: 1.125rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">
+                Upload your DICOM files and automatically generate JPG previews, bump maps, and 3D volumetric data for
+                visualization.
+            </p>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="card mb-xl fade-in">
+            <h2 class="card-title">📤 Upload DICOM Files</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📁</div>
+                    <h3>Drop your ZIP file here</h3>
+                    <p style="color: var(--text-muted); margin-bottom: var(--spacing-lg);">
+                        or click to browse
+                    </p>
+                    <input type="file" id="fileInput" name="file" accept=".zip" style="display: none;">
+                    <button type="button" class="btn btn-primary"
+                        onclick="document.getElementById('fileInput').click()">
+                        Select ZIP File
+                    </button>
+                </div>
+
+                <div id="uploadProgress" class="hidden mt-lg">
+                    <div class="flex items-center justify-between mb-sm">
+                        <span id="uploadStatus">Uploading...</span>
+                        <span id="uploadPercent">0%</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="uploadResult" class="hidden mt-lg"></div>
+            </form>
+        </section>
+
+        <!-- Uploads Grid -->
+        <section id="uploads">
+            <div class="flex items-center justify-between mb-lg">
+                <h2>Recent Uploads</h2>
+                <span class="badge badge-success" id="uploadCount">Loading...</span>
+            </div>
+
+            <div id="uploadsGrid" class="grid grid-3">
+                <div class="text-center" style="grid-column: 1 / -1;">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script>
-        document.querySelector('form').addEventListener('submit', async function(event) {
-            event.preventDefault();
-            const fileInput = document.getElementById('dicomZip');
-            const statusDiv = document.getElementById('status');
+        // File upload handling
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const uploadPercent = document.getElementById('uploadPercent');
+        const progressBar = document.getElementById('progressBar');
+        const uploadResult = document.getElementById('uploadResult');
 
-            if (!fileInput.files.length) {
-                alert('Please select a file');
-                return;
+        // Drag and drop handlers
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleUpload();
             }
+        });
 
+        // File input change handler
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleUpload();
+            }
+        });
+
+        // Handle file upload
+        async function handleUpload() {
             const file = fileInput.files[0];
-            if (!file.name.toLowerCase().endsWith('.zip')) {
+
+            if (!file || !file.name.toLowerCase().endsWith('.zip')) {
                 alert('Please select a ZIP file');
                 return;
             }
@@ -83,81 +133,143 @@
             const formData = new FormData();
             formData.append('file', file);
 
+            uploadProgress.classList.remove('hidden');
+            uploadResult.classList.add('hidden');
+            uploadStatus.textContent = 'Uploading...';
+
             try {
-                document.querySelector('.progress').style.display = 'block';
-                
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        uploadPercent.textContent = `${percent}%`;
+                        progressBar.style.width = `${percent}%`;
+
+                        if (percent === 100) {
+                            uploadStatus.textContent = 'Processing DICOM files...';
+                        }
+                    }
                 });
 
-                const result = await response.json();
-                
-                if (response.ok) {
-                    statusDiv.innerHTML = `
-                        <h3>Processing Complete</h3>
-                        <p>Folder: ${result.folder}</p>
-                        <p>Processed ${result.processedFiles.length} files</p>
-                        <p>Json file: <a href="${result.jsonPath}" target="_blank">${result.jsonPath}</a></p>
-                        <p>Created JPG and VTP files</p>
-                    `;
-                    // Reload the page after a short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000); // 1 second delay
-                } else {
-                    throw new Error(result.message || 'Upload failed');
-                }
-            } catch (error) {
-                statusDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-            } finally {
-                document.querySelector('.progress').style.display = 'none';
-            }
-        });
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const result = JSON.parse(xhr.responseText);
+                        showUploadSuccess(result);
+                        setTimeout(() => {
+                            loadUploads();
+                        }, 1000);
+                    } else {
+                        const error = JSON.parse(xhr.responseText);
+                        showUploadError(error.message || 'Upload failed');
+                    }
+                });
 
-        document.addEventListener('DOMContentLoaded', async () => {
+                xhr.addEventListener('error', () => {
+                    showUploadError('Network error occurred');
+                });
+
+                xhr.open('POST', '/upload');
+                xhr.send(formData);
+
+            } catch (error) {
+                showUploadError(error.message);
+            }
+        }
+
+        function showUploadSuccess(result) {
+            uploadProgress.classList.add('hidden');
+            uploadResult.classList.remove('hidden');
+            uploadResult.innerHTML = `
+                <div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success);">
+                    <h3 style="color: var(--success); margin-bottom: var(--spacing-md);">✓ Processing Complete</h3>
+                    <div class="flex gap-md" style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
+                        <span>📁 Folder: ${result.folder}</span>
+                        <span>📄 Files: ${result.processedFiles.length}</span>
+                    </div>
+                    <div class="flex gap-sm flex-wrap">
+                        <a href="${result.jsonPath}" target="_blank" class="btn btn-secondary">View JSON</a>
+                        <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D</a>
+                        <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
+                    </div>
+                </div>
+            `;
+            fileInput.value = '';
+        }
+
+        function showUploadError(message) {
+            uploadProgress.classList.add('hidden');
+            uploadResult.classList.remove('hidden');
+            uploadResult.innerHTML = `
+                <div class="card" style="background: rgba(239, 68, 68, 0.1); border-color: var(--error);">
+                    <h3 style="color: var(--error);">✗ Upload Failed</h3>
+                    <p style="color: var(--text-secondary);">${message}</p>
+                </div>
+            `;
+        }
+
+        // Load uploads
+        async function loadUploads() {
             try {
                 const response = await fetch('/list-uploads');
                 const data = await response.json();
-                
-                const uploadsListDiv = document.getElementById('uploadsList');
-                
+
+                const uploadsGrid = document.getElementById('uploadsGrid');
+                const uploadCount = document.getElementById('uploadCount');
+
+                uploadCount.textContent = `${data.folders.length} uploads`;
+
                 if (data.folders.length === 0) {
-                    uploadsListDiv.innerHTML = '<p>No uploads found</p>';
+                    uploadsGrid.innerHTML = `
+                        <div class="text-center" style="grid-column: 1 / -1; padding: var(--spacing-2xl);">
+                            <div style="font-size: 4rem; opacity: 0.3; margin-bottom: var(--spacing-md);">📂</div>
+<p style="color: var(--text-muted);">No uploads yet. Upload your first DICOM ZIP file to get started!</p>
+                        </div>
+                    `;
                     return;
                 }
 
-                uploadsListDiv.innerHTML = data.folders.map((folder, index) => {
-                    const date = new Date(folder.date).toLocaleString();
-                    let filesHtml = '';
-                    
-                    // if (folder.info) {
-                    //     filesHtml = `
-                    //         <div class="dicom-files">
-                    //             ${folder.info.map(file => `
-                    //                 <div>
-                    //                     <a href="${file.jpgPath}" target="_blank">View Image</a>
-                    //                     ${file.vtkPath ? `| <a href="${file.vtkPath}" target="_blank">Download VTK</a>` : ''}
-                    //                 </div>
-                    //             `).join('')}
-                    //         </div>
-                    //     `;
-                    // }
+                uploadsGrid.innerHTML = data.folders.map((folder, index) => {
+                    const parts = folder.path.split('/');
+                    const dirName = parts[parts.length - 2];
+                    const folderName = dirName.split('_').slice(1).join('_') || `Upload ${index + 1}`;
+                    const timestamp = dirName.split('_')[0];
+                    const date = new Date(parseInt(timestamp));
 
                     return `
-                        <div class="upload-item">
-                            <div><a href="${folder.path}" target="_blank">${index+1}. View json: ${folder.path}</a></div>                             
-                                        
-            ${folder.vtiPath ? ` | <a href="volumeviewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank">View Volume</a>` : ''}
+                        <div class="folder-card fade-in" style="animation-delay: ${index * 0.1}s;">
+                            <div class="folder-thumbnail">
+                                <span>🏥</span>
                             </div>
+                            <div class="folder-info">
+                                <div class="folder-name">${folderName}</div>
+                                <div class="folder-meta">
+                                    <span>📅 ${date.toLocaleDateString()}</span>
+                                    <span>⏰ ${date.toLocaleTimeString()}</span>
+                                </div>
+                                <div class="folder-actions">
+                                    <a href="${folder.path}" target="_blank" class="action-btn">📄 JSON</a>
+                                    <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 3D View</a>
+                                    <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
+                                </div>
+                            </div>
+                        </div>
                     `;
                 }).join('');
+
             } catch (error) {
-                console.error('Error fetching uploads:', error);
-                document.getElementById('uploadsList').innerHTML = 
-                    '<p style="color: red;">Error loading uploads</p>';
+                console.error('Error loading uploads:', error);
+                document.getElementById('uploadsGrid').innerHTML = `
+                    <div class="text-center" style="grid-column: 1 / -1;">
+                        <p style="color: var(--error);">Error loading uploads</p>
+                    </div>
+                `;
             }
-        });
+        }
+
+        // Load uploads on page load
+        document.addEventListener('DOMContentLoaded', loadUploads);
     </script>
 </body>
+
 </html>

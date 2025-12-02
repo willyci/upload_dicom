@@ -1,32 +1,48 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const unzipper = require('unzipper');
-const dicomParser = require('dicom-parser');
-const sharp = require('sharp');
-const { promisify } = require('util');
+import { EventEmitter } from 'events';
+EventEmitter.defaultMaxListeners = 20; // Increase the limit as needed
+
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import unzipper from 'unzipper';
+import dicomParser from 'dicom-parser';
+import sharp from 'sharp';
+import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+import { createCanvas } from 'canvas';
+import dcmjs from 'dcmjs';
+import * as itkWasm from 'itk-wasm';
+import '@itk-wasm/image-io';
+import '@itk-wasm/dicom';
+import { readImageDicomFileSeriesNode } from '@itk-wasm/dicom';
+import vtkITKImageReader from '@kitware/vtk.js/IO/Misc/ITKImageReader.js';
+import vtkXMLImageDataWriter from '@kitware/vtk.js/IO/XML/XMLImageDataWriter.js';
+import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData.js';
+import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+console.log('dcmjs path:', require.resolve('dcmjs'));
+
+console.log('dcmjs keys:', Object.keys(dcmjs));
+const dcmjsData = dcmjs.default?.data || dcmjs.data;
+if (dcmjsData) console.log('dcmjsData keys:', Object.keys(dcmjsData));
+const { DicomMetaDictionary, DicomMessage } = dcmjsData;
+console.log('DicomMessage keys:', Object.keys(DicomMessage));
+console.log('DicomMessage.readFile type:', typeof DicomMessage.readFile);
 const mkdir = promisify(fs.mkdir);
-const dcmjs = require('dcmjs');
-const { DicomMetaDictionary, DicomMessage } = dcmjs.data;
-const dcmjsImaging = require('dcmjs-imaging');
-const { createCanvas } = require('canvas');
-//const vtkDICOMImageReader = require('vtk.js/Sources/IO/Misc/ITKImageReader');
-//const sharp = require('sharp');
-const vtkITKImageReader = require('@kitware/vtk.js/IO/Misc/ITKImageReader');
-const vtkXMLImageDataWriter = require('@kitware/vtk.js/IO/XML/XMLImageDataWriter');
-const vtkImageData = require('@kitware/vtk.js/Common/DataModel/ImageData');
-const vtkDataArray = require('@kitware/vtk.js/Common/Core/DataArray');
-//const itk = require('itk/dist/itkjs.js');
-const itkWasm = require('itk-wasm');
-require('itk-dicom-io');
-require('itk-image-io');
-const vtkWriter = require('@kitware/vtk.js/IO/Misc/ITKImageWriter');
 
 // vkt vti
 // The current vti supported format is ascii, binary and binary+zlib compression.
 //https://kitware.github.io/vtk-js/examples/VolumeViewer.html#Source
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+//const { DicomMetaDictionary, DicomMessage } = dcmjs.data;
+//const mkdir = promisify(fs.mkdir);
 
 const app = express();
 const upload = multer({ dest: 'public/uploads/' });
@@ -200,13 +216,22 @@ async function processDirectory(dirPath) {
                         const outputPath = `${currentPath}.jpg`;
                         await convertToJpg(currentPath, outputPath);
 
-                        //const outputPathVtk = `${filePath}.vtk`;
-                        //await convertToVtk(filePath, outputPathVtk);
+                        // Generate bump map
+                        const bumpMapPath = `${currentPath}_bump.jpg`;
+                        try {
+                            const dicomFileBuffer = fs.readFileSync(currentPath);
+                            const dataSet = dicomParser.parseDicom(dicomFileBuffer);
+                            await generateBumpMap(dataSet, bumpMapPath);
+                            console.log('Successfully generated bump map:', bumpMapPath);
+                        } catch (bumpError) {
+                            console.error(`Error generating bump map for ${file}:`, bumpError);
+                        }
 
                         const dicomInfo = showDicomInfo(filePath);
                         processedFiles.push({
                             dicomPath: removePathBeforeUploads(filePath),
                             jpgPath: removePathBeforeUploads(outputPath),
+                            bumpMapPath: removePathBeforeUploads(bumpMapPath),
                             vtiPath: removePathBeforeUploads(vtiPath),
                             dicomInfo: dicomInfo
                         });
@@ -977,65 +1002,87 @@ async function convertToVtp(dicomFiles, outputPath) {
 
 
 async function convertToVti(dicomFiles, outputPath) {
-  try {
-    // Initialize ITK-WASM
-    await itkWasm.ready;
-    
-    const directory = path.dirname(dicomFiles[0]);
-    console.log('Reading DICOM series from:', directory);
-
-    // Create a temporary directory for the DICOM files
-    const tempDir = path.join(directory, 'temp_dicom');
-    if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    // Copy DICOM files to temp directory
-    for (const file of dicomFiles) {
-        const destPath = path.join(tempDir, path.basename(file));
-        fs.copyFileSync(file, destPath);
-    }
-
-    // Read the DICOM series
-    console.log('Reading DICOM series...');
-    const image = await itkWasm.readImageDICOMFileSeries(tempDir);
-
-    // Create VTK image data
-    const vtkImage = vtkImageData.newInstance();
-    
-    // Set dimensions
-    vtkImage.setDimensions(image.size);
-    vtkImage.setSpacing(image.spacing);
-    vtkImage.setOrigin(image.origin);
-
-    // Set pixel data
-    const scalars = vtkDataArray.newInstance({
-        name: 'Scalars',
-        values: new Float32Array(image.data.buffer),
-        numberOfComponents: 1
-    });
-    vtkImage.getPointData().setScalars(scalars);
-
-    // Write VTI file
-    const writer = vtkXMLImageDataWriter.newInstance();
-    writer.setInputData(vtkImage);
-    writer.setFileName(outputPath);
-    writer.setBinaryOutputType(true);
-    await writer.write();
-
-    // Clean up temp directory
-    fs.rmSync(tempDir, { recursive: true, force: true });
-
-    if (fs.existsSync(outputPath)) {
+    try {
+        console.log('Converting DICOM to VTI using dcmjs/vtk.js...');
+        
+        const slices = [];
+        
+        for (const filePath of dicomFiles) {
+            const dicomFileBuffer = fs.readFileSync(filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+            
+            const position = dataset.ImagePositionPatient || [0, 0, 0];
+            const spacing = dataset.PixelSpacing || [1, 1];
+            const sliceThickness = dataset.SliceThickness || 1;
+            
+            slices.push({
+                dataset,
+                position,
+                spacing: [...spacing, sliceThickness],
+                rows: dataset.Rows,
+                columns: dataset.Columns,
+                zPosition: position[2]
+            });
+        }
+        
+        if (slices.length === 0) {
+            throw new Error('No DICOM files found');
+        }
+        
+        slices.sort((a, b) => a.zPosition - b.zPosition);
+        
+        const rows = slices[0].rows;
+        const columns = slices[0].columns;
+        const depth = slices.length;
+        const spacing = slices[0].spacing;
+        const origin = slices[0].position;
+        
+        const totalSize = rows * columns * depth;
+        const volumeData = new Float32Array(totalSize);
+        
+        for (let z = 0; z < depth; z++) {
+            const slice = slices[z];
+            const dataset = slice.dataset;
+            
+            let pixelData;
+            try {
+                pixelData = extractPixelData(dataset);
+            } catch (e) {
+                console.warn(`Failed to extract pixel data for slice ${z}:`, e);
+                pixelData = new Float32Array(rows * columns); // Zero filled
+            }
+            
+            // Copy to volumeData
+            for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
+                volumeData[z * rows * columns + i] = pixelData[i];
+            }
+        }
+        
+        const vtkImage = vtkImageData.newInstance();
+        vtkImage.setDimensions([columns, rows, depth]);
+        vtkImage.setSpacing(spacing);
+        vtkImage.setOrigin(origin);
+        
+        const scalars = vtkDataArray.newInstance({
+            name: 'Scalars',
+            values: volumeData,
+            numberOfComponents: 1
+        });
+        vtkImage.getPointData().setScalars(scalars);
+        
+        const writer = vtkXMLImageDataWriter.newInstance();
+        writer.setFormat('binary');
+        const fileContents = writer.write(vtkImage);
+        fs.writeFileSync(outputPath, Buffer.from(fileContents));
+        
         console.log('Successfully wrote VTI file');
         return outputPath;
-    } else {
-        throw new Error('VTI file was not created');
+
+    } catch (error) {
+        console.error('Error converting DICOM to VTI:', error);
+        throw error;
     }
-} catch (error) {
-    console.error('Error converting DICOM to VTI:', error);
-    throw error;
-}
 }
 
 function generatePointsData(slices) {
@@ -1145,3 +1192,42 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+function extractPixelData(dataset) {
+    let rawPixelData;
+    if (!dataset.PixelData) {
+        throw new Error("No pixel data found in DICOM file");
+    }
+
+    if (dataset.PixelData.buffer) {
+        rawPixelData = dataset.PixelData;
+    } else if (Array.isArray(dataset.PixelData) && dataset.PixelData[0] instanceof ArrayBuffer) {
+        rawPixelData = new Uint8Array(dataset.PixelData[0]); // Assume single frame
+    } else if (typeof dataset.PixelData === 'object' && dataset.PixelData[0] && dataset.PixelData[0].buffer) {
+        rawPixelData = dataset.PixelData[0];
+    } else if (dataset.PixelData.byteArray) {
+        rawPixelData = dataset.PixelData.byteArray;
+    } else {
+        // Try to handle base64 string if dcmjs did that
+        if (typeof dataset.PixelData === 'string') {
+             const buffer = Buffer.from(dataset.PixelData, 'base64');
+             rawPixelData = new Uint8Array(buffer);
+        } else {
+             throw new Error("Unknown PixelData format");
+        }
+    }
+
+    const bitsAllocated = dataset.BitsAllocated || 16;
+    const pixelRepresentation = dataset.PixelRepresentation || 0;
+
+    let pixelData;
+    if (bitsAllocated <= 8) {
+        pixelData = new Uint8Array(rawPixelData.buffer || rawPixelData);
+    } else if (pixelRepresentation === 0) {
+        pixelData = new Uint16Array(rawPixelData.buffer || rawPixelData);
+    } else {
+        pixelData = new Int16Array(rawPixelData.buffer || rawPixelData);
+    }
+    
+    return pixelData;
+}

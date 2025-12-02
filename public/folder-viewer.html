@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folder Viewer - DICOM Processor</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-xl) 0;
+        }
+
+        .image-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary);
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%;
+            /* 4:3 aspect ratio */
+            background: var(--bg-secondary);
+            overflow: hidden;
+        }
+
+        .image-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .image-card:hover .image-container img {
+            transform: scale(1.1);
+        }
+
+        .image-info {
+            padding: var(--spacing-lg);
+        }
+
+        .image-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .tabs {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-xl);
+            border-bottom: 2px solid var(--glass-border);
+        }
+
+        .tab {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary-light);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: var(--radius-lg);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 1.5rem;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-close:hover {
+            background: var(--error);
+        }
+
+        .comparison-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .comparison-item {
+            text-align: center;
+        }
+
+        .comparison-item h4 {
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .comparison-item img {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">📊 DICOM Processor</div>
+                <nav>
+                    <ul>
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/#uploads">Uploads</a></li>
+                        <li><a href="/VolumeViewer.html">3D Viewer</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="mt-xl mb-lg">
+            <a href="/" class="btn btn-ghost" style="margin-bottom: var(--spacing-lg);">← Back to Home</a>
+            <h1 id="folderTitle">Loading...</h1>
+            <div class="flex gap-md mt-md">
+                <a id="jsonLink" href="#" target="_blank" class="btn btn-secondary">📄 View JSON</a>
+                <a id="vtiLink" href="#" target="_blank" class="btn btn-secondary">🎮 View 3D Volume</a>
+            </div>
+        </section>
+
+        <section>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('all')">All Images</button>
+                <button class="tab" onclick="switchTab('comparison')">Image Comparison</button>
+                <button class="tab" onclick="switchTab('bumpmaps')">Bump Maps Only</button>
+            </div>
+
+            <!-- All Images Tab -->
+            <div id="tab-all" class="tab-content active">
+                <div id="allImagesGrid" class="image-grid">
+                    <div class="text-center" style="grid-column: 1 / -1;">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Tab -->
+            <div id="tab-comparison" class="tab-content">
+                <div id="comparisonContainer">
+                    <div class="text-center">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bump Maps Tab -->
+            <div id="tab-bumpmaps" class="tab-content">
+                <div id="bumpmapsGrid" class="image-grid">
+                    <div class="text-center" style="grid-column: 1 / -1;">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <div class="lightbox-content">
+            <img id="lightboxImage" src="" alt="">
+        </div>
+    </div>
+
+    <script>
+        let folderData = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const jsonPath = urlParams.get('path');
+
+        async function loadFolderData() {
+            if (!jsonPath) {
+                alert('No folder path specified');
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const response = await fetch(jsonPath);
+                folderData = await response.json();
+
+                // Update page title and links
+                const folderName = jsonPath.split('/').pop().replace('.json', '').split('_')[1] || 'DICOM Folder';
+                document.getElementById('folderTitle').textContent = folderName;
+                document.getElementById('jsonLink').href = jsonPath;
+
+                // Get VTI path from first file
+                if (folderData.length > 0 && folderData[0].vtiPath) {
+                    document.getElementById('vtiLink').href = `/VolumeViewer.html?fileURL=${encodeURIComponent(folderData[0].vtiPath)}`;
+                }
+
+                renderAllImages();
+                renderComparison();
+                renderBumpMaps();
+
+            } catch (error) {
+                console.error('Error loading folder data:', error);
+                alert('Error loading folder data');
+            }
+        }
+
+        function renderAllImages() {
+            const grid = document.getElementById('allImagesGrid');
+
+            if (!folderData || folderData.length === 0) {
+                grid.innerHTML = '<p class="text-center" style="grid-column: 1 / -1;">No images found</p>';
+                return;
+            }
+
+            grid.innerHTML = folderData.map((file, index) => {
+                const fileName = file.dicomPath.split('/').pop();
+                return `
+                    <div class="image-card fade-in" style="animation-delay: ${index * 0.05}s;">
+                        <div class="image-container" onclick="openLightbox('${file.jpgPath}')">
+                            <img src="${file.jpgPath}" alt="${fileName}" loading="lazy">
+                        </div>
+                        <div class="image-info">
+                            <div class="image-title" title="${fileName}">${fileName}</div>
+                            <div class="image-actions">
+                                <button class="action-btn" onclick="openLightbox('${file.jpgPath}')">🔍 View</button>
+                                ${file.bumpMapPath ? `<button class="action-btn" onclick="openLightbox('${file.bumpMapPath}')">🗺️ Bump Map</button>` : ''}
+                                <a href="${file.dicomPath}" download class="action-btn">⬇️ DICOM</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderComparison() {
+            const container = document.getElementById('comparisonContainer');
+
+            if (!folderData || folderData.length === 0) {
+                container.innerHTML = '<p class="text-center">No images found</p>';
+                return;
+            }
+
+            container.innerHTML = folderData.filter(file => file.bumpMapPath).map((file, index) => {
+                const fileName = file.dicomPath.split('/').pop();
+                return `
+                    <div class="card fade-in" style="animation-delay: ${index * 0.1}s; margin-bottom: var(--spacing-xl);">
+                        <h3 class="card-title">${fileName}</h3>
+                        <div class="comparison-view">
+                            <div class="comparison-item">
+                                <h4>Original DICOM</h4>
+                                <img src="${file.jpgPath}" alt="${fileName}" onclick="openLightbox('${file.jpgPath}')">
+                            </div>
+                            <div class="comparison-item">
+                                <h4>Bump Map</h4>
+                                <img src="${file.bumpMapPath}" alt="${fileName} Bump Map" onclick="openLightbox('${file.bumpMapPath}')">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderBumpMaps() {
+            const grid = document.getElementById('bumpmapsGrid');
+            const bumpmapFiles = folderData.filter(file => file.bumpMapPath);
+
+            if (bumpmapFiles.length === 0) {
+                grid.innerHTML = '<p class="text-center" style="grid-column: 1 / -1;">No bump maps found</p>';
+                return;
+            }
+
+            grid.innerHTML = bumpmapFiles.map((file, index) => {
+                const fileName = file.dicomPath.split('/').pop();
+                return `
+                    <div class="image-card fade-in" style="animation-delay: ${index * 0.05}s;">
+                        <div class="image-container" onclick="openLightbox('${file.bumpMapPath}')">
+                            <img src="${file.bumpMapPath}" alt="${fileName} Bump Map" loading="lazy">
+                        </div>
+                        <div class="image-info">
+                            <div class="image-title" title="${fileName}">${fileName}</div>
+                            <div class="image-actions">
+                                <button class="action-btn" onclick="openLightbox('${file.bumpMapPath}')">🔍 View</button>
+                                <button class="action-btn" onclick="openLightbox('${file.jpgPath}')">📷 Original</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        function openLightbox(imagePath) {
+            document.getElementById('lightboxImage').src = imagePath;
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        // Close lightbox on outside click
+        document.getElementById('lightbox').addEventListener('click', (e) => {
+            if (e.target.id === 'lightbox') {
+                closeLightbox();
+            }
+        });
+
+        // Close lightbox on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', loadFolderData);
+    </script>
+</body>
+
+</html>
