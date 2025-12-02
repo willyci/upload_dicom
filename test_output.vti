@@ -1,1 +1,0 @@
-<?xml version="1.0"?><VTKFile type="ImageData" version="0.1" byte_order="LittleEndian" header_type="UInt32" compressor="vtkZLibDataCompressor"><ImageData WholeExtent="0 9 0 9 0 9" Origin="0 0 0" Spacing="1 1 1" Direction="1 0 0 0 1 0 0 0 1"><Piece Extent="0 9 0 9 0 9"><PointData/><CellData/></Piece></ImageData></VTKFile>

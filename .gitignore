@@ -28,3 +28,7 @@ build/
 .vscode/
 *.sw*
 .DS_Store
+test_volume.vti
+test_vti_structure.cjs
+public/uploads/*
+public/uploads/index.json

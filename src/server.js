@@ -12,6 +12,7 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { createCanvas } from 'canvas';
 import dcmjs from 'dcmjs';
+import { spawn } from 'child_process';
 import * as itkWasm from 'itk-wasm';
 import '@itk-wasm/image-io';
 import '@itk-wasm/dicom';
@@ -1002,101 +1003,39 @@ async function convertToVtp(dicomFiles, outputPath) {
 
 
 async function convertToVti(dicomFiles, outputPath) {
-    try {
-        console.log('Converting DICOM to VTI using dcmjs/vtk.js (Two-Pass Memory Optimized)...');
+    return new Promise((resolve, reject) => {
+        console.log('Starting Python conversion script...');
+        const inputDir = path.dirname(dicomFiles[0]);
         
-        const slices = [];
+        // Detect python command
+        const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
         
-        // Pass 1: Metadata only
-        console.log('Pass 1: Reading metadata...');
-        for (const filePath of dicomFiles) {
-            const dicomFileBuffer = fs.readFileSync(filePath);
-            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
-            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
-            
-            const position = dataset.ImagePositionPatient || [0, 0, 0];
-            const spacing = dataset.PixelSpacing || [1, 1];
-            const sliceThickness = dataset.SliceThickness || 1;
-            
-            slices.push({
-                filePath, // Store path instead of dataset
-                position,
-                spacing: [...spacing, sliceThickness],
-                rows: dataset.Rows,
-                columns: dataset.Columns,
-                zPosition: position[2]
-            });
-        }
-        
-        if (slices.length === 0) {
-            throw new Error('No DICOM files found');
-        }
-        
-        slices.sort((a, b) => a.zPosition - b.zPosition);
-        
-        const rows = slices[0].rows;
-        const columns = slices[0].columns;
-        const depth = slices.length;
-        const spacing = slices[0].spacing;
-        const origin = slices[0].position;
-        
-        const totalSize = rows * columns * depth;
-        console.log(`Allocating volume data: ${rows}x${columns}x${depth} (${(totalSize * 4 / 1024 / 1024).toFixed(2)} MB)`);
-        const volumeData = new Float32Array(totalSize);
-        
-        // Pass 2: Pixel Data
-        console.log('Pass 2: Reading pixel data...');
-        for (let z = 0; z < depth; z++) {
-            const slice = slices[z];
-            
-            // Read file again to get pixel data
-            const dicomFileBuffer = fs.readFileSync(slice.filePath);
-            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
-            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
-            
-            let pixelData;
-            try {
-                pixelData = extractPixelData(dataset);
-            } catch (e) {
-                console.warn(`Failed to extract pixel data for slice ${z}:`, e);
-                pixelData = new Float32Array(rows * columns); // Zero filled
-            }
-            
-            // Copy to volumeData
-            for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
-                volumeData[z * rows * columns + i] = pixelData[i];
-            }
-            
-            // Optional: Trigger garbage collection if exposed (usually not in standard node without flags)
-            if (z % 50 === 0) {
-                 // console.log(`Processed slice ${z}/${depth}`);
-            }
-        }
-        
-        const vtkImage = vtkImageData.newInstance();
-        vtkImage.setDimensions([columns, rows, depth]);
-        vtkImage.setSpacing(spacing);
-        vtkImage.setOrigin(origin);
-        
-        const scalars = vtkDataArray.newInstance({
-            name: 'Scalars',
-            values: volumeData,
-            numberOfComponents: 1
-        });
-        vtkImage.getPointData().setScalars(scalars);
-        
-        const writer = vtkXMLImageDataWriter.newInstance();
-        writer.setFormat('binary');
-        const fileContents = writer.write(vtkImage);
-        fs.writeFileSync(outputPath, Buffer.from(fileContents));
-        
-        console.log('Successfully wrote VTI file');
-        return outputPath;
+        console.log(`Using python command: ${pythonCommand}`);
 
-    } catch (error) {
-        console.error('Error converting DICOM to VTI:', error);
-        throw error;
-    }
+        // Use python to convert
+        const pythonProcess = spawn(pythonCommand, [
+            path.join(__dirname, 'dicom_converter.py'),
+            inputDir,
+            outputPath
+        ]);
+
+        pythonProcess.stdout.on('data', (data) => {
+            console.log(`Python Output: ${data}`);
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            console.error(`Python Error: ${data}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                console.log('Python conversion completed successfully');
+                resolve(outputPath);
+            } else {
+                reject(new Error(`Python process exited with code ${code}`));
+            }
+        });
+    });
 }
 
 function generatePointsData(slices) {
