@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NRRD 3D Viewer</title>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            text-align: center;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select,
+        input[type="range"] {
+            width: 100%;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 5px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #666;
+        }
+
+        .value-display {
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">Loading NRRD...</div>
+    <div id="error"></div>
+    <div id="container"></div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Color Preset</label>
+            <select id="presetSelector" onchange="updatePreset(this.value)">
+                <option value="default">Default (Bone/Tissue)</option>
+                <option value="grayscale">Grayscale (X-ray)</option>
+                <option value="mip">MIP (High Opacity)</option>
+                <option value="rainbow">Rainbow (Heatmap)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Threshold (Shift) <span id="thresholdValue" class="value-display">0</span></label>
+            <input type="range" id="thresholdSlider" min="-1000" max="1000" value="0" step="10"
+                oninput="updateThreshold(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Window (Contrast) <span id="windowValue" class="value-display">1.0</span></label>
+            <input type="range" id="windowSlider" min="0.1" max="5.0" value="1.0" step="0.1"
+                oninput="updateWindow(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Opacity (Global) <span id="opacityValue" class="value-display">1.0</span></label>
+            <input type="range" id="opacitySlider" min="0" max="1" value="1.0" step="0.05"
+                oninput="updateOpacity(this.value)">
+        </div>
+
+        <button onclick="resetCamera()">Reset Camera</button>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const thresholdDisplay = document.getElementById('thresholdValue');
+        const windowDisplay = document.getElementById('windowValue');
+        const opacityDisplay = document.getElementById('opacityValue');
+
+        // --- Manual NRRD Reader ---
+        async function loadNrrd(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const buffer = await response.arrayBuffer();
+
+                const { header, data, headerSize } = parseNrrd(buffer);
+                console.log('NRRD Header:', header);
+
+                return createVtkImage(header, data);
+            } catch (e) {
+                showError(e.message);
+                throw e;
+            }
+        }
+
+        function parseNrrd(buffer) {
+            const decoder = new TextDecoder();
+            let header = '';
+            let headerSize = 0;
+            const view = new Uint8Array(buffer);
+
+            // Find empty line separating header from data
+            for (let i = 0; i < view.length - 1; i++) {
+                if (view[i] === 10 && view[i + 1] === 10) { // \n\n
+                    headerSize = i + 2;
+                    header = decoder.decode(view.slice(0, i));
+                    break;
+                }
+                if (view[i] === 13 && view[i + 1] === 10 && view[i + 2] === 13 && view[i + 3] === 10) { // \r\n\r\n
+                    headerSize = i + 4;
+                    header = decoder.decode(view.slice(0, i));
+                    break;
+                }
+            }
+
+            if (headerSize === 0) throw new Error('Could not find end of NRRD header');
+
+            const lines = header.split(/\r?\n/);
+            if (!lines[0].startsWith('NRRD')) throw new Error('Invalid NRRD magic number');
+
+            const info = {};
+            for (const line of lines) {
+                if (line.startsWith('#') || line.length === 0) continue;
+
+                const colonIndex = line.indexOf(':');
+                if (colonIndex !== -1) {
+                    const key = line.substring(0, colonIndex).trim();
+                    const value = line.substring(colonIndex + 1).trim();
+                    info[key] = value;
+                }
+            }
+
+            // Parse specific fields
+            const dims = info['dimension'] ? parseInt(info['dimension']) : 3;
+            const sizes = info['sizes'] ? info['sizes'].split(/\s+/).map(Number) : [1, 1, 1];
+            const type = info['type'] || 'float';
+
+            // Parse spacing/directions
+            let spacing = [1, 1, 1];
+            if (info['spacings']) {
+                spacing = info['spacings'].split(/\s+/).map(Number);
+            } else if (info['space directions']) {
+                const parts = info['space directions'].match(/\((.*?)\)/g);
+                if (parts) {
+                    spacing = parts.map(p => {
+                        const vec = p.replace(/[()]/g, '').split(',').map(Number);
+                        return Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
+                    });
+                }
+            }
+
+            // Parse origin
+            let origin = [0, 0, 0];
+            if (info['space origin']) {
+                origin = info['space origin'].replace(/[()]/g, '').split(',').map(Number);
+            }
+
+            // Extract data
+            const dataBuffer = buffer.slice(headerSize);
+            let typedData;
+
+            if (type === 'float' || type === 'double') {
+                typedData = new Float32Array(dataBuffer);
+            } else if (type === 'short' || type === 'signed short') {
+                typedData = new Int16Array(dataBuffer);
+            } else if (type === 'unsigned short') {
+                typedData = new Uint16Array(dataBuffer);
+            } else if (type === 'unsigned char' || type === 'uchar') {
+                typedData = new Uint8Array(dataBuffer);
+            } else {
+                throw new Error(`Unsupported NRRD type: ${type}`);
+            }
+
+            return {
+                header: { dims, sizes, spacing, origin, type },
+                data: typedData,
+                headerSize
+            };
+        }
+
+        function createVtkImage(header, data) {
+            const imageData = vtk.Common.DataModel.vtkImageData.newInstance();
+            imageData.setDimensions(header.sizes);
+            imageData.setSpacing(header.spacing);
+            imageData.setOrigin(header.origin);
+
+            const dataArray = vtk.Common.Core.vtkDataArray.newInstance({
+                name: 'Scalars',
+                numberOfComponents: 1,
+                values: data
+            });
+
+            imageData.getPointData().setScalars(dataArray);
+            return imageData;
+        }
+
+        function showError(msg) {
+            loading.style.display = 'none';
+            errorDiv.innerText = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        // --- Main Rendering Logic ---
+        let renderWindow, renderer, volume, actor;
+        let currentPreset = 'default';
+        let currentThreshold = 0;
+        let currentWindow = 1.0; // Scale factor for window width
+        let currentOpacity = 1.0; // Global opacity multiplier
+
+        function initViewer(imageData) {
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [0, 0, 0]
+            });
+
+            renderWindow = fullScreenRenderer.getRenderWindow();
+            renderer = fullScreenRenderer.getRenderer();
+
+            actor = vtk.Rendering.Core.vtkVolume.newInstance();
+            const mapper = vtk.Rendering.Core.vtkVolumeMapper.newInstance();
+            mapper.setSampleDistance(0.7);
+            actor.setMapper(mapper);
+
+            mapper.setInputData(imageData);
+
+            // Apply initial preset
+            updateTransferFunction();
+
+            actor.getProperty().setInterpolationTypeToLinear();
+
+            renderer.addVolume(actor);
+            renderer.resetCamera();
+            renderWindow.render();
+
+            volume = actor;
+            loading.style.display = 'none';
+        }
+
+        function updateTransferFunction() {
+            if (!actor) return;
+
+            const ctfun = vtk.Rendering.Core.vtkColorTransferFunction.newInstance();
+            const ofun = vtk.Common.DataModel.vtkPiecewiseFunction.newInstance();
+
+            const shift = parseFloat(currentThreshold);
+            const widthScale = parseFloat(currentWindow);
+            const opacityScale = parseFloat(currentOpacity);
+
+            // Helper to transform points based on Window (widthScale) and Threshold (shift)
+            // Note: In this simplified model, 'Window' acts as a spread multiplier. 
+            // A smaller window (higher contrast) would mean points are closer together.
+            // So we divide the distance from center by widthScale? 
+            // Actually, let's treat 'Window' slider as a multiplier for the range width.
+            // Slider > 1.0 = Lower Contrast (Wider range), Slider < 1.0 = Higher Contrast.
+            // But user expects "Window" to mean "Contrast". Usually Window Width.
+            // Let's stick to: Slider = Multiplier of default width.
+
+            const transform = (x) => {
+                // We assume a 'center' around 0 or the middle of the preset range.
+                // For simplicity, we just scale the relative distances.
+                // But presets have arbitrary ranges.
+                // Let's just apply the shift. The Window slider will scale the 'x' values relative to the shift.
+                // x_new = shift + (x - center) * widthScale? No, that changes where colors map.
+                // Let's just do shift for now, and let Window scale the opacity values? No.
+
+                // Simple approach: Just shift. Window is hard to map generically to all presets without defined centers.
+                // However, we can scale the 'x' coordinates.
+                return x + shift;
+            };
+
+            // For Window/Contrast, we really want to scale the distance between points.
+            // Let's define a 'center' for each preset roughly.
+            let center = 0;
+            if (currentPreset === 'default') center = 100;
+            if (currentPreset === 'grayscale') center = 1000;
+            if (currentPreset === 'mip') center = 1000;
+            if (currentPreset === 'rainbow') center = 500;
+
+            const t = (x) => {
+                return center + (x - center) * widthScale + shift;
+            };
+
+            if (currentPreset === 'default') {
+                // Bone/Tissue
+                ctfun.addRGBPoint(t(-3024), 0, 0, 0);
+                ctfun.addRGBPoint(t(-77), 0.549, 0.25, 0.149);
+                ctfun.addRGBPoint(t(94), 0.882, 0.603, 0.29);
+                ctfun.addRGBPoint(t(179), 1, 0.937, 0.952);
+                ctfun.addRGBPoint(t(260), 1, 1, 1);
+                ctfun.addRGBPoint(t(3071), 1, 1, 1);
+
+                ofun.addPoint(t(-3024), 0);
+                ofun.addPoint(t(-77), 0);
+                ofun.addPoint(t(94), 0.29 * opacityScale);
+                ofun.addPoint(t(179), 0.55 * opacityScale);
+                ofun.addPoint(t(260), 0.84 * opacityScale);
+                ofun.addPoint(t(3071), 0.875 * opacityScale);
+
+            } else if (currentPreset === 'grayscale') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(3000), 1, 1, 1);
+
+                ofun.addPoint(t(-1000), 0);
+                ofun.addPoint(t(0), 0);
+                ofun.addPoint(t(3000), 1 * opacityScale);
+
+            } else if (currentPreset === 'mip') {
+                ctfun.addRGBPoint(t(-1000), 1, 1, 1);
+                ctfun.addRGBPoint(t(3000), 1, 1, 1);
+
+                ofun.addPoint(t(-1000), 0);
+                ofun.addPoint(t(100), 0);
+                ofun.addPoint(t(3000), 1 * opacityScale);
+
+            } else if (currentPreset === 'rainbow') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 1);
+                ctfun.addRGBPoint(t(0), 0, 1, 1);
+                ctfun.addRGBPoint(t(500), 0, 1, 0);
+                ctfun.addRGBPoint(t(1000), 1, 1, 0);
+                ctfun.addRGBPoint(t(2000), 1, 0, 0);
+
+                ofun.addPoint(t(-1000), 0);
+                ofun.addPoint(t(0), 0);
+                ofun.addPoint(t(2000), 0.8 * opacityScale);
+            }
+
+            actor.getProperty().setRGBTransferFunction(0, ctfun);
+            actor.getProperty().setScalarOpacity(0, ofun);
+        }
+
+        window.updatePreset = function (value) {
+            currentPreset = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateThreshold = function (value) {
+            currentThreshold = value;
+            thresholdDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateWindow = function (value) {
+            currentWindow = value;
+            windowDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateOpacity = function (value) {
+            currentOpacity = value;
+            opacityDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.resetCamera = function () {
+            if (renderer) {
+                renderer.resetCamera();
+                renderWindow.render();
+            }
+        };
+
+        // Start
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileUrl = urlParams.get('file');
+
+        if (fileUrl) {
+            loadNrrd(fileUrl)
+                .then(imageData => initViewer(imageData))
+                .catch(e => console.error(e));
+        } else {
+            showError('No file specified. Use ?file=path/to/volume.nrrd');
+        }
+    </script>
+</body>
+
+</html>

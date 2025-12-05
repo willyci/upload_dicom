@@ -15,7 +15,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">📊 DICOM Processor V1.0</div>
+                <div class="logo">📊 DICOM Processor V1.1</div>
                 <nav>
                     <ul>
                         <li><a href="/">Home</a></li>
@@ -33,7 +33,7 @@
             <h1>Medical Image Processing</h1>
             <p style="font-size: 1.125rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">
                 Upload your DICOM files and automatically generate JPG previews, bump maps, and 3D volumetric data for
-                visualization.
+                visualization, vti and nrrd files.
             </p>
         </section>
 
@@ -189,7 +189,8 @@
                     </div>
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">View JSON</a>
-                        <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D</a>
+                        <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>
+                        <a href="/nrrd-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (NRRD)</a>
                         <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
@@ -253,7 +254,8 @@
                                 </div>
                                 <div class="folder-actions">
                                     <a href="/json-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📄 JSON</a>
-                                    <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 3D View</a>
+                                    <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI</a>
+                                    <a href="/nrrd-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🎮 NRRD</a>
                                     <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
                                 </div>
                             </div>

@@ -11,8 +11,8 @@
   "dependencies": {
     "@itk-wasm/dicom": "^7.6.0",
     "@itk-wasm/image-io": "^1.6.0",
-
     "@kitware/vtk.js": "^27.5.0",
+    "@niivue/dcm2niix": "^1.2.0",
     "adm-zip": "^0.5.9",
     "canvas": "^3.1.0",
     "dcmjs": "^0.38.1",
@@ -23,7 +23,8 @@
     "multer": "^1.4.2",
     "sharp": "^0.33.5",
     "unzipper": "^0.12.3",
-    "vtk.js": "^24.19.2"
+    "vtk.js": "^24.19.2",
+    "web-worker": "^1.5.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
