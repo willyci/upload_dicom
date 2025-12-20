@@ -3,7 +3,7 @@
   "name": "dicom-processor",
   "version": "1.0.0",
   "description": "A Node.js application for processing DICOM files, converting them to JPG and VTP formats, and providing a viewer for the converted files.",
-  "main": "src/app.js",
+  "main": "src/server.js",
   "scripts": {
     "start": "node --experimental-modules src/server.js",
     "dev": "nodemon --experimental-modules src/server.js"
