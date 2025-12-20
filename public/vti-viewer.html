@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTI 3D Viewer</title>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            text-align: center;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select,
+        input[type="range"] {
+            width: 100%;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 5px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #666;
+        }
+
+        .value-display {
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">Loading VTI...</div>
+    <div id="error"></div>
+    <div id="container"></div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Color Preset</label>
+            <select id="presetSelector" onchange="updatePreset(this.value)">
+                <option value="default">Default (Bone/Tissue)</option>
+                <option value="blackbluewhite">Black, Blue and White</option>
+                <option value="blackorangewhite">Black, Orange and White</option>
+                <option value="blackbody">Black-Body Radiation</option>
+                <option value="coldhot">Cold and Hot</option>
+                <option value="coolwarm">Cool to Warm</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="rainbowdesaturated">Rainbow Desaturated</option>
+                <option value="warmcool">Warm to Cool</option>
+                <option value="xray">X Ray</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Threshold Min <span id="thresholdMinValue" class="value-display">-1000</span></label>
+            <input type="range" id="thresholdMinSlider" min="-2000" max="4000" value="-1000" step="10"
+                oninput="updateThresholdMin(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Threshold Max <span id="thresholdMaxValue" class="value-display">3000</span></label>
+            <input type="range" id="thresholdMaxSlider" min="-2000" max="4000" value="3000" step="10"
+                oninput="updateThresholdMax(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Window (Contrast) <span id="windowValue" class="value-display">1.0</span></label>
+            <input type="range" id="windowSlider" min="0.1" max="5.0" value="1.0" step="0.1"
+                oninput="updateWindow(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Opacity (Global) <span id="opacityValue" class="value-display">1.0</span></label>
+            <input type="range" id="opacitySlider" min="0" max="1" value="1.0" step="0.05"
+                oninput="updateOpacity(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Sample Distance <span id="sampleValue" class="value-display">0.7</span></label>
+            <input type="range" id="sampleSlider" min="0.1" max="2.0" value="0.7" step="0.1"
+                oninput="updateSampleDistance(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Gradient Opacity (Edges) <span id="gradientValue" class="value-display">0.0</span></label>
+            <input type="range" id="gradientSlider" min="0.0" max="1.0" value="0.0" step="0.1"
+                oninput="updateGradientOpacity(this.value)">
+        </div>
+
+        <div class="control-group" style="flex-direction: row; align-items: center;">
+            <input type="checkbox" id="shadingCheckbox" checked onchange="updateShading(this.checked)"
+                style="width: auto; margin-right: 10px;">
+            <label for="shadingCheckbox" style="margin: 0; cursor: pointer;">Enable Shading</label>
+        </div>
+
+        <button onclick="resetCamera()">Reset Camera</button>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const thresholdMinDisplay = document.getElementById('thresholdMinValue');
+        const thresholdMaxDisplay = document.getElementById('thresholdMaxValue');
+        const windowDisplay = document.getElementById('windowValue');
+        const opacityDisplay = document.getElementById('opacityValue');
+        const sampleDisplay = document.getElementById('sampleValue');
+        const gradientDisplay = document.getElementById('gradientValue');
+
+        // --- VTI Reader ---
+        function loadVti(url) {
+            const reader = vtk.IO.XML.vtkXMLImageDataReader.newInstance();
+            return reader.setUrl(url)
+                .then(() => reader.loadData())
+                .then(() => {
+                    return reader.getOutputData();
+                })
+                .catch(e => {
+                    showError("Error loading VTI file: " + e.message);
+                    throw e;
+                });
+        }
+
+        function showError(msg) {
+            loading.style.display = 'none';
+            errorDiv.innerText = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        // --- Main Rendering Logic ---
+        let renderWindow, renderer, volume, actor;
+        let currentPreset = 'default';
+        let currentMin = -1000;
+        let currentMax = 3000;
+        let currentWindow = 1.0; // Scale factor for window width
+        let currentOpacity = 1.0; // Global opacity multiplier
+        let currentSampleDistance = 0.7;
+        let currentGradientOpacity = 0.0;
+        let shadingEnabled = true;
+
+        function initViewer(imageData) {
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [0, 0, 0]
+            });
+
+            renderWindow = fullScreenRenderer.getRenderWindow();
+            renderer = fullScreenRenderer.getRenderer();
+
+            actor = vtk.Rendering.Core.vtkVolume.newInstance();
+            const mapper = vtk.Rendering.Core.vtkVolumeMapper.newInstance();
+            mapper.setSampleDistance(currentSampleDistance);
+            actor.setMapper(mapper);
+
+            mapper.setInputData(imageData);
+
+            // Apply initial properties
+            updateTransferFunction();
+            updateShading(shadingEnabled);
+            updateGradientOpacity(currentGradientOpacity);
+
+            actor.getProperty().setInterpolationTypeToLinear();
+
+            renderer.addVolume(actor);
+            renderer.resetCamera();
+            renderWindow.render();
+
+            volume = actor;
+            loading.style.display = 'none';
+        }
+
+        function updateTransferFunction() {
+            if (!actor) return;
+
+            const ctfun = vtk.Rendering.Core.vtkColorTransferFunction.newInstance();
+            const ofun = vtk.Common.DataModel.vtkPiecewiseFunction.newInstance();
+
+            const min = parseFloat(currentMin);
+            const max = parseFloat(currentMax);
+            const widthScale = parseFloat(currentWindow);
+            const opacityScale = parseFloat(currentOpacity);
+
+            const center = (currentPreset === 'default') ? 100 :
+                (currentPreset === 'grayscale' || currentPreset === 'xray') ? 1000 :
+                    500; // All other presets use 500 as center
+
+            // Simplified Shift equivalent if needed, but here we just map preset around 'center'
+            // and then CLIP with min/max.
+            // Note: The previous logic shifted X, which was effective "Thresholding" by value.
+            // Here we want to preserve the Presets (Bone is Bone) but hide values outside min/max.
+
+            // To maintain "Window" functionality from before (scaling preset width), we use 't'.
+            // But we remove 'shift' as we now clip directly.
+            const t = (x) => {
+                return center + (x - center) * widthScale;
+            };
+
+            // Clipping Logic:
+            // We implement clipping by adding points to Opacity Function.
+            // 0 opacity at min-epsilon and max+epsilon.
+
+            // However, we must ensure we add the PRESET points too, 
+            // but only if they fall within min/max? 
+            // Better: Add all preset points, and vtkPiecewiseFunction interpolates.
+            // But we can Clamp opacity to 0 outside region.
+
+            // To do this simply with PiecewiseFunction:
+            // Add point (min, 0) and (max, 0)? No, that ramps down.
+            // We want hard clip? Or just ramp?
+            // (min - 1, 0), (min, presetOp), ..., (max, presetOp), (max + 1, 0)
+            // But presetOp varies.
+
+            // Since vtkPiecewiseFunction is simple interpolation, 
+            // to clip effectively we might need to rely on the fact that we define points.
+            // Let's just define the preset points.
+            // And implicitly, if we want to clip, we might have to refrain from adding points outside?
+            // Actually, if we just want "Threshold" as in "Bone Visibility", 
+            // usually you just adjust the Window/Level such that air is black.
+
+            // Let's stick to the previous logic but use Min/Max to set the range.
+            // Actually, simpler: 
+            // Apply the preset normally.
+            // THEN add two control points: 
+            // (min-0.1, 0), (min, 0) -- wait, this overrides previous points if they exist?
+            // vtkPiecewiseFunction adds points. It sorts them.
+
+            // Let's reconstruc the preset points, but filter them?
+            // Actually, simply adding (min-1, 0) and (min, 0) doesn't zero out everything below.
+            // It just ensures 0 at min. If there was a point at min-100 with opacity 0.5, it will ramp.
+
+            // Proper way:
+            // Clear standard points.
+            // Add points based on preset, BUT checks against min/max.
+            // If a point x is < min, don't add? Or add as (x, 0)?
+            // If we assume linearity, just adding (min, 0) and (max, 0) isn't enough.
+
+            // Let's use a simpler approach for now:
+            // "Threshold" implies Window/Level often.
+            // Let's use Min/Max to define the range of the Color Map?
+            // NO, users asked for "Limit".
+
+            // Let's Try: 
+            // 1. Add (min-epsilon, 0), (min, 0).
+            // 2. Add (max, 0), (max+epsilon, 0).
+            // 3. For the preset points:
+            //    If point.x < min, ignore (or clamp to min with 0 opacity).
+            //    If point.x > max, ignore.
+            //    If point.x is inside, add it.
+
+            // Helper to add point if within bounds
+            const addOp = (x, y) => {
+                if (x >= min && x <= max) ofun.addPoint(x, y * opacityScale);
+            };
+
+            // Force 0 outside
+            ofun.addPoint(min - 1, 0);
+            ofun.addPoint(min, 0); // Start ramp up from here? Or hard cut? 
+            // If we want hard cut, we need to know the opacity AT min. 
+            // That's hard without sampling the preset. 
+            // Let's just assume we want to zero out everything outside.
+            // And let the internal points define the shape.
+
+            if (currentPreset === 'default') {
+                // Bone/Tissue
+                ctfun.addRGBPoint(t(-3024), 0, 0, 0);
+                ctfun.addRGBPoint(t(-77), 0.549, 0.25, 0.149);
+                ctfun.addRGBPoint(t(94), 0.882, 0.603, 0.29);
+                ctfun.addRGBPoint(t(179), 1, 0.937, 0.952);
+                ctfun.addRGBPoint(t(260), 1, 1, 1);
+                ctfun.addRGBPoint(t(3071), 1, 1, 1);
+
+                addOp(t(-3024), 0);
+                addOp(t(-77), 0);
+                addOp(t(94), 0.29);
+                addOp(t(179), 0.55);
+                addOp(t(260), 0.84);
+                addOp(t(3071), 0.875);
+
+            } else if (currentPreset === 'grayscale') {
+                // Grayscale
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(3000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(3000), 1);
+
+            } else if (currentPreset === 'xray') {
+                // X Ray - inverted grayscale with high contrast
+                ctfun.addRGBPoint(t(-1000), 1, 1, 1);
+                ctfun.addRGBPoint(t(3000), 0, 0, 0);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0.1);
+                addOp(t(3000), 1);
+
+            } else if (currentPreset === 'blackbluewhite') {
+                // Black -> Blue -> White
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(500), 0, 0, 1);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'blackorangewhite') {
+                // Black -> Orange -> White
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(500), 1, 0.5, 0);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'blackbody') {
+                // Black-Body Radiation: Black -> Red -> Orange -> Yellow -> White
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);       // Black
+                ctfun.addRGBPoint(t(0), 0.5, 0, 0);         // Dark Red
+                ctfun.addRGBPoint(t(500), 1, 0, 0);         // Red
+                ctfun.addRGBPoint(t(1000), 1, 0.5, 0);      // Orange
+                ctfun.addRGBPoint(t(1500), 1, 1, 0);        // Yellow
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);        // White
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'coolwarm') {
+                // Cool to Warm: Blue -> White -> Red
+                ctfun.addRGBPoint(t(-1000), 0.23, 0.30, 0.75);  // Cool Blue
+                ctfun.addRGBPoint(t(500), 0.87, 0.87, 0.87);    // White
+                ctfun.addRGBPoint(t(2000), 0.71, 0.02, 0.15);   // Warm Red
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'warmcool') {
+                // Warm to Cool: Red -> White -> Blue (inverse of coolwarm)
+                ctfun.addRGBPoint(t(-1000), 0.71, 0.02, 0.15);  // Warm Red
+                ctfun.addRGBPoint(t(500), 0.87, 0.87, 0.87);    // White
+                ctfun.addRGBPoint(t(2000), 0.23, 0.30, 0.75);   // Cool Blue
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'coldhot') {
+                // Cold and Hot: Blue -> Purple -> Red -> Orange -> White
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0.5);      // Dark Blue
+                ctfun.addRGBPoint(t(0), 0, 0, 1);            // Blue
+                ctfun.addRGBPoint(t(500), 0.5, 0, 0.5);      // Purple
+                ctfun.addRGBPoint(t(1000), 1, 0, 0);         // Red
+                ctfun.addRGBPoint(t(1500), 1, 0.5, 0);       // Orange
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);         // White
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'rainbowdesaturated') {
+                // Rainbow Desaturated: Muted rainbow colors
+                ctfun.addRGBPoint(t(-1000), 0.28, 0.28, 0.86);  // Desaturated Blue
+                ctfun.addRGBPoint(t(-200), 0.0, 0.66, 0.66);    // Desaturated Cyan
+                ctfun.addRGBPoint(t(400), 0.0, 0.78, 0.0);      // Desaturated Green
+                ctfun.addRGBPoint(t(1000), 0.90, 0.90, 0.0);    // Desaturated Yellow
+                ctfun.addRGBPoint(t(1600), 0.90, 0.45, 0.0);    // Desaturated Orange
+                ctfun.addRGBPoint(t(2000), 0.70, 0.02, 0.15);   // Desaturated Red
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+            }
+
+            // Closing the gate
+            ofun.addPoint(max, 0); // Ramp down to 0 at max?
+            ofun.addPoint(max + 1, 0); // Ensure 0 after max
+
+            actor.getProperty().setRGBTransferFunction(0, ctfun);
+            actor.getProperty().setScalarOpacity(0, ofun);
+        }
+
+        window.updatePreset = function (value) {
+            currentPreset = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateThresholdMin = function (value) {
+            currentMin = value;
+            thresholdMinDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateThresholdMax = function (value) {
+            currentMax = value;
+            thresholdMaxDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateWindow = function (value) {
+            currentWindow = value;
+            windowDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateOpacity = function (value) {
+            currentOpacity = value;
+            opacityDisplay.innerText = value;
+            updateTransferFunction();
+            renderWindow.render();
+        };
+
+        window.updateSampleDistance = function (value) {
+            currentSampleDistance = parseFloat(value);
+            sampleDisplay.innerText = currentSampleDistance.toFixed(1);
+            if (actor) {
+                actor.getMapper().setSampleDistance(currentSampleDistance);
+                renderWindow.render();
+            }
+        };
+
+        window.updateShading = function (checked) {
+            shadingEnabled = checked;
+            if (actor) {
+                actor.getProperty().setShade(shadingEnabled);
+                renderWindow.render();
+            }
+        };
+
+        window.updateGradientOpacity = function (value) {
+            currentGradientOpacity = parseFloat(value);
+            gradientDisplay.innerText = currentGradientOpacity.toFixed(1);
+            if (actor) {
+                if (currentGradientOpacity > 0) {
+                    actor.getProperty().setUseGradientOpacity(0, true);
+                    const go = vtk.Common.DataModel.vtkPiecewiseFunction.newInstance();
+                    // Map gradient magnitude to opacity multiplier
+                    // Low gradient (flat areas) -> 1.0 (visible)
+                    // High gradient (edges) -> 1.0 (visible)
+                    // This enhances edges without hiding the volume
+                    go.addPoint(0, 1.0 - (currentGradientOpacity * 0.5)); // Slightly reduce flat areas
+                    go.addPoint(255, 1.0); // Keep edges fully visible
+                    actor.getProperty().setGradientOpacity(0, go);
+                } else {
+                    actor.getProperty().setUseGradientOpacity(0, false);
+                }
+                renderWindow.render();
+            }
+        };
+
+        window.resetCamera = function () {
+            if (renderer) {
+                renderer.resetCamera();
+                renderWindow.render();
+            }
+        };
+
+        // Start
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileUrl = urlParams.get('fileURL') || urlParams.get('file');
+
+        if (fileUrl) {
+            loadVti(fileUrl)
+                .then(imageData => initViewer(imageData))
+                .catch(e => console.error(e));
+        } else {
+            showError('No file specified. Use ?fileURL=path/to/volume.vti');
+        }
+    </script>
+</body>
+
+</html>

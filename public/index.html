@@ -20,7 +20,7 @@
                     <ul>
                         <li><a href="/">Home</a></li>
                         <li><a href="#uploads">Uploads</a></li>
-                        <li><a href="/VolumeViewer.html">3D Viewer</a></li>
+                        <li><a href="/vti-viewer.html">3D Viewer</a></li>
                     </ul>
                 </nav>
             </div>
@@ -189,7 +189,8 @@
                     </div>
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">View JSON</a>
-                        <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>
+                        <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>                        
+                        <a href="/vti-viewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>
                         <a href="/nrrd-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (NRRD)</a>
                         <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
                     </div>
@@ -254,7 +255,8 @@
                                 </div>
                                 <div class="folder-actions">
                                     <a href="/json-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📄 JSON</a>
-                                    <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI</a>
+                                    <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI 1</a>                       
+                                    <a href="/vti-viewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI 2</a>
                                     <a href="/nrrd-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🎮 NRRD</a>
                                     <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
                                 </div>
