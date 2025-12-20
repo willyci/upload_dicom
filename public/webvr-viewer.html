@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVR 3D Viewer</title>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            z-index: 1000;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .controls.vr-mode {
+            display: none;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select,
+        input[type="range"] {
+            width: 100%;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 8px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #666;
+        }
+
+        button:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .value-display {
+            color: white;
+            font-weight: bold;
+        }
+
+        #vrButton {
+            background: #0066cc;
+            font-weight: bold;
+            padding: 10px;
+        }
+
+        #vrButton:hover:not(:disabled) {
+            background: #0088ff;
+        }
+
+        #vrButton.vr-active {
+            background: #cc0000;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #888;
+            margin-top: -5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">Loading...</div>
+    <div id="error"></div>
+    <div id="container"></div>
+
+    <div class="controls" id="controls">
+        <button id="vrButton" disabled>🥽 Enter VR</button>
+        <p class="info-text" id="vrInfo">Checking VR support...</p>
+
+        <div class="control-group">
+            <label>Color Preset</label>
+            <select id="presetSelector" onchange="updatePreset(this.value)">
+                <option value="default">Default (Bone/Tissue)</option>
+                <option value="blackbluewhite">Black, Blue and White</option>
+                <option value="blackorangewhite">Black, Orange and White</option>
+                <option value="blackbody">Black-Body Radiation</option>
+                <option value="coldhot">Cold and Hot</option>
+                <option value="coolwarm">Cool to Warm</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="rainbowdesaturated">Rainbow Desaturated</option>
+                <option value="warmcool">Warm to Cool</option>
+                <option value="xray">X Ray</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Threshold Min <span id="thresholdMinValue" class="value-display">-1000</span></label>
+            <input type="range" id="thresholdMinSlider" min="-2000" max="4000" value="-1000" step="10"
+                oninput="updateThresholdMin(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Threshold Max <span id="thresholdMaxValue" class="value-display">3000</span></label>
+            <input type="range" id="thresholdMaxSlider" min="-2000" max="4000" value="3000" step="10"
+                oninput="updateThresholdMax(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Window (Contrast) <span id="windowValue" class="value-display">1.0</span></label>
+            <input type="range" id="windowSlider" min="0.1" max="5.0" value="1.0" step="0.1"
+                oninput="updateWindow(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Opacity (Global) <span id="opacityValue" class="value-display">1.0</span></label>
+            <input type="range" id="opacitySlider" min="0" max="1" value="1.0" step="0.05"
+                oninput="updateOpacity(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Sample Distance <span id="sampleValue" class="value-display">0.7</span></label>
+            <input type="range" id="sampleSlider" min="0.1" max="2.0" value="0.7" step="0.1"
+                oninput="updateSampleDistance(this.value)">
+        </div>
+
+        <div class="control-group">
+            <label>Gradient Opacity (Edges) <span id="gradientValue" class="value-display">0.0</span></label>
+            <input type="range" id="gradientSlider" min="0.0" max="1.0" value="0.0" step="0.1"
+                oninput="updateGradientOpacity(this.value)">
+        </div>
+
+        <div class="control-group" style="flex-direction: row; align-items: center;">
+            <input type="checkbox" id="shadingCheckbox" checked onchange="updateShading(this.checked)"
+                style="width: auto; margin-right: 10px;">
+            <label for="shadingCheckbox" style="margin: 0; cursor: pointer;">Enable Shading</label>
+        </div>
+
+        <button onclick="resetCamera()">Reset Camera</button>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const controls = document.getElementById('controls');
+        const vrButton = document.getElementById('vrButton');
+        const thresholdMinDisplay = document.getElementById('thresholdMinValue');
+        const thresholdMaxDisplay = document.getElementById('thresholdMaxValue');
+        const windowDisplay = document.getElementById('windowValue');
+        const opacityDisplay = document.getElementById('opacityValue');
+        const sampleDisplay = document.getElementById('sampleValue');
+        const gradientDisplay = document.getElementById('gradientValue');
+
+        // --- File Loaders ---
+        function loadVti(url) {
+            const reader = vtk.IO.XML.vtkXMLImageDataReader.newInstance();
+            return reader.setUrl(url)
+                .then(() => reader.loadData())
+                .then(() => reader.getOutputData())
+                .catch(e => {
+                    showError("Error loading VTI file: " + e.message);
+                    throw e;
+                });
+        }
+
+        async function loadNrrd(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const buffer = await response.arrayBuffer();
+
+                const { header, data } = parseNrrd(buffer);
+                console.log('NRRD Header:', header);
+
+                return createVtkImage(header, data);
+            } catch (e) {
+                showError("Error loading NRRD file: " + e.message);
+                throw e;
+            }
+        }
+
+        function parseNrrd(buffer) {
+            const decoder = new TextDecoder();
+            let header = '';
+            let headerSize = 0;
+            const view = new Uint8Array(buffer);
+
+            for (let i = 0; i < view.length - 1; i++) {
+                if (view[i] === 10 && view[i + 1] === 10) {
+                    headerSize = i + 2;
+                    header = decoder.decode(view.slice(0, i));
+                    break;
+                }
+                if (view[i] === 13 && view[i + 1] === 10 && view[i + 2] === 13 && view[i + 3] === 10) {
+                    headerSize = i + 4;
+                    header = decoder.decode(view.slice(0, i));
+                    break;
+                }
+            }
+
+            if (headerSize === 0) throw new Error('Could not find end of NRRD header');
+
+            const lines = header.split(/\r?\n/);
+            if (!lines[0].startsWith('NRRD')) throw new Error('Invalid NRRD magic number');
+
+            const info = {};
+            for (const line of lines) {
+                if (line.startsWith('#') || line.length === 0) continue;
+                const colonIndex = line.indexOf(':');
+                if (colonIndex !== -1) {
+                    const key = line.substring(0, colonIndex).trim();
+                    const value = line.substring(colonIndex + 1).trim();
+                    info[key] = value;
+                }
+            }
+
+            const sizes = info['sizes'] ? info['sizes'].split(/\s+/).map(Number) : [1, 1, 1];
+            const type = info['type'] || 'float';
+
+            let spacing = [1, 1, 1];
+            if (info['spacings']) {
+                spacing = info['spacings'].split(/\s+/).map(Number);
+            } else if (info['space directions']) {
+                const parts = info['space directions'].match(/\((.*?)\)/g);
+                if (parts) {
+                    spacing = parts.map(p => {
+                        const vec = p.replace(/[()]/g, '').split(',').map(Number);
+                        return Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
+                    });
+                }
+            }
+
+            let origin = [0, 0, 0];
+            if (info['space origin']) {
+                origin = info['space origin'].replace(/[()]/g, '').split(',').map(Number);
+            }
+
+            const dataBuffer = buffer.slice(headerSize);
+            let typedData;
+
+            if (type === 'float' || type === 'double') {
+                typedData = new Float32Array(dataBuffer);
+            } else if (type === 'short' || type === 'signed short') {
+                typedData = new Int16Array(dataBuffer);
+            } else if (type === 'unsigned short') {
+                typedData = new Uint16Array(dataBuffer);
+            } else if (type === 'unsigned char' || type === 'uchar') {
+                typedData = new Uint8Array(dataBuffer);
+            } else {
+                throw new Error(`Unsupported NRRD type: ${type}`);
+            }
+
+            return {
+                header: { sizes, spacing, origin, type },
+                data: typedData
+            };
+        }
+
+        function createVtkImage(header, data) {
+            const imageData = vtk.Common.DataModel.vtkImageData.newInstance();
+            imageData.setDimensions(header.sizes);
+            imageData.setSpacing(header.spacing);
+            imageData.setOrigin(header.origin);
+
+            const dataArray = vtk.Common.Core.vtkDataArray.newInstance({
+                name: 'Scalars',
+                numberOfComponents: 1,
+                values: data
+            });
+
+            imageData.getPointData().setScalars(dataArray);
+            return imageData;
+        }
+
+        function showError(msg) {
+            loading.style.display = 'none';
+            errorDiv.innerText = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        // --- VR Support ---
+        let xrSession = null;
+        let xrRefSpace = null;
+
+        async function checkVRSupport() {
+            const vrInfo = document.getElementById('vrInfo');
+            if ('xr' in navigator) {
+                try {
+                    const supported = await navigator.xr.isSessionSupported('immersive-vr');
+                    if (supported) {
+                        vrButton.disabled = false;
+                        vrButton.addEventListener('click', toggleVR);
+                        vrInfo.textContent = 'VR headset detected! Click to enter VR mode.';
+                        vrInfo.style.color = '#10b981';
+                    } else {
+                        vrButton.disabled = true;
+                        vrInfo.textContent = 'VR not available. Desktop mode only.';
+                        vrInfo.style.color = '#888';
+                    }
+                } catch (e) {
+                    console.log('VR not supported:', e);
+                    vrButton.disabled = true;
+                    vrInfo.textContent = 'VR not supported on this device.';
+                    vrInfo.style.color = '#888';
+                }
+            } else {
+                vrButton.disabled = true;
+                vrInfo.textContent = 'WebXR not supported in this browser.';
+                vrInfo.style.color = '#888';
+            }
+        }
+
+        async function toggleVR() {
+            if (xrSession) {
+                await xrSession.end();
+            } else {
+                try {
+                    xrSession = await navigator.xr.requestSession('immersive-vr', {
+                        optionalFeatures: ['local-floor', 'bounded-floor']
+                    });
+
+                    xrSession.addEventListener('end', onSessionEnded);
+
+                    // Setup XR rendering
+                    const glCanvas = renderWindow.getViews()[0].getCanvas();
+                    const gl = glCanvas.getContext('webgl', { xrCompatible: true });
+
+                    await gl.makeXRCompatible();
+                    xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
+
+                    xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
+
+                    vrButton.textContent = '🚪 Exit VR';
+                    vrButton.classList.add('vr-active');
+                    controls.classList.add('vr-mode');
+
+                    xrSession.requestAnimationFrame(onXRFrame);
+
+                } catch (e) {
+                    console.error('Failed to start VR session:', e);
+                    showError('Failed to start VR: ' + e.message);
+                }
+            }
+        }
+
+        function onSessionEnded() {
+            xrSession = null;
+            xrRefSpace = null;
+            vrButton.textContent = '🥽 Enter VR';
+            vrButton.classList.remove('vr-active');
+            controls.classList.remove('vr-mode');
+        }
+
+        function onXRFrame(time, frame) {
+            const session = frame.session;
+            session.requestAnimationFrame(onXRFrame);
+
+            const pose = frame.getViewerPose(xrRefSpace);
+            if (pose) {
+                // Render for VR
+                renderWindow.render();
+            }
+        }
+
+        // --- Main Rendering Logic ---
+        let renderWindow, renderer, volume, actor;
+        let currentPreset = 'default';
+        let currentMin = -1000;
+        let currentMax = 3000;
+        let currentWindow = 1.0;
+        let currentOpacity = 1.0;
+        let currentSampleDistance = 0.7;
+        let currentGradientOpacity = 0.0;
+        let shadingEnabled = true;
+
+        function initViewer(imageData) {
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [0, 0, 0]
+            });
+
+            renderWindow = fullScreenRenderer.getRenderWindow();
+            renderer = fullScreenRenderer.getRenderer();
+
+            actor = vtk.Rendering.Core.vtkVolume.newInstance();
+            const mapper = vtk.Rendering.Core.vtkVolumeMapper.newInstance();
+            mapper.setSampleDistance(currentSampleDistance);
+            actor.setMapper(mapper);
+
+            mapper.setInputData(imageData);
+
+            updateTransferFunction();
+            updateShading(shadingEnabled);
+            updateGradientOpacity(currentGradientOpacity);
+
+            actor.getProperty().setInterpolationTypeToLinear();
+
+            renderer.addVolume(actor);
+            renderer.resetCamera();
+            renderWindow.render();
+
+            volume = actor;
+            loading.style.display = 'none';
+
+            // Check VR support after viewer is initialized
+            checkVRSupport();
+        }
+
+        function updateTransferFunction() {
+            if (!actor) return;
+
+            const ctfun = vtk.Rendering.Core.vtkColorTransferFunction.newInstance();
+            const ofun = vtk.Common.DataModel.vtkPiecewiseFunction.newInstance();
+
+            const min = parseFloat(currentMin);
+            const max = parseFloat(currentMax);
+            const widthScale = parseFloat(currentWindow);
+            const opacityScale = parseFloat(currentOpacity);
+
+            const center = (currentPreset === 'default') ? 100 :
+                (currentPreset === 'grayscale' || currentPreset === 'xray') ? 1000 : 500;
+
+            const t = (x) => center + (x - center) * widthScale;
+
+            const addOp = (x, y) => {
+                if (x >= min && x <= max) ofun.addPoint(x, y * opacityScale);
+            };
+
+            ofun.addPoint(min - 1, 0);
+            ofun.addPoint(min, 0);
+
+            if (currentPreset === 'default') {
+                ctfun.addRGBPoint(t(-3024), 0, 0, 0);
+                ctfun.addRGBPoint(t(-77), 0.549, 0.25, 0.149);
+                ctfun.addRGBPoint(t(94), 0.882, 0.603, 0.29);
+                ctfun.addRGBPoint(t(179), 1, 0.937, 0.952);
+                ctfun.addRGBPoint(t(260), 1, 1, 1);
+                ctfun.addRGBPoint(t(3071), 1, 1, 1);
+
+                addOp(t(-3024), 0);
+                addOp(t(-77), 0);
+                addOp(t(94), 0.29);
+                addOp(t(179), 0.55);
+                addOp(t(260), 0.84);
+                addOp(t(3071), 0.875);
+
+            } else if (currentPreset === 'grayscale') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(3000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(3000), 1);
+
+            } else if (currentPreset === 'xray') {
+                ctfun.addRGBPoint(t(-1000), 1, 1, 1);
+                ctfun.addRGBPoint(t(3000), 0, 0, 0);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0.1);
+                addOp(t(3000), 1);
+
+            } else if (currentPreset === 'blackbluewhite') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(500), 0, 0, 1);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'blackorangewhite') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(500), 1, 0.5, 0);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'blackbody') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0);
+                ctfun.addRGBPoint(t(0), 0.5, 0, 0);
+                ctfun.addRGBPoint(t(500), 1, 0, 0);
+                ctfun.addRGBPoint(t(1000), 1, 0.5, 0);
+                ctfun.addRGBPoint(t(1500), 1, 1, 0);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'coolwarm') {
+                ctfun.addRGBPoint(t(-1000), 0.23, 0.30, 0.75);
+                ctfun.addRGBPoint(t(500), 0.87, 0.87, 0.87);
+                ctfun.addRGBPoint(t(2000), 0.71, 0.02, 0.15);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'warmcool') {
+                ctfun.addRGBPoint(t(-1000), 0.71, 0.02, 0.15);
+                ctfun.addRGBPoint(t(500), 0.87, 0.87, 0.87);
+                ctfun.addRGBPoint(t(2000), 0.23, 0.30, 0.75);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'coldhot') {
+                ctfun.addRGBPoint(t(-1000), 0, 0, 0.5);
+                ctfun.addRGBPoint(t(0), 0, 0, 1);
+                ctfun.addRGBPoint(t(500), 0.5, 0, 0.5);
+                ctfun.addRGBPoint(t(1000), 1, 0, 0);
+                ctfun.addRGBPoint(t(1500), 1, 0.5, 0);
+                ctfun.addRGBPoint(t(2000), 1, 1, 1);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+
+            } else if (currentPreset === 'rainbowdesaturated') {
+                ctfun.addRGBPoint(t(-1000), 0.28, 0.28, 0.86);
+                ctfun.addRGBPoint(t(-200), 0.0, 0.66, 0.66);
+                ctfun.addRGBPoint(t(400), 0.0, 0.78, 0.0);
+                ctfun.addRGBPoint(t(1000), 0.90, 0.90, 0.0);
+                ctfun.addRGBPoint(t(1600), 0.90, 0.45, 0.0);
+                ctfun.addRGBPoint(t(2000), 0.70, 0.02, 0.15);
+
+                addOp(t(-1000), 0);
+                addOp(t(0), 0);
+                addOp(t(2000), 0.8);
+            }
+
+            ofun.addPoint(max, 0);
+            ofun.addPoint(max + 1, 0);
+
+            actor.getProperty().setRGBTransferFunction(0, ctfun);
+            actor.getProperty().setScalarOpacity(0, ofun);
+
+            if (renderWindow) renderWindow.render();
+        }
+
+        window.updatePreset = function (value) {
+            currentPreset = value;
+            updateTransferFunction();
+        };
+
+        window.updateThresholdMin = function (value) {
+            currentMin = value;
+            thresholdMinDisplay.innerText = value;
+            updateTransferFunction();
+        };
+
+        window.updateThresholdMax = function (value) {
+            currentMax = value;
+            thresholdMaxDisplay.innerText = value;
+            updateTransferFunction();
+        };
+
+        window.updateWindow = function (value) {
+            currentWindow = value;
+            windowDisplay.innerText = value;
+            updateTransferFunction();
+        };
+
+        window.updateOpacity = function (value) {
+            currentOpacity = value;
+            opacityDisplay.innerText = value;
+            updateTransferFunction();
+        };
+
+        window.updateSampleDistance = function (value) {
+            currentSampleDistance = parseFloat(value);
+            sampleDisplay.innerText = currentSampleDistance.toFixed(1);
+            if (actor) {
+                actor.getMapper().setSampleDistance(currentSampleDistance);
+                renderWindow.render();
+            }
+        };
+
+        window.updateShading = function (checked) {
+            shadingEnabled = checked;
+            if (actor) {
+                actor.getProperty().setShade(shadingEnabled);
+                renderWindow.render();
+            }
+        };
+
+        window.updateGradientOpacity = function (value) {
+            currentGradientOpacity = parseFloat(value);
+            gradientDisplay.innerText = currentGradientOpacity.toFixed(1);
+            if (actor) {
+                if (currentGradientOpacity > 0) {
+                    actor.getProperty().setUseGradientOpacity(0, true);
+                    const go = vtk.Common.DataModel.vtkPiecewiseFunction.newInstance();
+                    go.addPoint(0, 1.0 - (currentGradientOpacity * 0.5));
+                    go.addPoint(255, 1.0);
+                    actor.getProperty().setGradientOpacity(0, go);
+                } else {
+                    actor.getProperty().setUseGradientOpacity(0, false);
+                }
+                renderWindow.render();
+            }
+        };
+
+        window.resetCamera = function () {
+            if (renderer) {
+                renderer.resetCamera();
+                renderWindow.render();
+            }
+        };
+
+        // --- Start ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileUrl = urlParams.get('file') || urlParams.get('fileURL');
+
+        if (fileUrl) {
+            loading.innerText = 'Loading ' + (fileUrl.endsWith('.nrrd') ? 'NRRD' : 'VTI') + '...';
+
+            const loadPromise = fileUrl.toLowerCase().endsWith('.nrrd') ?
+                loadNrrd(fileUrl) : loadVti(fileUrl);
+
+            loadPromise
+                .then(imageData => initViewer(imageData))
+                .catch(e => console.error(e));
+        } else {
+            showError('No file specified. Use ?file=path/to/volume.vti or ?file=path/to/volume.nrrd');
+        }
+    </script>
+</body>
+
+</html>

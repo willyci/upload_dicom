@@ -189,6 +189,8 @@
                     </div>
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">View JSON</a>
+                        <a href="/webvr-viewer.html?file=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">🥽 WebVR (VTI)</a>
+                        <a href="/webvr-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">🥽 WebVR (NRRD)</a>
                         <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>                        
                         <a href="/vti-viewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>
                         <a href="/nrrd-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (NRRD)</a>
@@ -255,6 +257,8 @@
                                 </div>
                                 <div class="folder-actions">
                                     <a href="/json-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📄 JSON</a>
+                                    <a href="/webvr-viewer.html?file=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🥽 VR (VTI)</a>
+                                    <a href="/webvr-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🥽 VR (NRRD)</a>
                                     <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI 1</a>                       
                                     <a href="/vti-viewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI 2</a>
                                     <a href="/nrrd-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🎮 NRRD</a>
