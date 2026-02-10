@@ -104,13 +104,61 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             processedFiles: files,
             jsonPath: removePathBeforeUploads(jsonPath),
             vtiPaths: files.map(file => file.vtiPath),
-            nrrdPaths: files.map(file => file.nrrdPath)
+            nrrdPaths: files.map(file => file.nrrdPath),
+            niftiPaths: files.map(file => file.niftiPath)
         });
     } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({
             success: false,
             message: error.message
+        });
+    }
+});
+
+// Handle deletion
+app.delete('/delete-upload', express.json(), async (req, res) => {
+    try {
+        const { folderPath } = req.body;
+        
+        if (!folderPath) {
+             throw new Error('Folder path is required');
+        }
+
+        // Extract folder name from path (e.g. '/uploads/123_name/dicom_info.json' -> '123_name')
+        // folderPath may be a JSON file path or a folder path, so normalize it
+        const folderName = folderPath.endsWith('.json')
+            ? path.basename(path.dirname(folderPath))
+            : path.basename(folderPath);
+        
+        // Construct absolute path
+        const absolutePath = path.join(__dirname, '../public/uploads', folderName);
+        
+        // Security check: Ensure we are only deleting from uploads directory
+        const uploadsDir = path.join(__dirname, '../public/uploads');
+        if (!absolutePath.startsWith(uploadsDir)) {
+             throw new Error('Invalid path security check failed');
+        }
+
+        console.log('Deleting directory:', absolutePath);
+        
+        // Check if exists
+        try {
+            await fs.promises.access(absolutePath);
+        } catch {
+             throw new Error('Folder not found');
+        }
+        
+        // Delete recursively
+        await fs.promises.rm(absolutePath, { recursive: true, force: true });
+        
+        res.json({ success: true, message: 'Folder deleted successfully' });
+
+    } catch (error) {
+        console.error('Delete error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to delete folder'
         });
     }
 });
@@ -195,6 +243,9 @@ async function processDirectory(dirPath) {
         const nrrdPath = path.join(dirPath, 'volume.nrrd');
         await convertToNrrd(dicomFiles, nrrdPath);
 
+        const niftiPath = path.join(dirPath, 'volume.nii');
+        await convertToNifti(dicomFiles, niftiPath);
+
 
         for (const file of files) {
             const filePath = path.join(dirPath, file);
@@ -238,6 +289,7 @@ async function processDirectory(dirPath) {
                             bumpMapPath: removePathBeforeUploads(bumpMapPath),
                             vtiPath: removePathBeforeUploads(vtiPath),
                             nrrdPath: removePathBeforeUploads(nrrdPath),
+                            niftiPath: removePathBeforeUploads(niftiPath),
                             dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
@@ -1198,6 +1250,223 @@ async function convertToNrrd(dicomFiles, outputPath) {
     }
 }
 
+async function convertToNifti(dicomFiles, outputPath) {
+    try {
+        console.log('Converting DICOM to NIfTI...');
+        
+        const slices = [];
+        
+        // Pass 1: Metadata only
+        console.log('Pass 1: Reading metadata for NIfTI...');
+        for (const filePath of dicomFiles) {
+            const dicomFileBuffer = fs.readFileSync(filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+            
+            const position = dataset.ImagePositionPatient || [0, 0, 0];
+            const spacing = dataset.PixelSpacing || [1, 1];
+            const sliceThickness = dataset.SliceThickness || 1;
+            
+            slices.push({
+                filePath, 
+                position,
+                spacing: [...spacing, sliceThickness],
+                rows: dataset.Rows,
+                columns: dataset.Columns,
+                zPosition: position[2]
+            });
+        }
+        
+        if (slices.length === 0) {
+            throw new Error('No DICOM files found');
+        }
+        
+        slices.sort((a, b) => a.zPosition - b.zPosition);
+        
+        const rows = slices[0].rows;
+        const columns = slices[0].columns;
+        const depth = slices.length;
+        const spacing = slices[0].spacing;
+        const origin = slices[0].position;
+        
+        const totalSize = rows * columns * depth;
+        console.log(`Allocating NIfTI volume data: ${rows}x${columns}x${depth}`);
+        const volumeData = new Float32Array(totalSize);
+        
+        // Pass 2: Pixel Data
+        console.log('Pass 2: Reading pixel data for NIfTI...');
+        for (let z = 0; z < depth; z++) {
+            const slice = slices[z];
+            
+            const dicomFileBuffer = fs.readFileSync(slice.filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+            
+            let pixelData;
+            try {
+                pixelData = extractPixelData(dataset);
+            } catch (e) {
+                console.warn(`Failed to extract pixel data for slice ${z}:`, e);
+                pixelData = new Float32Array(rows * columns); 
+            }
+            
+            for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
+                volumeData[z * rows * columns + i] = pixelData[i];
+            }
+        }
+        
+        // Create NIfTI-1 header (348 bytes)
+        const header = Buffer.alloc(348);
+        
+        // sizeof_hdr (must be 348)
+        header.writeInt32LE(348, 0);
+        
+        // data_type (unused)
+        header.write('', 4, 10, 'ascii');
+        
+        // db_name (unused)
+        header.write('', 14, 18, 'ascii');
+        
+        // extents (unused)
+        header.writeInt32LE(0, 32);
+        
+        // session_error (unused)
+        header.writeInt16LE(0, 36);
+        
+        // regular (unused, should be 'r')
+        header.write('r', 38, 1, 'ascii');
+        
+        // dim_info (unused)
+        header.writeUInt8(0, 39);
+        
+        // dim[8] - dimensions array
+        header.writeInt16LE(3, 40); // dim[0] = number of dimensions
+        header.writeInt16LE(columns, 42); // dim[1] = X
+        header.writeInt16LE(rows, 44); // dim[2] = Y
+        header.writeInt16LE(depth, 46); // dim[3] = Z
+        header.writeInt16LE(1, 48); // dim[4] = time points
+        header.writeInt16LE(1, 50); // dim[5]
+        header.writeInt16LE(1, 52); // dim[6]
+        header.writeInt16LE(1, 54); // dim[7]
+        
+        // intent_p1, intent_p2, intent_p3 (unused)
+        header.writeFloatLE(0, 56);
+        header.writeFloatLE(0, 60);
+        header.writeFloatLE(0, 64);
+        
+        // intent_code (unused)
+        header.writeInt16LE(0, 68);
+        
+        // datatype (16 = float32)
+        header.writeInt16LE(16, 70);
+        
+        // bitpix (32 bits per pixel for float32)
+        header.writeInt16LE(32, 72);
+        
+        // slice_start
+        header.writeInt16LE(0, 74);
+        
+        // pixdim[8] - pixel dimensions
+        header.writeFloatLE(1.0, 76); // pixdim[0] = qfac
+        header.writeFloatLE(spacing[0], 80); // pixdim[1] = X spacing
+        header.writeFloatLE(spacing[1], 84); // pixdim[2] = Y spacing
+        header.writeFloatLE(spacing[2], 88); // pixdim[3] = Z spacing
+        header.writeFloatLE(1.0, 92); // pixdim[4] = time spacing
+        header.writeFloatLE(0, 96); // pixdim[5]
+        header.writeFloatLE(0, 100); // pixdim[6]
+        header.writeFloatLE(0, 104); // pixdim[7]
+        
+        // vox_offset (352 = header size + 4 byte extension)
+        header.writeFloatLE(352, 108);
+        
+        // scl_slope, scl_inter (scaling)
+        header.writeFloatLE(1.0, 112);
+        header.writeFloatLE(0.0, 116);
+        
+        // slice_end
+        header.writeInt16LE(0, 120);
+        
+        // slice_code
+        header.writeUInt8(0, 122);
+        
+        // xyzt_units (2 = mm, 8 = seconds)
+        header.writeUInt8(2, 123);
+        
+        // cal_max, cal_min
+        header.writeFloatLE(0, 124);
+        header.writeFloatLE(0, 128);
+        
+        // slice_duration
+        header.writeFloatLE(0, 132);
+        
+        // toffset
+        header.writeFloatLE(0, 136);
+        
+        // glmax, glmin (unused)
+        header.writeInt32LE(0, 140);
+        header.writeInt32LE(0, 144);
+        
+        // descrip (80 bytes)
+        header.write('DICOM to NIfTI conversion', 148, 80, 'ascii');
+        
+        // aux_file (24 bytes)
+        header.write('', 228, 24, 'ascii');
+        
+        // qform_code, sform_code
+        header.writeInt16LE(1, 252); // qform_code = 1 (scanner coordinates)
+        header.writeInt16LE(1, 254); // sform_code = 1 (scanner coordinates)
+        
+        // quatern_b, quatern_c, quatern_d (quaternion)
+        header.writeFloatLE(0, 256);
+        header.writeFloatLE(0, 260);
+        header.writeFloatLE(0, 264);
+        
+        // qoffset_x, qoffset_y, qoffset_z (origin)
+        header.writeFloatLE(origin[0], 268);
+        header.writeFloatLE(origin[1], 272);
+        header.writeFloatLE(origin[2], 276);
+        
+        // srow_x[4], srow_y[4], srow_z[4] (affine transform)
+        header.writeFloatLE(spacing[0], 280);
+        header.writeFloatLE(0, 284);
+        header.writeFloatLE(0, 288);
+        header.writeFloatLE(origin[0], 292);
+        
+        header.writeFloatLE(0, 296);
+        header.writeFloatLE(spacing[1], 300);
+        header.writeFloatLE(0, 304);
+        header.writeFloatLE(origin[1], 308);
+        
+        header.writeFloatLE(0, 312);
+        header.writeFloatLE(0, 316);
+        header.writeFloatLE(spacing[2], 320);
+        header.writeFloatLE(origin[2], 324);
+        
+        // intent_name (16 bytes)
+        header.write('', 328, 16, 'ascii');
+        
+        // magic (must be "n+1\0" for .nii format)
+        header.write('n+1\0', 344, 4, 'ascii');
+        
+        // Write header to file
+        fs.writeFileSync(outputPath, header);
+        
+        // Write 4-byte extension (all zeros for no extension)
+        const extension = Buffer.alloc(4, 0);
+        fs.appendFileSync(outputPath, extension);
+        
+        // Write volume data
+        fs.appendFileSync(outputPath, Buffer.from(volumeData.buffer));
+        
+        console.log('Successfully wrote NIfTI file:', outputPath);
+        return outputPath;
+
+    } catch (error) {
+        console.error('Error converting DICOM to NIfTI:', error);
+        throw error;
+    }
+}
+
 function generatePointsData(slices) {
   // Create points array for all voxels
   const points = [];
@@ -1280,7 +1549,8 @@ function generateScalarsData(slices) {
           index: index + 1,  
           path: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/')), // Normalize path separators
           vtiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vti')),
-          nrrdPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nrrd'))
+          nrrdPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nrrd')),
+          niftiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nii'))
         }));
 
         // Write to index.json

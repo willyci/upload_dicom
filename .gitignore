@@ -28,3 +28,6 @@ build/
 .vscode/
 *.sw*
 .DS_Store
+
+# Uploads
+public/uploads/ 
