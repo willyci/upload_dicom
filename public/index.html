@@ -15,7 +15,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">📊 DICOM Processor V1.3</div>
+                <div class="logo">📊 DICOM Processor V1.4</div>
                 <nav>
                     <ul>
                         <li><a href="/">Home</a></li>
@@ -195,6 +195,8 @@
                         <a href="/vti-viewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTI)</a>
                         <a href="/nrrd-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (NRRD)</a>
                         <a href="/nifti-viewer.html?file=${encodeURIComponent(result.niftiPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (NIfTI)</a>
+                        <a href="/stl-viewer.html?file=${encodeURIComponent(result.stlPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (STL)</a>
+                        <a href="/vtk-viewer.html?file=${encodeURIComponent(result.vtkLegacyPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (VTK)</a>
                         <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
@@ -264,6 +266,8 @@
                                     <a href="/vti-viewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI 2</a>
                                     <a href="/nrrd-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🎮 NRRD</a>
                                     <a href="/nifti-viewer.html?file=${encodeURIComponent(folder.niftiPath)}" target="_blank" class="action-btn">🎮 NIfTI</a>
+                                    <a href="/stl-viewer.html?file=${encodeURIComponent(folder.stlPath)}" target="_blank" class="action-btn">🎮 STL</a>
+                                    <a href="/vtk-viewer.html?file=${encodeURIComponent(folder.vtkLegacyPath)}" target="_blank" class="action-btn">🎮 VTK</a>
                                     <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
                                     <button onclick="showDeleteModal('${folder.path}')" class="action-btn" style="border-color: var(--error); color: var(--error);">🗑 Delete</button>
                                 </div>

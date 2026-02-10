@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STL 3D Viewer</title>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            text-align: center;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select,
+        input[type="range"],
+        input[type="color"] {
+            width: 100%;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 5px;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+        }
+
+        .preset-btn {
+            padding: 4px 6px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toggle-row label {
+            flex: 1;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            width: auto;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #ddd;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container"></div>
+    <div id="loading">Loading STL...</div>
+    <div id="error"></div>
+
+    <div class="controls" id="controlPanel" style="display: none;">
+        <h3>STL Viewer Controls</h3>
+
+        <div class="control-group">
+            <label>Color</label>
+            <input type="color" id="colorPicker" value="#d4a574">
+        </div>
+
+        <div class="control-group">
+            <label>Color Presets</label>
+            <div class="preset-grid">
+                <button class="preset-btn" onclick="setColor(0.83, 0.65, 0.45)">Bone</button>
+                <button class="preset-btn" onclick="setColor(0.90, 0.75, 0.65)">Skin</button>
+                <button class="preset-btn" onclick="setColor(1.0, 1.0, 1.0)">White</button>
+                <button class="preset-btn" onclick="setColor(0.8, 0.2, 0.2)">Red</button>
+                <button class="preset-btn" onclick="setColor(0.2, 0.4, 0.8)">Blue</button>
+                <button class="preset-btn" onclick="setColor(0.6, 0.6, 0.6)">Gray</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Opacity <span id="opacityValue">1.00</span></label>
+            <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="1">
+        </div>
+
+        <div class="control-group">
+            <div class="toggle-row">
+                <label>Wireframe</label>
+                <input type="checkbox" id="wireframeToggle">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="toggle-row">
+                <label>Show Edges</label>
+                <input type="checkbox" id="edgeToggle">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button onclick="resetCamera()">Reset Camera</button>
+        </div>
+
+        <div class="control-group" style="font-size: 11px; color: #888;">
+            <div>Rotate: Left click + drag</div>
+            <div>Pan: Middle click + drag</div>
+            <div>Zoom: Scroll wheel</div>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        let renderWindow, renderer, actor;
+
+        function showError(msg) {
+            loading.style.display = 'none';
+            errorDiv.innerText = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const fileURL = params.get('file') || params.get('fileURL');
+
+            if (!fileURL) {
+                showError('No STL file specified. Use ?file=path/to/model.stl');
+                return;
+            }
+
+            try {
+                // Use vtkFullScreenRenderWindow (same pattern as other viewers)
+                const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                    rootContainer: container,
+                    background: [0.1, 0.1, 0.15]
+                });
+
+                renderWindow = fullScreenRenderer.getRenderWindow();
+                renderer = fullScreenRenderer.getRenderer();
+
+                // Load STL file
+                const response = await fetch(fileURL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const arrayBuffer = await response.arrayBuffer();
+
+                const reader = vtk.IO.Geometry.vtkSTLReader.newInstance();
+                reader.parseAsArrayBuffer(arrayBuffer);
+
+                // Create pipeline: reader -> mapper -> actor
+                const mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+                mapper.setInputData(reader.getOutputData());
+                mapper.setScalarVisibility(false);
+
+                actor = vtk.Rendering.Core.vtkActor.newInstance();
+                actor.setMapper(mapper);
+                actor.getProperty().setColor(0.83, 0.65, 0.45); // Bone color default
+
+                renderer.addActor(actor);
+                renderer.resetCamera();
+                renderWindow.render();
+
+                // Hide loading, show controls
+                loading.style.display = 'none';
+                document.getElementById('controlPanel').style.display = 'flex';
+
+                // Set up controls
+                setupControls();
+
+            } catch (err) {
+                showError('Failed to load STL: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function setupControls() {
+            // Color picker
+            document.getElementById('colorPicker').addEventListener('input', (e) => {
+                const hex = e.target.value;
+                const r = parseInt(hex.substr(1, 2), 16) / 255;
+                const g = parseInt(hex.substr(3, 2), 16) / 255;
+                const b = parseInt(hex.substr(5, 2), 16) / 255;
+                actor.getProperty().setColor(r, g, b);
+                renderWindow.render();
+            });
+
+            // Opacity slider
+            document.getElementById('opacitySlider').addEventListener('input', (e) => {
+                const opacity = parseFloat(e.target.value);
+                document.getElementById('opacityValue').textContent = opacity.toFixed(2);
+                actor.getProperty().setOpacity(opacity);
+                renderWindow.render();
+            });
+
+            // Wireframe toggle
+            document.getElementById('wireframeToggle').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    actor.getProperty().setRepresentation(1); // Wireframe
+                } else {
+                    actor.getProperty().setRepresentation(2); // Surface
+                }
+                renderWindow.render();
+            });
+
+            // Edge toggle
+            document.getElementById('edgeToggle').addEventListener('change', (e) => {
+                actor.getProperty().setEdgeVisibility(e.target.checked);
+                if (e.target.checked) {
+                    actor.getProperty().setEdgeColor(0.2, 0.2, 0.2);
+                }
+                renderWindow.render();
+            });
+        }
+
+        window.setColor = function(r, g, b) {
+            actor.getProperty().setColor(r, g, b);
+            const hex = '#' +
+                Math.round(r * 255).toString(16).padStart(2, '0') +
+                Math.round(g * 255).toString(16).padStart(2, '0') +
+                Math.round(b * 255).toString(16).padStart(2, '0');
+            document.getElementById('colorPicker').value = hex;
+            renderWindow.render();
+        };
+
+        window.resetCamera = function() {
+            if (renderer) {
+                renderer.resetCamera();
+                renderWindow.render();
+            }
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

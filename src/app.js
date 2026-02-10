@@ -20,6 +20,8 @@ import vtkITKImageReader from '@kitware/vtk.js/IO/Misc/ITKImageReader.js';
 import vtkXMLImageDataWriter from '@kitware/vtk.js/IO/XML/XMLImageDataWriter.js';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData.js';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray.js';
+import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarchingCubes.js';
+import vtkSTLWriter from '@kitware/vtk.js/IO/Geometry/STLWriter.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -105,7 +107,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             jsonPath: removePathBeforeUploads(jsonPath),
             vtiPaths: files.map(file => file.vtiPath),
             nrrdPaths: files.map(file => file.nrrdPath),
-            niftiPaths: files.map(file => file.niftiPath)
+            niftiPaths: files.map(file => file.niftiPath),
+            stlPaths: files.map(file => file.stlPath),
+            vtkLegacyPaths: files.map(file => file.vtkLegacyPath)
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -246,6 +250,11 @@ async function processDirectory(dirPath) {
         const niftiPath = path.join(dirPath, 'volume.nii');
         await convertToNifti(dicomFiles, niftiPath);
 
+        const stlPath = path.join(dirPath, 'model.stl');
+        await convertToStl(dicomFiles, stlPath);
+
+        const vtkLegacyPath = path.join(dirPath, 'volume.vtk');
+        await convertToVtk(dicomFiles, vtkLegacyPath);
 
         for (const file of files) {
             const filePath = path.join(dirPath, file);
@@ -290,6 +299,8 @@ async function processDirectory(dirPath) {
                             vtiPath: removePathBeforeUploads(vtiPath),
                             nrrdPath: removePathBeforeUploads(nrrdPath),
                             niftiPath: removePathBeforeUploads(niftiPath),
+                            stlPath: removePathBeforeUploads(stlPath),
+                            vtkLegacyPath: removePathBeforeUploads(vtkLegacyPath),
                             dicomInfo: dicomInfo
                         });
                         console.log('Successfully converted to JPG:', outputPath);
@@ -907,87 +918,90 @@ async function convertDicomToImage(dicomFilePath, outputPath) {
 
   async function convertToVtk(dicomFiles, outputPath) {
     try {
-        // Create an array to store all slices
+        console.log('Converting DICOM to VTK legacy...');
+
         const slices = [];
-        
-        // Load and sort all DICOM files
+
+        // Pass 1: Metadata only
+        console.log('Pass 1: Reading metadata for VTK...');
         for (const filePath of dicomFiles) {
             const dicomFileBuffer = fs.readFileSync(filePath);
             const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
             const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
-            
-            // Extract position and orientation information
+
             const position = dataset.ImagePositionPatient || [0, 0, 0];
-            const orientation = dataset.ImageOrientationPatient || [1, 0, 0, 0, 1, 0];
             const spacing = dataset.PixelSpacing || [1, 1];
             const sliceThickness = dataset.SliceThickness || 1;
-            
+
             slices.push({
-                dataset,
+                filePath,
                 position,
-                orientation,
                 spacing: [...spacing, sliceThickness],
-                imageData: dataset.PixelData,
                 rows: dataset.Rows,
                 columns: dataset.Columns,
-                zPosition: position[2] // For sorting slices
+                zPosition: position[2]
             });
         }
-        
-        // Sort slices by z-position
+
+        if (slices.length === 0) {
+            throw new Error('No DICOM files found');
+        }
+
         slices.sort((a, b) => a.zPosition - b.zPosition);
-        
-        // Create VTK data structure
-        const dimensions = [
-            slices[0].columns,
-            slices[0].rows,
-            slices.length
-        ];
-        
-        const spacing = [
-            slices[0].spacing[0],
-            slices[0].spacing[1],
-            slices[0].spacing[2]
-        ];
-        
-        // Create the volume data
-        const volumeData = new Float32Array(dimensions[0] * dimensions[1] * dimensions[2]);
-        
-        // Fill volume data from slices
-        slices.forEach((slice, zIndex) => {
-            const pixelData = new Float32Array(slice.imageData.buffer);
-            const sliceOffset = zIndex * dimensions[0] * dimensions[1];
-            
-            for (let y = 0; y < dimensions[1]; y++) {
-                for (let x = 0; x < dimensions[0]; x++) {
-                    const sourceIndex = y * dimensions[0] + x;
-                    const targetIndex = sliceOffset + sourceIndex;
-                    volumeData[targetIndex] = pixelData[sourceIndex];
-                }
+
+        const rows = slices[0].rows;
+        const columns = slices[0].columns;
+        const depth = slices.length;
+        const spacing = slices[0].spacing;
+        const origin = slices[0].position;
+
+        const totalSize = rows * columns * depth;
+        console.log(`Allocating VTK volume data: ${columns}x${rows}x${depth}`);
+        const volumeData = new Float32Array(totalSize);
+
+        // Pass 2: Pixel Data
+        console.log('Pass 2: Reading pixel data for VTK...');
+        for (let z = 0; z < depth; z++) {
+            const slice = slices[z];
+
+            const dicomFileBuffer = fs.readFileSync(slice.filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+
+            let pixelData;
+            try {
+                pixelData = extractPixelData(dataset);
+            } catch (e) {
+                console.warn(`Failed to extract pixel data for slice ${z}:`, e);
+                pixelData = new Float32Array(rows * columns);
             }
-        });
-        
+
+            for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
+                volumeData[z * rows * columns + i] = pixelData[i];
+            }
+        }
+
         // Write VTK file
         const vtkContent = `# vtk DataFile Version 3.0
-                            converted from DICOM
-                            BINARY
-                            DATASET STRUCTURED_POINTS
-                            DIMENSIONS ${dimensions.join(' ')}
-                            ORIGIN ${slices[0].position.join(' ')}
-                            SPACING ${spacing.join(' ')}
-                            POINT_DATA ${volumeData.length}
-                            SCALARS intensity float
-                            LOOKUP_TABLE default
-                            `;
+converted from DICOM
+BINARY
+DATASET STRUCTURED_POINTS
+DIMENSIONS ${columns} ${rows} ${depth}
+ORIGIN ${origin.join(' ')}
+SPACING ${spacing.join(' ')}
+POINT_DATA ${volumeData.length}
+SCALARS intensity float
+LOOKUP_TABLE default
+`;
 
         // Write header as ASCII
         fs.writeFileSync(outputPath, vtkContent);
-        
+
         // Append binary data
         const buffer = Buffer.from(volumeData.buffer);
         fs.appendFileSync(outputPath, buffer);
-        
-        console.log(`Successfully converted ${dicomFiles.length} files to VTP: ${outputPath}`);
+
+        console.log(`Successfully converted ${dicomFiles.length} files to VTK: ${outputPath}`);
         return outputPath;
     } catch (error) {
         console.error('Error converting DICOM to VTK:', error);
@@ -1467,6 +1481,126 @@ async function convertToNifti(dicomFiles, outputPath) {
     }
 }
 
+async function convertToStl(dicomFiles, outputPath) {
+    try {
+        console.log('Converting DICOM to STL...');
+
+        const slices = [];
+
+        // Pass 1: Metadata only
+        console.log('Pass 1: Reading metadata for STL...');
+        for (const filePath of dicomFiles) {
+            const dicomFileBuffer = fs.readFileSync(filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+
+            const position = dataset.ImagePositionPatient || [0, 0, 0];
+            const spacing = dataset.PixelSpacing || [1, 1];
+            const sliceThickness = dataset.SliceThickness || 1;
+
+            slices.push({
+                filePath,
+                position,
+                spacing: [...spacing, sliceThickness],
+                rows: dataset.Rows,
+                columns: dataset.Columns,
+                zPosition: position[2]
+            });
+        }
+
+        if (slices.length === 0) {
+            throw new Error('No DICOM files found');
+        }
+
+        slices.sort((a, b) => a.zPosition - b.zPosition);
+
+        const rows = slices[0].rows;
+        const columns = slices[0].columns;
+        const depth = slices.length;
+        const spacing = slices[0].spacing;
+        const origin = slices[0].position;
+
+        const totalSize = rows * columns * depth;
+        console.log(`Allocating STL volume data: ${rows}x${columns}x${depth}`);
+        const volumeData = new Float32Array(totalSize);
+
+        // Pass 2: Pixel Data
+        console.log('Pass 2: Reading pixel data for STL...');
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+        for (let z = 0; z < depth; z++) {
+            const slice = slices[z];
+
+            const dicomFileBuffer = fs.readFileSync(slice.filePath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+
+            let pixelData;
+            try {
+                pixelData = extractPixelData(dataset);
+            } catch (e) {
+                console.warn(`Failed to extract pixel data for slice ${z}:`, e);
+                pixelData = new Float32Array(rows * columns);
+            }
+
+            for (let i = 0; i < Math.min(pixelData.length, rows * columns); i++) {
+                const val = pixelData[i];
+                volumeData[z * rows * columns + i] = val;
+                if (val < minVal) minVal = val;
+                if (val > maxVal) maxVal = val;
+            }
+        }
+
+        // Build vtkImageData
+        const vtkImage = vtkImageData.newInstance();
+        vtkImage.setDimensions([columns, rows, depth]);
+        vtkImage.setSpacing(spacing);
+        vtkImage.setOrigin(origin);
+
+        const scalars = vtkDataArray.newInstance({
+            name: 'Scalars',
+            values: volumeData,
+            numberOfComponents: 1
+        });
+        vtkImage.getPointData().setScalars(scalars);
+
+        // Auto-compute iso value: 33% of data range, fallback to 20%
+        let isoValue = minVal + (maxVal - minVal) * 0.33;
+        if (!isFinite(isoValue) || isoValue <= minVal) {
+            isoValue = minVal + (maxVal - minVal) * 0.20;
+        }
+        console.log(`Marching Cubes iso value: ${isoValue} (range: ${minVal} - ${maxVal})`);
+
+        // Run Marching Cubes
+        const marchingCubes = vtkImageMarchingCubes.newInstance();
+        marchingCubes.setInputData(vtkImage);
+        marchingCubes.setContourValue(isoValue);
+        marchingCubes.setComputeNormals(true);
+        marchingCubes.setMergePoints(true);
+        marchingCubes.update();
+
+        const polyData = marchingCubes.getOutputData();
+        const numPoints = polyData.getPoints().getNumberOfPoints();
+        console.log(`Marching Cubes produced ${numPoints} points`);
+
+        if (numPoints === 0) {
+            console.warn('Marching Cubes produced no geometry, skipping STL write');
+            return outputPath;
+        }
+
+        // Write binary STL
+        const stlDataView = vtkSTLWriter.writeSTL(polyData);
+        fs.writeFileSync(outputPath, Buffer.from(stlDataView.buffer));
+
+        console.log('Successfully wrote STL file:', outputPath);
+        return outputPath;
+
+    } catch (error) {
+        console.error('Error converting DICOM to STL:', error);
+        throw error;
+    }
+}
+
 function generatePointsData(slices) {
   // Create points array for all voxels
   const points = [];
@@ -1550,7 +1684,9 @@ function generateScalarsData(slices) {
           path: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/')), // Normalize path separators
           vtiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vti')),
           nrrdPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nrrd')),
-          niftiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nii'))
+          niftiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nii')),
+          stlPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'model.stl')),
+          vtkLegacyPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vtk'))
         }));
 
         // Write to index.json
