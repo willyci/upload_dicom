@@ -1,30 +1,20 @@
 {
   "type": "module",
   "name": "dicom-processor",
-  "version": "1.2.0",
-  "description": "A Node.js application for processing DICOM files, converting them to JPG and VTP formats, and providing a viewer for the converted files.",
+  "version": "2.0.0",
+  "description": "A Node.js application for processing DICOM files, converting them to JPG, VTI, NRRD, NIfTI, STL, and VTK formats, and providing viewers for the converted files.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node --experimental-modules src/app.js",
-    "dev": "nodemon --experimental-modules src/app.js"
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
   },
   "dependencies": {
-    "@itk-wasm/dicom": "^7.6.0",
-    "@itk-wasm/image-io": "^1.6.0",
-    "@kitware/vtk.js": "^27.5.0",
-    "@niivue/dcm2niix": "^1.2.0",
-    "adm-zip": "^0.5.9",
     "canvas": "^3.1.0",
     "dcmjs": "^0.38.1",
-    "dcmjs-imaging": "^0.1.27",
     "dicom-parser": "^1.8.11",
     "express": "^4.17.1",
-    "itk-wasm": "^1.0.0-b.188",
     "multer": "^1.4.2",
-    "sharp": "^0.33.5",
-    "unzipper": "^0.12.3",
-    "vtk.js": "^24.19.2",
-    "web-worker": "^1.5.0"
+    "unzipper": "^0.12.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

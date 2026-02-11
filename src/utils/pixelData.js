@@ -1,5 +1,6 @@
+export const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
-function extractPixelData(dataset) {
+export function extractPixelData(dataset) {
     let rawPixelData;
     if (!dataset.PixelData) {
         throw new Error("No pixel data found in DICOM file");
@@ -8,13 +9,18 @@ function extractPixelData(dataset) {
     if (dataset.PixelData.buffer) {
         rawPixelData = dataset.PixelData;
     } else if (Array.isArray(dataset.PixelData) && dataset.PixelData[0] instanceof ArrayBuffer) {
-        rawPixelData = new Uint8Array(dataset.PixelData[0]); // Assume single frame
+        rawPixelData = new Uint8Array(dataset.PixelData[0]);
     } else if (typeof dataset.PixelData === 'object' && dataset.PixelData[0] && dataset.PixelData[0].buffer) {
         rawPixelData = dataset.PixelData[0];
     } else if (dataset.PixelData.byteArray) {
         rawPixelData = dataset.PixelData.byteArray;
     } else {
-        throw new Error("Unknown PixelData format");
+        if (typeof dataset.PixelData === 'string') {
+            const buffer = Buffer.from(dataset.PixelData, 'base64');
+            rawPixelData = new Uint8Array(buffer);
+        } else {
+            throw new Error("Unknown PixelData format");
+        }
     }
 
     const bitsAllocated = dataset.BitsAllocated || 16;
@@ -28,6 +34,6 @@ function extractPixelData(dataset) {
     } else {
         pixelData = new Int16Array(rawPixelData.buffer || rawPixelData);
     }
-    
+
     return pixelData;
 }
