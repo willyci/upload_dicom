@@ -43,16 +43,25 @@
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-zone" id="uploadZone">
                     <div class="upload-icon">📁</div>
-                    <h3>Drop your ZIP file here</h3>
+                    <h3>Drop files here</h3>
                     <p style="color: var(--text-muted); margin-bottom: var(--spacing-lg);">
-                        or click to browse
+                        ZIP archives, .dcm files, or use the buttons below
                     </p>
-                    <input type="file" id="fileInput" name="file" accept=".zip" style="display: none;">
-                    <button type="button" class="btn btn-primary"
-                        onclick="document.getElementById('fileInput').click()">
-                        Select ZIP File
-                    </button>
+                    <input type="file" id="fileInput" name="files" accept=".zip,.dcm" multiple style="display: none;">
+                    <input type="file" id="folderInput" name="files" webkitdirectory style="display: none;">
+                    <div class="flex gap-sm justify-center flex-wrap">
+                        <button type="button" class="btn btn-primary"
+                            onclick="document.getElementById('fileInput').click()">
+                            Select Files
+                        </button>
+                        <button type="button" class="btn btn-secondary"
+                            onclick="document.getElementById('folderInput').click()">
+                            Select Folder
+                        </button>
+                    </div>
                 </div>
+
+                <div id="fileList" class="hidden mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;"></div>
 
                 <div id="uploadProgress" class="hidden mt-lg">
                     <div class="flex items-center justify-between mb-sm">
@@ -87,12 +96,14 @@
         // File upload handling
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
+        const folderInput = document.getElementById('folderInput');
         const uploadForm = document.getElementById('uploadForm');
         const uploadProgress = document.getElementById('uploadProgress');
         const uploadStatus = document.getElementById('uploadStatus');
         const uploadPercent = document.getElementById('uploadPercent');
         const progressBar = document.getElementById('progressBar');
         const uploadResult = document.getElementById('uploadResult');
+        const fileListDiv = document.getElementById('fileList');
 
         // Drag and drop handlers
         uploadZone.addEventListener('dragover', (e) => {
@@ -109,33 +120,64 @@
             uploadZone.classList.remove('dragging');
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                fileInput.files = files;
-                handleUpload();
+                handleUpload(files);
             }
         });
 
         // File input change handler
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
-                handleUpload();
+                handleUpload(fileInput.files);
+            }
+        });
+
+        // Folder input change handler
+        folderInput.addEventListener('change', () => {
+            if (folderInput.files.length > 0) {
+                handleUpload(folderInput.files);
             }
         });
 
         // Handle file upload
-        async function handleUpload() {
-            const file = fileInput.files[0];
-
-            if (!file || !file.name.toLowerCase().endsWith('.zip')) {
-                alert('Please select a ZIP file');
+        async function handleUpload(files) {
+            if (!files || files.length === 0) {
+                alert('No files selected');
                 return;
             }
 
+            // Filter to only .zip and .dcm files (skip others client-side for folder uploads)
+            const validFiles = [];
+            const skippedCount = { count: 0 };
+            for (const file of files) {
+                const name = file.name.toLowerCase();
+                if (name.endsWith('.zip') || name.endsWith('.dcm')) {
+                    validFiles.push(file);
+                } else {
+                    skippedCount.count++;
+                }
+            }
+
+            if (validFiles.length === 0) {
+                alert('No .zip or .dcm files found in the selection');
+                return;
+            }
+
+            // Show file list
+            const fileNames = validFiles.slice(0, 5).map(f => f.name);
+            let listText = `Uploading ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}: ${fileNames.join(', ')}`;
+            if (validFiles.length > 5) listText += ` and ${validFiles.length - 5} more`;
+            if (skippedCount.count > 0) listText += ` (skipping ${skippedCount.count} non-DICOM file${skippedCount.count > 1 ? 's' : ''})`;
+            fileListDiv.textContent = listText;
+            fileListDiv.classList.remove('hidden');
+
             const formData = new FormData();
-            formData.append('file', file);
+            for (const file of validFiles) {
+                formData.append('files', file);
+            }
 
             uploadProgress.classList.remove('hidden');
             uploadResult.classList.add('hidden');
-            uploadStatus.textContent = 'Uploading...';
+            uploadStatus.textContent = `Uploading ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}...`;
 
             try {
                 const xhr = new XMLHttpRequest();
@@ -153,6 +195,7 @@
                 });
 
                 xhr.addEventListener('load', () => {
+                    fileListDiv.classList.add('hidden');
                     if (xhr.status === 200) {
                         const result = JSON.parse(xhr.responseText);
                         showUploadSuccess(result);
@@ -166,6 +209,7 @@
                 });
 
                 xhr.addEventListener('error', () => {
+                    fileListDiv.classList.add('hidden');
                     showUploadError('Network error occurred');
                 });
 
@@ -173,6 +217,7 @@
                 xhr.send(formData);
 
             } catch (error) {
+                fileListDiv.classList.add('hidden');
                 showUploadError(error.message);
             }
         }
@@ -180,6 +225,12 @@
         function showUploadSuccess(result) {
             uploadProgress.classList.add('hidden');
             uploadResult.classList.remove('hidden');
+
+            let skippedHtml = '';
+            if (result.skipped && result.skipped.length > 0) {
+                skippedHtml = `<p style="color: var(--text-muted); font-size: 0.875rem; margin-top: var(--spacing-sm);">Skipped: ${result.skipped.join(', ')}</p>`;
+            }
+
             uploadResult.innerHTML = `
                 <div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success);">
                     <h3 style="color: var(--success); margin-bottom: var(--spacing-md);">✓ Processing Complete</h3>
@@ -187,6 +238,7 @@
                         <span>📁 Folder: ${result.folder}</span>
                         <span>📄 Files: ${result.processedFiles.length}</span>
                     </div>
+                    ${skippedHtml}
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">View JSON</a>
                         <a href="/webvr-viewer.html?file=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">🥽 WebVR (VTI)</a>
@@ -202,6 +254,7 @@
                 </div>
             `;
             fileInput.value = '';
+            folderInput.value = '';
         }
 
         function showUploadError(message) {
@@ -234,7 +287,7 @@
                     uploadsGrid.innerHTML = `
                         <div class="text-center" style="grid-column: 1 / -1; padding: var(--spacing-2xl);">
                             <div style="font-size: 4rem; opacity: 0.3; margin-bottom: var(--spacing-md);">📂</div>
-<p style="color: var(--text-muted);">No uploads yet. Upload your first DICOM ZIP file to get started!</p>
+<p style="color: var(--text-muted);">No uploads yet. Upload your first DICOM files to get started!</p>
                         </div>
                     `;
                     return;

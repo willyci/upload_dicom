@@ -10,25 +10,32 @@ import { convertToVtk } from '../converters/vtk.js';
 import { showDicomInfo } from '../utils/dicomInfo.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
 
-export async function processDirectory(dirPath) {
-    const files = await fs.promises.readdir(dirPath);
-    const processedFiles = [];
-    const dicomFiles = [];
-    const errors = [];
-
-    console.log(`Processing ${files.length} files in directory:`, dirPath);
-
-    // First pass: collect all DICOM files
-    for (const file of files) {
-        const filePath = path.join(dirPath, file);
-        if (filePath.toLowerCase().endsWith('.dcm')) {
-            dicomFiles.push(filePath);
+// Recursively find all .dcm files in a directory tree
+async function findDcmFilesRecursive(dir) {
+    const results = [];
+    const items = await fs.promises.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+            const nested = await findDcmFilesRecursive(fullPath);
+            results.push(...nested);
+        } else if (item.name.toLowerCase().endsWith('.dcm')) {
+            results.push(fullPath);
         }
     }
+    return results;
+}
 
-    console.log(`Found ${dicomFiles.length} DICOM files to process.`);
+export async function processDirectory(dirPath) {
+    const processedFiles = [];
+    const errors = [];
 
-    // Run volume converters with individual error handling
+    // Recursively collect all DICOM files from all subdirectories
+    const dicomFiles = await findDcmFilesRecursive(dirPath);
+
+    console.log(`Found ${dicomFiles.length} DICOM files to process (recursive scan of ${dirPath})`);
+
+    // Volume output files go in the top-level directory
     const vtiPath = path.join(dirPath, 'volume.vti');
     let vtiResult = null;
     try {
@@ -80,49 +87,35 @@ export async function processDirectory(dirPath) {
     }
 
     // Process individual DICOM files for JPG + bump maps
-    for (const file of files) {
-        const filePath = path.join(dirPath, file);
-        const stats = await fs.promises.stat(filePath);
+    for (const filePath of dicomFiles) {
+        try {
+            const outputPath = `${filePath}.jpg`;
+            await convertToJpg(filePath, outputPath);
 
-        if (stats.isFile()) {
+            const bumpMapPath = `${filePath}_bump.jpg`;
             try {
-                let currentPath = filePath;
-                if (!path.extname(file)) {
-                    const newPath = `${filePath}.dcm`;
-                    await fs.promises.rename(filePath, newPath);
-                    currentPath = newPath;
-                }
-
-                if (currentPath.toLowerCase().endsWith('.dcm')) {
-                    const outputPath = `${currentPath}.jpg`;
-                    await convertToJpg(currentPath, outputPath);
-
-                    const bumpMapPath = `${currentPath}_bump.jpg`;
-                    try {
-                        const dicomFileBuffer = fs.readFileSync(currentPath);
-                        const dataSet = dicomParser.parseDicom(dicomFileBuffer);
-                        await generateBumpMap(dataSet, bumpMapPath);
-                    } catch (bumpError) {
-                        console.error(`Error generating bump map for ${file}:`, bumpError.message);
-                    }
-
-                    const dicomInfo = showDicomInfo(filePath);
-                    processedFiles.push({
-                        dicomPath: removePathBeforeUploads(filePath),
-                        jpgPath: removePathBeforeUploads(outputPath),
-                        bumpMapPath: removePathBeforeUploads(bumpMapPath),
-                        vtiPath: vtiResult ? removePathBeforeUploads(vtiPath) : null,
-                        nrrdPath: nrrdResult ? removePathBeforeUploads(nrrdPath) : null,
-                        niftiPath: niftiResult ? removePathBeforeUploads(niftiPath) : null,
-                        stlPath: stlResult ? removePathBeforeUploads(stlPath) : null,
-                        vtkLegacyPath: vtkResult ? removePathBeforeUploads(vtkLegacyPath) : null,
-                        dicomInfo: dicomInfo
-                    });
-                }
-            } catch (error) {
-                console.error(`Error processing file ${file}:`, error.message);
-                errors.push({ converter: 'jpg', file, error: error.message });
+                const dicomFileBuffer = fs.readFileSync(filePath);
+                const dataSet = dicomParser.parseDicom(dicomFileBuffer);
+                await generateBumpMap(dataSet, bumpMapPath);
+            } catch (bumpError) {
+                console.error(`Error generating bump map for ${path.basename(filePath)}:`, bumpError.message);
             }
+
+            const dicomInfo = showDicomInfo(filePath);
+            processedFiles.push({
+                dicomPath: removePathBeforeUploads(filePath),
+                jpgPath: removePathBeforeUploads(outputPath),
+                bumpMapPath: removePathBeforeUploads(bumpMapPath),
+                vtiPath: vtiResult ? removePathBeforeUploads(vtiPath) : null,
+                nrrdPath: nrrdResult ? removePathBeforeUploads(nrrdPath) : null,
+                niftiPath: niftiResult ? removePathBeforeUploads(niftiPath) : null,
+                stlPath: stlResult ? removePathBeforeUploads(stlPath) : null,
+                vtkLegacyPath: vtkResult ? removePathBeforeUploads(vtkLegacyPath) : null,
+                dicomInfo: dicomInfo
+            });
+        } catch (error) {
+            console.error(`Error processing file ${path.basename(filePath)}:`, error.message);
+            errors.push({ converter: 'jpg', file: path.basename(filePath), error: error.message });
         }
     }
 

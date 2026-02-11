@@ -9,7 +9,7 @@ import { removePathBeforeUploads } from '../utils/paths.js';
 
 const upload = multer({
     dest: UPLOADS_DIR,
-    limits: { fileSize: 500 * 1024 * 1024 } // 500MB
+    limits: { fileSize: 500 * 1024 * 1024 } // 500MB per file
 });
 
 const router = express.Router();
@@ -27,56 +27,99 @@ function isValidZip(filePath) {
     }
 }
 
-router.post('/upload', upload.single('file'), async (req, res, next) => {
+// Recursively find all .dcm files in a directory tree
+async function findDcmFiles(dir) {
+    const results = [];
+    const items = await fs.promises.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+            const nested = await findDcmFiles(fullPath);
+            results.push(...nested);
+        } else if (item.name.toLowerCase().endsWith('.dcm')) {
+            results.push(fullPath);
+        }
+    }
+    return results;
+}
+
+router.post('/upload', upload.array('files', 200), async (req, res, next) => {
+    const tempFiles = []; // track temp files for cleanup
     try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'No file uploaded' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ success: false, message: 'No files uploaded' });
         }
 
-        // Validate file extension
-        if (!req.file.originalname.toLowerCase().endsWith('.zip')) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, message: 'Only ZIP files are accepted' });
-        }
-
-        // Validate ZIP magic bytes
-        if (!isValidZip(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, message: 'File is not a valid ZIP archive' });
+        // Track temp files for cleanup
+        for (const f of req.files) {
+            tempFiles.push(f.path);
         }
 
         const timestamp = Date.now();
-        const folderName = `${timestamp}_${req.file.originalname.replace('.zip', '')}`;
+        // Build folder name from first file's original name
+        const firstName = req.files[0].originalname.replace(/\.zip$/i, '').replace(/\.dcm$/i, '');
+        const suffix = req.files.length > 1 ? `_and_${req.files.length - 1}_more` : '';
+        const folderName = `${timestamp}_${firstName}${suffix}`;
         const extractPath = path.join(UPLOADS_DIR, folderName);
 
         await fs.promises.mkdir(extractPath, { recursive: true });
 
-        // Extract ZIP file
-        await new Promise((resolve, reject) => {
-            const unzipStream = unzipper.Parse();
-            fs.createReadStream(req.file.path)
-                .pipe(unzipStream)
-                .on('entry', (entry) => {
-                    const fileName = path.basename(entry.path);
-                    const writePath = path.join(extractPath, fileName);
+        const skipped = [];
 
-                    if (entry.type === 'File') {
-                        entry.pipe(fs.createWriteStream(writePath));
-                    } else {
-                        entry.autodrain();
-                    }
-                })
-                .on('finish', resolve)
-                .on('error', reject);
-        });
+        // Process each uploaded file
+        for (const file of req.files) {
+            const lowerName = file.originalname.toLowerCase();
 
-        // Verify .dcm files exist
-        const extractedFiles = await fs.promises.readdir(extractPath);
-        const hasDcmFiles = extractedFiles.some(f => f.toLowerCase().endsWith('.dcm'));
-        if (!hasDcmFiles) {
+            if (isValidZip(file.path)) {
+                // Extract ZIP preserving relative paths
+                await new Promise((resolve, reject) => {
+                    const unzipStream = unzipper.Parse();
+                    fs.createReadStream(file.path)
+                        .pipe(unzipStream)
+                        .on('entry', async (entry) => {
+                            // Skip directories and hidden/macOS metadata files
+                            if (entry.type !== 'File' || entry.path.startsWith('__MACOSX')) {
+                                entry.autodrain();
+                                return;
+                            }
+
+                            // Preserve relative path structure
+                            const relativePath = entry.path;
+                            const writePath = path.join(extractPath, relativePath);
+
+                            // Ensure parent directory exists
+                            await fs.promises.mkdir(path.dirname(writePath), { recursive: true });
+                            entry.pipe(fs.createWriteStream(writePath));
+                        })
+                        .on('finish', resolve)
+                        .on('error', reject);
+                });
+            } else if (lowerName.endsWith('.dcm')) {
+                // Move .dcm file directly into extraction directory
+                const destPath = path.join(extractPath, file.originalname);
+                await fs.promises.rename(file.path, destPath);
+                // Remove from temp cleanup list since it was moved
+                const idx = tempFiles.indexOf(file.path);
+                if (idx !== -1) tempFiles.splice(idx, 1);
+            } else {
+                // Skip non-ZIP, non-DCM files
+                skipped.push(file.originalname);
+            }
+        }
+
+        // Recursively find all .dcm files
+        const dcmFiles = await findDcmFiles(extractPath);
+
+        if (dcmFiles.length === 0) {
             await fs.promises.rm(extractPath, { recursive: true, force: true });
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, message: 'ZIP contains no .dcm files' });
+            // Clean up temp files
+            for (const tmp of tempFiles) {
+                try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+            }
+            const msg = skipped.length > 0
+                ? `No .dcm files found. Skipped non-DICOM files: ${skipped.join(', ')}`
+                : 'No .dcm files found in the uploaded files';
+            return res.status(400).json({ success: false, message: msg });
         }
 
         // Process extracted files
@@ -87,10 +130,12 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
         const jsonPath = path.join(extractPath + '/', 'dicom_info.json');
         await fs.promises.writeFile(jsonPath, jsonData);
 
-        // Clean up the uploaded ZIP file
-        fs.unlinkSync(req.file.path);
+        // Clean up temp files
+        for (const tmp of tempFiles) {
+            try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+        }
 
-        res.json({
+        const response = {
             success: true,
             folder: folderName,
             processedFiles: processedFiles,
@@ -101,11 +146,17 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
             niftiPaths: processedFiles.map(file => file.niftiPath),
             stlPaths: processedFiles.map(file => file.stlPath),
             vtkLegacyPaths: processedFiles.map(file => file.vtkLegacyPath)
-        });
+        };
+
+        if (skipped.length > 0) {
+            response.skipped = skipped;
+        }
+
+        res.json(response);
     } catch (error) {
-        // Clean up temp file on error
-        if (req.file && fs.existsSync(req.file.path)) {
-            try { fs.unlinkSync(req.file.path); } catch {}
+        // Clean up temp files on error
+        for (const tmp of tempFiles) {
+            try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
         }
         console.error('Upload error:', error);
         res.status(500).json({ success: false, message: error.message });
