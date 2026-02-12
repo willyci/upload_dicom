@@ -1,3 +1,4 @@
+// Force restart
 import { EventEmitter } from 'events';
 EventEmitter.defaultMaxListeners = 20;
 
@@ -18,6 +19,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+// Increase limits to handle large file uploads
+// 10 minutes keep-alive to prevent load balancers/proxies from killing connection
+server.keepAliveTimeout = 600000; 
+server.headersTimeout = 601000; // Must be greater than keepAliveTimeout

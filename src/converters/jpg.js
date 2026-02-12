@@ -2,10 +2,18 @@ import fs from 'fs';
 import { createCanvas } from 'canvas';
 import { DicomMetaDictionary, DicomMessage } from '../utils/dicomHelpers.js';
 
+export async function convertToJpgFromDataset(dataset, outputPath) {
+    return _convertDatasetToJpg(dataset, outputPath);
+}
+
 export async function convertToJpg(inputPath, outputPath) {
     const dicomFileBuffer = fs.readFileSync(inputPath);
     const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
     const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+    return _convertDatasetToJpg(dataset, outputPath);
+}
+
+function _convertDatasetToJpg(dataset, outputPath) {
 
     let rawPixelData;
     if (!dataset.PixelData) {

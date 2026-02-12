@@ -1,11 +1,13 @@
 import fs from 'fs';
 import { DicomMetaDictionary, DicomMessage } from './dicomHelpers.js';
 
-export function showDicomInfo(inputPath) {
+export function showDicomInfo(inputPath, dataset) {
     try {
-        const dicomFileBuffer = fs.readFileSync(inputPath);
-        const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
-        const dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+        if (!dataset) {
+            const dicomFileBuffer = fs.readFileSync(inputPath);
+            const dicomData = DicomMessage.readFile(dicomFileBuffer.buffer);
+            dataset = DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+        }
 
         const transferSyntax = dataset.TransferSyntaxUID;
         if (transferSyntax) {

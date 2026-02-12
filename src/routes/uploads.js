@@ -9,7 +9,7 @@ import { removePathBeforeUploads } from '../utils/paths.js';
 
 const upload = multer({
     dest: UPLOADS_DIR,
-    limits: { fileSize: 500 * 1024 * 1024 } // 500MB per file
+    limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB per file
 });
 
 const router = express.Router();
@@ -43,7 +43,36 @@ async function findDcmFiles(dir) {
     return results;
 }
 
-router.post('/upload', upload.array('files', 200), async (req, res, next) => {
+const uploadMiddleware = upload.array('files', 200);
+
+const handleUpload = (req, res, next) => {
+    uploadMiddleware(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'File is too large. Maximum size is 2GB.' 
+                });
+            }
+            return res.status(400).json({ 
+                success: false, 
+                message: `Upload error: ${err.message}` 
+            });
+        } else if (err) {
+            return res.status(500).json({ 
+                success: false, 
+                message: `Unknown upload error: ${err.message}` 
+            });
+        }
+        next();
+    });
+};
+
+router.post('/upload', handleUpload, async (req, res, next) => {
+    // Large DICOM sets can take minutes to process — disable response timeout
+    req.setTimeout(0);
+    res.setTimeout(0);
+
     const tempFiles = []; // track temp files for cleanup
     try {
         if (!req.files || req.files.length === 0) {
