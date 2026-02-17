@@ -1,16 +1,17 @@
 import fs from 'fs';
 
 /**
- * Generate VTI file from pre-built volume data.
- * Uses chunked base64 encoding to avoid extra memory copies.
+ * Generate VTI file from volume temp file.
+ * Streams base64 encoding in chunks — never loads the full volume into memory.
  */
 export async function convertToVti(volume, outputPath) {
     console.log('Converting DICOM to VTI...');
 
-    const { volumeData, dimensions, spacing, origin } = volume;
+    const { tempFilePath, dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
     const [sx, sy, sz] = spacing;
     const [ox, oy, oz] = origin;
+    const totalBytes = rows * columns * depth * 4; // Float32 = 4 bytes
 
     const xmlHeader = `<?xml version="1.0"?>
 <VTKFile type="ImageData" version="1.0" byte_order="LittleEndian" header_type="UInt32">
@@ -27,38 +28,38 @@ export async function convertToVti(volume, outputPath) {
   </ImageData>
 </VTKFile>`;
 
-    // Write XML header
     fs.writeFileSync(outputPath, xmlHeader, 'utf8');
 
-    const fd = fs.openSync(outputPath, 'a');
+    // Stream base64 from temp file in chunks (divisible by 3 for clean base64)
+    const RAW_CHUNK = 3 * 1024 * 1024; // 3 MB raw -> 4 MB base64
+    const readBuf = Buffer.alloc(RAW_CHUNK);
+    const srcFd = fs.openSync(tempFilePath, 'r');
+    const outFd = fs.openSync(outputPath, 'a');
+
     try {
-        // VTK XML binary format: base64( UInt32_header(byteCount) + data )
-        // Write the 4-byte length header as the start of the base64 stream
-        const dataByteLength = volumeData.byteLength;
+        // VTK XML binary: base64( UInt32_header + data )
         const lenHeader = Buffer.alloc(4);
-        lenHeader.writeUInt32LE(dataByteLength, 0);
+        lenHeader.writeUInt32LE(totalBytes, 0);
 
-        // Encode in chunks directly from the Float32Array's underlying buffer.
-        // Chunk size must be divisible by 3 for clean base64 boundaries.
-        const RAW_CHUNK = 3 * 1024 * 1024; // 3 MB per chunk
-        const srcBuf = Buffer.from(volumeData.buffer, volumeData.byteOffset, volumeData.byteLength);
+        // First chunk includes the 4-byte length header
+        const firstRead = Math.min(RAW_CHUNK - 4, totalBytes);
+        const bytesRead = fs.readSync(srcFd, readBuf, 0, firstRead, 0);
+        const firstChunk = Buffer.concat([lenHeader, readBuf.subarray(0, bytesRead)]);
+        fs.writeSync(outFd, firstChunk.toString('base64'));
 
-        // First chunk: prepend the 4-byte header
-        const firstEnd = Math.min(RAW_CHUNK - 4, srcBuf.length);
-        const firstChunk = Buffer.concat([lenHeader, srcBuf.subarray(0, firstEnd)]);
-        fs.writeSync(fd, firstChunk.toString('base64'));
-
-        // Remaining chunks read directly from srcBuf (which is a view, not a copy)
-        for (let offset = firstEnd; offset < srcBuf.length; offset += RAW_CHUNK) {
-            const end = Math.min(offset + RAW_CHUNK, srcBuf.length);
-            const chunk = srcBuf.subarray(offset, end);
-            fs.writeSync(fd, chunk.toString('base64'));
+        let position = bytesRead;
+        while (position < totalBytes) {
+            const toRead = Math.min(RAW_CHUNK, totalBytes - position);
+            const br = fs.readSync(srcFd, readBuf, 0, toRead, position);
+            if (br === 0) break;
+            fs.writeSync(outFd, readBuf.subarray(0, br).toString('base64'));
+            position += br;
         }
     } finally {
-        fs.closeSync(fd);
+        fs.closeSync(srcFd);
+        fs.closeSync(outFd);
     }
 
-    // Write XML footer
     fs.appendFileSync(outputPath, xmlFooter, 'utf8');
 
     console.log('Successfully wrote VTI file:', outputPath);

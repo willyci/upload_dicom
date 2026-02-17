@@ -292,28 +292,114 @@ function interpolateVertex(p1, p2, v1, v2, threshold) {
     ];
 }
 
-function marchingCubes(volumeData, dims, spacing, origin, threshold) {
+function computeNormal(v0, v1, v2) {
+    const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+    const w = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+    const n = [
+        u[1] * w[2] - u[2] * w[1],
+        u[2] * w[0] - u[0] * w[2],
+        u[0] * w[1] - u[1] * w[0]
+    ];
+    const len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    if (len > 0) { n[0] /= len; n[1] /= len; n[2] /= len; }
+    return n;
+}
+
+/**
+ * Read one slice from the volume temp file into a Float32Array.
+ */
+function loadSlice(srcFd, readBuf, z, target, sliceSize) {
+    const sliceBytes = sliceSize * 4;
+    fs.readSync(srcFd, readBuf, 0, sliceBytes, z * sliceBytes);
+    const view = new Float32Array(readBuf.buffer, readBuf.byteOffset, sliceSize);
+    target.set(view);
+}
+
+/**
+ * Compute iso-surface threshold by scanning the temp file one slice at a time.
+ */
+function selectThresholdFromFile(tempFilePath, sliceSize, numSlices) {
+    const sliceBytes = sliceSize * 4;
+    const readBuf = Buffer.alloc(sliceBytes);
+    const srcFd = fs.openSync(tempFilePath, 'r');
+
+    let min = Infinity, max = -Infinity;
+
+    try {
+        // First pass: find min/max
+        for (let s = 0; s < numSlices; s++) {
+            const bytesRead = fs.readSync(srcFd, readBuf, 0, sliceBytes, s * sliceBytes);
+            const count = bytesRead / 4;
+            const view = new Float32Array(readBuf.buffer, readBuf.byteOffset, count);
+            for (let i = 0; i < count; i++) {
+                if (view[i] < min) min = view[i];
+                if (view[i] > max) max = view[i];
+            }
+        }
+
+        // For CT data (Hounsfield units): use bone threshold
+        if (min < -500 && max > 500) {
+            return 200;
+        }
+
+        // Second pass: compute mean of non-background values
+        let sum = 0, cnt = 0;
+        const bgThreshold = min + (max - min) * 0.05;
+
+        for (let s = 0; s < numSlices; s++) {
+            const bytesRead = fs.readSync(srcFd, readBuf, 0, sliceBytes, s * sliceBytes);
+            const count = bytesRead / 4;
+            const view = new Float32Array(readBuf.buffer, readBuf.byteOffset, count);
+            for (let i = 0; i < count; i++) {
+                if (view[i] > bgThreshold) {
+                    sum += view[i];
+                    cnt++;
+                }
+            }
+        }
+
+        const mean = cnt > 0 ? sum / cnt : (max + min) / 2;
+        return mean + (max - mean) * 0.3;
+    } finally {
+        fs.closeSync(srcFd);
+    }
+}
+
+/**
+ * Slice-based marching cubes: only 2 slices (~2 MB) in memory at a time.
+ * Writes each triangle directly to the output fd instead of collecting in an array.
+ */
+function marchingCubesStreaming(srcFd, dims, spacing, origin, threshold, sliceSize, outFd) {
     const [nx, ny, nz] = dims;
     const [sx, sy, sz] = spacing;
     const [ox, oy, oz] = origin;
-    const triangles = [];
 
-    function getVal(x, y, z) {
-        return volumeData[z * ny * nx + y * nx + x];
-    }
+    const sliceBytes = sliceSize * 4;
+    const readBuf = Buffer.alloc(sliceBytes);
+    let currentSlice = new Float32Array(sliceSize);
+    let nextSlice = new Float32Array(sliceSize);
+    const triBuf = Buffer.alloc(50); // reusable buffer for one binary STL triangle
+
+    let triangleCount = 0;
+
+    // Load first slice
+    loadSlice(srcFd, readBuf, 0, currentSlice, sliceSize);
 
     for (let z = 0; z < nz - 1; z++) {
+        // Load next slice
+        loadSlice(srcFd, readBuf, z + 1, nextSlice, sliceSize);
+
         for (let y = 0; y < ny - 1; y++) {
             for (let x = 0; x < nx - 1; x++) {
                 const v = [
-                    getVal(x, y, z),
-                    getVal(x + 1, y, z),
-                    getVal(x + 1, y + 1, z),
-                    getVal(x, y + 1, z),
-                    getVal(x, y, z + 1),
-                    getVal(x + 1, y, z + 1),
-                    getVal(x + 1, y + 1, z + 1),
-                    getVal(x, y + 1, z + 1)
+                    currentSlice[y * nx + x],
+                    currentSlice[y * nx + (x + 1)],
+                    currentSlice[(y + 1) * nx + (x + 1)],
+                    currentSlice[(y + 1) * nx + x],
+                    nextSlice[y * nx + x],
+                    nextSlice[y * nx + (x + 1)],
+                    nextSlice[(y + 1) * nx + (x + 1)],
+                    nextSlice[(y + 1) * nx + x]
                 ];
 
                 let cubeIndex = 0;
@@ -354,114 +440,81 @@ function marchingCubes(volumeData, dims, spacing, origin, threshold) {
                     const a = edgeVerts[triList[i]];
                     const b = edgeVerts[triList[i + 1]];
                     const c = edgeVerts[triList[i + 2]];
-                    if (a && b && c) triangles.push([a, b, c]);
+                    if (!a || !b || !c) continue;
+
+                    // Write triangle directly to STL file
+                    const normal = computeNormal(a, b, c);
+                    let off = 0;
+                    triBuf.writeFloatLE(normal[0], off); off += 4;
+                    triBuf.writeFloatLE(normal[1], off); off += 4;
+                    triBuf.writeFloatLE(normal[2], off); off += 4;
+                    const verts = [a, b, c];
+                    for (let vi = 0; vi < 3; vi++) {
+                        triBuf.writeFloatLE(verts[vi][0], off); off += 4;
+                        triBuf.writeFloatLE(verts[vi][1], off); off += 4;
+                        triBuf.writeFloatLE(verts[vi][2], off); off += 4;
+                    }
+                    triBuf.writeUInt16LE(0, off);
+                    fs.writeSync(outFd, triBuf);
+                    triangleCount++;
                 }
             }
         }
+
+        // Swap: current becomes next for the next iteration
+        [currentSlice, nextSlice] = [nextSlice, currentSlice];
     }
 
-    return triangles;
-}
-
-function computeNormal(v0, v1, v2) {
-    const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
-    const w = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
-    const n = [
-        u[1] * w[2] - u[2] * w[1],
-        u[2] * w[0] - u[0] * w[2],
-        u[0] * w[1] - u[1] * w[0]
-    ];
-    const len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-    if (len > 0) { n[0] /= len; n[1] /= len; n[2] /= len; }
-    return n;
-}
-
-function writeBinaryStl(triangles, outputPath) {
-    // Binary STL: 80-byte header + 4-byte triangle count + 50 bytes per triangle
-    const bufferSize = 80 + 4 + triangles.length * 50;
-    const buffer = Buffer.alloc(bufferSize);
-    let offset = 0;
-
-    // 80-byte header
-    buffer.write('Binary STL generated by dicom-processor', 0, 80, 'ascii');
-    offset = 80;
-
-    // Triangle count
-    buffer.writeUInt32LE(triangles.length, offset);
-    offset += 4;
-
-    for (const tri of triangles) {
-        const normal = computeNormal(tri[0], tri[1], tri[2]);
-
-        // Normal vector
-        buffer.writeFloatLE(normal[0], offset); offset += 4;
-        buffer.writeFloatLE(normal[1], offset); offset += 4;
-        buffer.writeFloatLE(normal[2], offset); offset += 4;
-
-        // 3 vertices
-        for (let v = 0; v < 3; v++) {
-            buffer.writeFloatLE(tri[v][0], offset); offset += 4;
-            buffer.writeFloatLE(tri[v][1], offset); offset += 4;
-            buffer.writeFloatLE(tri[v][2], offset); offset += 4;
-        }
-
-        // Attribute byte count
-        buffer.writeUInt16LE(0, offset); offset += 2;
-    }
-
-    fs.writeFileSync(outputPath, buffer);
-}
-
-function selectThreshold(volumeData) {
-    let min = Infinity, max = -Infinity;
-    for (let i = 0; i < volumeData.length; i++) {
-        if (volumeData[i] < min) min = volumeData[i];
-        if (volumeData[i] > max) max = volumeData[i];
-    }
-
-    // For CT data (Hounsfield units): use bone threshold (~200-300 HU)
-    // For non-CT data: use midpoint between mean and max
-    if (min < -500 && max > 500) {
-        // Likely CT Hounsfield units — use soft tissue/bone boundary
-        return 200;
-    }
-
-    // Generic: use upper quartile of non-zero values
-    let sum = 0, count = 0;
-    for (let i = 0; i < volumeData.length; i++) {
-        if (volumeData[i] > min + (max - min) * 0.05) {
-            sum += volumeData[i];
-            count++;
-        }
-    }
-    const mean = count > 0 ? sum / count : (max + min) / 2;
-    return mean + (max - mean) * 0.3;
+    return triangleCount;
 }
 
 export async function convertToStl(volume, outputPath) {
     console.log('Converting DICOM to STL via marching cubes...');
 
-    const { volumeData, dimensions, spacing, origin } = volume;
+    const { tempFilePath, dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
+    const sliceSize = rows * columns;
 
-    const threshold = selectThreshold(volumeData);
+    const threshold = selectThresholdFromFile(tempFilePath, sliceSize, depth);
     console.log(`Using threshold: ${threshold.toFixed(1)}`);
 
-    const triangles = marchingCubes(
-        volumeData,
-        [columns, rows, depth],
-        spacing,
-        origin,
-        threshold
-    );
+    // Open output file: write 80-byte header + 4-byte placeholder count
+    const outFd = fs.openSync(outputPath, 'w');
+    const headerBuf = Buffer.alloc(84);
+    headerBuf.write('Binary STL generated by dicom-processor', 0, 80, 'ascii');
+    fs.writeSync(outFd, headerBuf);
 
-    console.log(`Generated ${triangles.length} triangles`);
+    // Open volume temp file for slice-based reading
+    const srcFd = fs.openSync(tempFilePath, 'r');
 
-    if (triangles.length === 0) {
-        throw new Error('No surface generated - all voxels are on one side of the threshold');
+    let triangleCount;
+    try {
+        triangleCount = marchingCubesStreaming(
+            srcFd,
+            [columns, rows, depth],
+            spacing,
+            origin,
+            threshold,
+            sliceSize,
+            outFd
+        );
+    } finally {
+        fs.closeSync(srcFd);
     }
 
-    writeBinaryStl(triangles, outputPath);
+    // Write actual triangle count at byte offset 80
+    const countBuf = Buffer.alloc(4);
+    countBuf.writeUInt32LE(triangleCount, 0);
+    fs.writeSync(outFd, countBuf, 0, 4, 80);
+
+    fs.closeSync(outFd);
+
+    console.log(`Generated ${triangleCount} triangles`);
+
+    if (triangleCount === 0) {
+        try { fs.unlinkSync(outputPath); } catch {}
+        throw new Error('No surface generated - all voxels are on one side of the threshold');
+    }
 
     console.log('Successfully wrote STL file:', outputPath);
     return outputPath;

@@ -138,6 +138,12 @@ function _convertDatasetToJpg(dataset, outputPath) {
     const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
     fs.writeFileSync(outputPath, buffer);
 
+    // Release native Cairo surface memory immediately.
+    // V8 GC doesn't track native memory, so without this, 265 canvases
+    // accumulate ~265 MB of invisible native memory that eventually kills the process.
+    canvas.width = 1;
+    canvas.height = 1;
+
     return { windowCenter, windowWidth };
 }
 
@@ -191,4 +197,8 @@ export async function generateBumpMap(dataSet, outputPath) {
 
     const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
     fs.writeFileSync(outputPath, buffer);
+
+    // Release native Cairo surface memory immediately
+    canvas.width = 1;
+    canvas.height = 1;
 }

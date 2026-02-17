@@ -1,9 +1,10 @@
 import fs from 'fs';
+import { appendVolumeToFile } from '../utils/volumeBuilder.js';
 
 export async function convertToNifti(volume, outputPath) {
     console.log('Converting DICOM to NIfTI...');
 
-    const { volumeData, dimensions, spacing, origin } = volume;
+    const { tempFilePath, dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
 
     // Create NIfTI-1 header (348 bytes)
@@ -101,8 +102,8 @@ export async function convertToNifti(volume, outputPath) {
     const extension = Buffer.alloc(4, 0);
     fs.appendFileSync(outputPath, extension);
 
-    // Volume data
-    fs.appendFileSync(outputPath, Buffer.from(volumeData.buffer));
+    // Stream volume data from temp file
+    appendVolumeToFile(tempFilePath, outputPath);
 
     console.log('Successfully wrote NIfTI file:', outputPath);
     return outputPath;

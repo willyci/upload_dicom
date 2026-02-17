@@ -103,12 +103,46 @@ router.post('/upload', handleUpload, async (req, res, next) => {
                 // Extract ZIP preserving relative paths
                 await new Promise((resolve, reject) => {
                     const unzipStream = unzipper.Parse();
+                    let fileCount = 0;
+                    let totalSize = 0;
+                    // Limit total extracted size (e.g., 512MB) and file count to prevent OOM
+                    const MAX_EXTRACTED_SIZE = 512 * 1024 * 1024; 
+                    const MAX_FILE_COUNT = 1000;
+                    let aborted = false;
+
                     fs.createReadStream(file.path)
                         .pipe(unzipStream)
                         .on('entry', async (entry) => {
+                            if (aborted) {
+                                entry.autodrain();
+                                return;
+                            }
+
                             // Skip directories and hidden/macOS metadata files
                             if (entry.type !== 'File' || entry.path.startsWith('__MACOSX')) {
                                 entry.autodrain();
+                                return;
+                            }
+
+                            fileCount++;
+                            // entry.vars.uncompressedSize might be available, otherwise we count bytes written
+                            // Note: uncompressedSize can be 0 or undefined in some zip formats until read
+                            // We will start by assuming optimistic check if available, 
+                            // but strictly we should check bytes written if we want to be safe against zip bombs.
+                            // For simplicity/speed on standard zips, we check declared size if present.
+                            const estimatedSize = entry.vars.uncompressedSize || 0;
+                            
+                            if (fileCount > MAX_FILE_COUNT) {
+                                aborted = true;
+                                unzipStream.destroy();
+                                reject(new Error(`Too many files in ZIP. Limit is ${MAX_FILE_COUNT}.`));
+                                return;
+                            }
+                            
+                            if (totalSize + estimatedSize > MAX_EXTRACTED_SIZE) {
+                                aborted = true;
+                                unzipStream.destroy();
+                                reject(new Error(`Total extracted size exceeds limit of ${MAX_EXTRACTED_SIZE / (1024*1024)}MB.`));
                                 return;
                             }
 
@@ -118,10 +152,29 @@ router.post('/upload', handleUpload, async (req, res, next) => {
 
                             // Ensure parent directory exists
                             await fs.promises.mkdir(path.dirname(writePath), { recursive: true });
-                            entry.pipe(fs.createWriteStream(writePath));
+                            
+                            const writeStream = fs.createWriteStream(writePath);
+                            let entrySize = 0;
+                            
+                            entry.on('data', (chunk) => {
+                                entrySize += chunk.length;
+                                totalSize += chunk.length;
+                                if (!aborted && totalSize > MAX_EXTRACTED_SIZE) {
+                                    aborted = true;
+                                    writeStream.destroy();
+                                    unzipStream.destroy();
+                                    reject(new Error(`Total extracted size exceeds limit of ${MAX_EXTRACTED_SIZE / (1024*1024)}MB.`));
+                                }
+                            });
+
+                            entry.pipe(writeStream);
                         })
-                        .on('finish', resolve)
-                        .on('error', reject);
+                        .on('finish', () => {
+                            if (!aborted) resolve();
+                        })
+                        .on('error', (err) => {
+                            if (!aborted) reject(err);
+                        });
                 });
             } else if (lowerName.endsWith('.dcm')) {
                 // Move .dcm file directly into extraction directory

@@ -1,9 +1,10 @@
 import fs from 'fs';
+import { appendVolumeToFile } from '../utils/volumeBuilder.js';
 
 export async function convertToNrrd(volume, outputPath) {
     console.log('Converting DICOM to NRRD...');
 
-    const { volumeData, dimensions, spacing, origin } = volume;
+    const { tempFilePath, dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
 
     const header = [
@@ -23,7 +24,7 @@ export async function convertToNrrd(volume, outputPath) {
     ].join('\n');
 
     fs.writeFileSync(outputPath, header);
-    fs.appendFileSync(outputPath, Buffer.from(volumeData.buffer));
+    appendVolumeToFile(tempFilePath, outputPath);
 
     console.log('Successfully wrote NRRD file:', outputPath);
     return outputPath;

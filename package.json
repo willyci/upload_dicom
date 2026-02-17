@@ -6,7 +6,7 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node --max-old-space-size=4096 server.js",
-    "dev": "nodemon --exec \"node --max-old-space-size=4096\" src/app.js"
+    "dev": "nodemon --exec \"node --max-old-space-size=4096\" server.js"
   },
   "dependencies": {
     "canvas": "^3.1.0",
