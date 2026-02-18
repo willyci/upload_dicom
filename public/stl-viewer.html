@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STL 3D Viewer</title>
+    <meta name="description"
+        content="View 3D STL models generated from DICOM medical images. Interactive 3D surface rendering with rotation, zoom, and pan controls.">
+    <meta name="keywords"
+        content="STL viewer, 3D model viewer, DICOM to STL, medical 3D printing, surface rendering, VTK.js">
+    <meta name="author" content="DICOM Processor">
+    <meta property="og:title" content="STL 3D Viewer - DICOM Processor">
+    <meta property="og:description"
+        content="View 3D STL models generated from DICOM medical images. Interactive 3D surface rendering with rotation, zoom, and pan controls.">
+    <meta property="og:type" content="website">
     <script src="https://unpkg.com/vtk.js"></script>
     <style>
         body {
@@ -322,7 +331,7 @@
             });
         }
 
-        window.setColor = function(r, g, b) {
+        window.setColor = function (r, g, b) {
             actor.getProperty().setColor(r, g, b);
             const hex = '#' +
                 Math.round(r * 255).toString(16).padStart(2, '0') +
@@ -332,7 +341,7 @@
             renderWindow.render();
         };
 
-        window.resetCamera = function() {
+        window.resetCamera = function () {
             if (renderer) {
                 renderer.resetCamera();
                 renderWindow.render();

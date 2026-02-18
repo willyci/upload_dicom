@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MPR Browser - DICOM Processor</title>
+    <meta name="description"
+        content="Browse Multi-Planar Reconstruction (MPR) images from DICOM processing. View and compare axial, sagittal, and coronal slice images with bump map visualization.">
+    <meta name="keywords"
+        content="MPR browser, multi-planar reconstruction, DICOM images, medical image browser, bump map, slice comparison">
+    <meta name="author" content="DICOM Processor">
+    <meta property="og:title" content="MPR Browser - DICOM Processor">
+    <meta property="og:description"
+        content="Browse Multi-Planar Reconstruction (MPR) images from DICOM processing. View and compare axial, sagittal, and coronal slice images with bump map visualization.">
+    <meta property="og:type" content="website">
     <link rel="stylesheet" href="index.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -233,8 +242,13 @@
             background: var(--primary);
         }
 
-        .lightbox-prev { left: var(--spacing-lg); }
-        .lightbox-next { right: var(--spacing-lg); }
+        .lightbox-prev {
+            left: var(--spacing-lg);
+        }
+
+        .lightbox-next {
+            right: var(--spacing-lg);
+        }
 
         .lightbox-info {
             position: absolute;
@@ -290,12 +304,26 @@
             gap: var(--spacing-sm);
         }
 
-        .stat-label { color: var(--text-muted); }
-        .stat-value { color: var(--text-primary); font-weight: 600; }
+        .stat-label {
+            color: var(--text-muted);
+        }
 
-        .plane-color-axial { color: #ef4444; }
-        .plane-color-sagittal { color: #10b981; }
-        .plane-color-coronal { color: #3b82f6; }
+        .stat-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .plane-color-axial {
+            color: #ef4444;
+        }
+
+        .plane-color-sagittal {
+            color: #10b981;
+        }
+
+        .plane-color-coronal {
+            color: #3b82f6;
+        }
     </style>
 </head>
 
