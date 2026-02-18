@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPR Viewer - Multi-Planar Reconstruction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(148, 163, 184, 0.1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            backdrop-filter: blur(10px);
+            background: var(--glass-bg);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            font-size: 1.125rem;
+            color: var(--text-muted);
+        }
+
+        #error {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+            color: var(--error);
+            font-size: 1.125rem;
+        }
+
+        .mpr-container {
+            display: none;
+            height: calc(100vh - 52px);
+            padding: 0.5rem;
+            gap: 0.5rem;
+        }
+
+        /* 3-panel layout */
+        .mpr-container.loaded {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .panel-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-label.axial { color: #ef4444; }
+        .panel-label.sagittal { color: #10b981; }
+        .panel-label.coronal { color: #3b82f6; }
+
+        .panel-slice-info {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        .panel-viewport {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: crosshair;
+            background: #000;
+            min-height: 0;
+        }
+
+        .panel-viewport img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            image-rendering: auto;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .crosshair-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .panel-footer {
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: 2px solid var(--primary-light);
+        }
+
+        .slider-row input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: 2px solid var(--primary-light);
+        }
+
+        .slider-value {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            min-width: 3.5rem;
+            text-align: right;
+        }
+
+        @media (max-width: 900px) {
+            .mpr-container.loaded {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">MPR Viewer</div>
+        <a href="/" class="back-link">Back to Home</a>
+    </header>
+
+    <div id="loading">Loading MPR data...</div>
+    <div id="error"></div>
+
+    <div class="mpr-container" id="mprContainer">
+        <!-- Axial Panel -->
+        <div class="panel" id="panelAxial">
+            <div class="panel-header">
+                <span class="panel-label axial">Axial</span>
+                <span class="panel-slice-info" id="axialInfo"></span>
+            </div>
+            <div class="panel-viewport" id="vpAxial">
+                <img id="imgAxial" draggable="false">
+                <canvas class="crosshair-overlay" id="chAxial"></canvas>
+            </div>
+            <div class="panel-footer">
+                <div class="slider-row">
+                    <input type="range" id="sliderAxial" min="0" max="0" value="0">
+                    <span class="slider-value" id="valAxial">0/0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sagittal Panel -->
+        <div class="panel" id="panelSagittal">
+            <div class="panel-header">
+                <span class="panel-label sagittal">Sagittal</span>
+                <span class="panel-slice-info" id="sagittalInfo"></span>
+            </div>
+            <div class="panel-viewport" id="vpSagittal">
+                <img id="imgSagittal" draggable="false">
+                <canvas class="crosshair-overlay" id="chSagittal"></canvas>
+            </div>
+            <div class="panel-footer">
+                <div class="slider-row">
+                    <input type="range" id="sliderSagittal" min="0" max="0" value="0">
+                    <span class="slider-value" id="valSagittal">0/0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coronal Panel -->
+        <div class="panel" id="panelCoronal">
+            <div class="panel-header">
+                <span class="panel-label coronal">Coronal</span>
+                <span class="panel-slice-info" id="coronalInfo"></span>
+            </div>
+            <div class="panel-viewport" id="vpCoronal">
+                <img id="imgCoronal" draggable="false">
+                <canvas class="crosshair-overlay" id="chCoronal"></canvas>
+            </div>
+            <div class="panel-footer">
+                <div class="slider-row">
+                    <input type="range" id="sliderCoronal" min="0" max="0" value="0">
+                    <span class="slider-value" id="valCoronal">0/0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (async function() {
+        const params = new URLSearchParams(window.location.search);
+        const infoUrl = params.get('info');
+
+        if (!infoUrl) {
+            showError('No MPR info path provided. Use ?info=path/to/mpr_info.json');
+            return;
+        }
+
+        let info;
+        try {
+            const resp = await fetch(infoUrl);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            info = await resp.json();
+        } catch (e) {
+            showError(`Failed to load MPR info: ${e.message}`);
+            return;
+        }
+
+        // Derive base path from info URL (remove mpr_info.json)
+        const basePath = infoUrl.replace(/mpr_info\.json$/, '');
+
+        // State
+        const state = {
+            axial: Math.floor(info.axial.count / 2),
+            sagittal: Math.floor(info.sagittal.count / 2),
+            coronal: Math.floor(info.coronal.count / 2)
+        };
+
+        // Image cache
+        const cache = new Map();
+        const MAX_CACHE = 30;
+
+        function pad3(n) { return String(n).padStart(3, '0'); }
+
+        function imgUrl(plane, idx) {
+            return `${basePath}${plane}/${plane}_${pad3(idx)}.jpg`;
+        }
+
+        function getCachedImage(url) {
+            if (cache.has(url)) return cache.get(url);
+            return null;
+        }
+
+        function addToCache(url, img) {
+            cache.set(url, img);
+            if (cache.size > MAX_CACHE) {
+                const first = cache.keys().next().value;
+                cache.delete(first);
+            }
+        }
+
+        function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const cached = getCachedImage(url);
+                if (cached) { resolve(cached); return; }
+                const img = new Image();
+                img.onload = () => { addToCache(url, img); resolve(img); };
+                img.onerror = () => reject(new Error(`Failed to load ${url}`));
+                img.src = url;
+            });
+        }
+
+        // Preload neighbors
+        function preload(plane, idx, count) {
+            for (let d = -2; d <= 2; d++) {
+                const i = idx + d;
+                if (i >= 0 && i < count && d !== 0) {
+                    const url = imgUrl(plane, i);
+                    if (!cache.has(url)) {
+                        const img = new Image();
+                        img.onload = () => addToCache(url, img);
+                        img.src = url;
+                    }
+                }
+            }
+        }
+
+        // Elements
+        const els = {
+            axial: {
+                img: document.getElementById('imgAxial'),
+                slider: document.getElementById('sliderAxial'),
+                val: document.getElementById('valAxial'),
+                info: document.getElementById('axialInfo'),
+                vp: document.getElementById('vpAxial'),
+                ch: document.getElementById('chAxial')
+            },
+            sagittal: {
+                img: document.getElementById('imgSagittal'),
+                slider: document.getElementById('sliderSagittal'),
+                val: document.getElementById('valSagittal'),
+                info: document.getElementById('sagittalInfo'),
+                vp: document.getElementById('vpSagittal'),
+                ch: document.getElementById('chSagittal')
+            },
+            coronal: {
+                img: document.getElementById('imgCoronal'),
+                slider: document.getElementById('sliderCoronal'),
+                val: document.getElementById('valCoronal'),
+                info: document.getElementById('coronalInfo'),
+                vp: document.getElementById('vpCoronal'),
+                ch: document.getElementById('chCoronal')
+            }
+        };
+
+        // Setup sliders
+        els.axial.slider.max = info.axial.count - 1;
+        els.axial.slider.value = state.axial;
+        els.sagittal.slider.max = info.sagittal.count - 1;
+        els.sagittal.slider.value = state.sagittal;
+        els.coronal.slider.max = info.coronal.count - 1;
+        els.coronal.slider.value = state.coronal;
+
+        // Update a single panel
+        async function updatePanel(plane) {
+            const idx = state[plane];
+            const planeInfo = info[plane];
+            const e = els[plane];
+
+            e.val.textContent = `${idx}/${planeInfo.count - 1}`;
+            e.info.textContent = `${planeInfo.width} x ${planeInfo.height}`;
+
+            const url = imgUrl(plane, idx);
+            try {
+                await loadImage(url);
+                e.img.src = url;
+            } catch (err) {
+                // Skip — image may not exist
+            }
+
+            preload(plane, idx, planeInfo.count);
+            drawCrosshairs();
+        }
+
+        // Draw crosshairs on all panels
+        function drawCrosshairs() {
+            drawCrosshair('axial', state.sagittal, info.sagittal.count, state.coronal, info.coronal.count, '#10b981', '#3b82f6');
+            drawCrosshair('sagittal', state.axial, info.axial.count, state.coronal, info.coronal.count, '#ef4444', '#3b82f6');
+            drawCrosshair('coronal', state.sagittal, info.sagittal.count, state.axial, info.axial.count, '#10b981', '#ef4444');
+        }
+
+        function drawCrosshair(plane, hIdx, hCount, vIdx, vCount, hColor, vColor) {
+            const canvas = els[plane].ch;
+            const vp = els[plane].vp;
+            const rect = vp.getBoundingClientRect();
+
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Compute the displayed image bounds within the viewport
+            const imgEl = els[plane].img;
+            const imgRect = imgEl.getBoundingClientRect();
+            const offsetX = imgRect.left - rect.left;
+            const offsetY = imgRect.top - rect.top;
+            const dispW = imgRect.width;
+            const dispH = imgRect.height;
+
+            if (dispW <= 0 || dispH <= 0) return;
+
+            // Vertical line (hIdx maps to X axis of this panel)
+            const vx = offsetX + (hIdx / (hCount - 1)) * dispW;
+            ctx.strokeStyle = hColor;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(vx, offsetY);
+            ctx.lineTo(vx, offsetY + dispH);
+            ctx.stroke();
+
+            // Horizontal line (vIdx maps to Y axis of this panel)
+            const hy = offsetY + (vIdx / (vCount - 1)) * dispH;
+            ctx.strokeStyle = vColor;
+            ctx.beginPath();
+            ctx.moveTo(offsetX, hy);
+            ctx.lineTo(offsetX + dispW, hy);
+            ctx.stroke();
+        }
+
+        // Click handling - map pixel click to slice indices
+        function handleClick(plane, e) {
+            const imgEl = els[plane].img;
+            const imgRect = imgEl.getBoundingClientRect();
+
+            const rx = (e.clientX - imgRect.left) / imgRect.width;
+            const ry = (e.clientY - imgRect.top) / imgRect.height;
+
+            if (rx < 0 || rx > 1 || ry < 0 || ry > 1) return;
+
+            if (plane === 'axial') {
+                // Axial image: X=columns(sagittal index), Y=rows(coronal index)
+                state.sagittal = Math.round(rx * (info.sagittal.count - 1));
+                state.coronal = Math.round(ry * (info.coronal.count - 1));
+                els.sagittal.slider.value = state.sagittal;
+                els.coronal.slider.value = state.coronal;
+                updatePanel('sagittal');
+                updatePanel('coronal');
+            } else if (plane === 'sagittal') {
+                // Sagittal image: X=depth(axial index), Y=rows(coronal index)
+                state.axial = Math.round(rx * (info.axial.count - 1));
+                state.coronal = Math.round(ry * (info.coronal.count - 1));
+                els.axial.slider.value = state.axial;
+                els.coronal.slider.value = state.coronal;
+                updatePanel('axial');
+                updatePanel('coronal');
+            } else if (plane === 'coronal') {
+                // Coronal image: X=columns(sagittal index), Y=depth(axial index)
+                state.sagittal = Math.round(rx * (info.sagittal.count - 1));
+                state.axial = Math.round(ry * (info.axial.count - 1));
+                els.sagittal.slider.value = state.sagittal;
+                els.axial.slider.value = state.axial;
+                updatePanel('sagittal');
+                updatePanel('axial');
+            }
+
+            drawCrosshairs();
+        }
+
+        // Mouse wheel scrolling
+        function handleWheel(plane, e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 1 : -1;
+            const planeInfo = info[plane];
+            state[plane] = Math.max(0, Math.min(planeInfo.count - 1, state[plane] + delta));
+            els[plane].slider.value = state[plane];
+            updatePanel(plane);
+        }
+
+        // Wire up events
+        for (const plane of ['axial', 'sagittal', 'coronal']) {
+            els[plane].vp.addEventListener('click', (e) => handleClick(plane, e));
+            els[plane].vp.addEventListener('wheel', (e) => handleWheel(plane, e), { passive: false });
+
+            els[plane].slider.addEventListener('input', () => {
+                state[plane] = parseInt(els[plane].slider.value);
+                updatePanel(plane);
+            });
+        }
+
+        // Redraw crosshairs on resize
+        window.addEventListener('resize', () => drawCrosshairs());
+
+        // Show viewer
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('mprContainer').classList.add('loaded');
+
+        // Initial load
+        await Promise.all([
+            updatePanel('axial'),
+            updatePanel('sagittal'),
+            updatePanel('coronal')
+        ]);
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            const el = document.getElementById('error');
+            el.style.display = 'block';
+            el.textContent = msg;
+        }
+    })();
+    </script>
+</body>
+</html>

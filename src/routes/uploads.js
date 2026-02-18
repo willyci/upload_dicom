@@ -6,6 +6,7 @@ import unzipper from 'unzipper';
 import { UPLOADS_DIR } from '../config.js';
 import { processDirectory } from '../services/processor.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
+import { getProcessingStatus } from '../utils/progress.js';
 
 const upload = multer({
     dest: UPLOADS_DIR,
@@ -227,7 +228,8 @@ router.post('/upload', handleUpload, async (req, res, next) => {
             nrrdPaths: processedFiles.map(file => file.nrrdPath),
             niftiPaths: processedFiles.map(file => file.niftiPath),
             stlPaths: processedFiles.map(file => file.stlPath),
-            vtkLegacyPaths: processedFiles.map(file => file.vtkLegacyPath)
+            vtkLegacyPaths: processedFiles.map(file => file.vtkLegacyPath),
+            mprPaths: processedFiles.map(file => file.mprPath)
         };
 
         if (skipped.length > 0) {
@@ -298,10 +300,12 @@ router.get('/list-uploads', async (req, res) => {
                 } else if (item.name === 'dicom_info.json') {
                     const vtiPath = path.join(path.dirname(fullPath), 'volume.vti');
                     const nrrdPath = path.join(path.dirname(fullPath), 'volume.nrrd');
+                    const mprInfoPath = path.join(path.dirname(fullPath), 'mpr', 'mpr_info.json');
                     jsonFiles.push({
                         jsonPath: fullPath,
                         vtiPath: fs.existsSync(vtiPath) ? vtiPath : null,
-                        nrrdPath: fs.existsSync(nrrdPath) ? nrrdPath : null
+                        nrrdPath: fs.existsSync(nrrdPath) ? nrrdPath : null,
+                        mprInfoPath: fs.existsSync(mprInfoPath) ? mprInfoPath : null
                     });
                 }
             }
@@ -318,7 +322,8 @@ router.get('/list-uploads', async (req, res) => {
             nrrdPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nrrd')),
             niftiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nii')),
             stlPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'model.stl')),
-            vtkLegacyPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vtk'))
+            vtkLegacyPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vtk')),
+            mprPath: filePath.mprInfoPath ? removePathBeforeUploads(filePath.mprInfoPath.replace(/\\/g, '/')) : null
         }));
 
         const indexPath = path.join(UPLOADS_DIR, 'index.json');
@@ -335,6 +340,10 @@ router.get('/list-uploads', async (req, res) => {
         console.error('Error listing uploads:', error);
         res.status(500).json({ error: 'Error listing uploads' });
     }
+});
+
+router.get('/processing-status', (req, res) => {
+    res.json({ status: getProcessingStatus() });
 });
 
 export default router;

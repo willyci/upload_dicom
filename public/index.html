@@ -15,7 +15,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">📊 DICOM Processor V1.4</div>
+                <div class="logo">📊 DICOM Processor V1.5</div>
                 <nav>
                     <ul>
                         <li><a href="/">Home</a></li>
@@ -182,19 +182,42 @@
             try {
                 const xhr = new XMLHttpRequest();
 
+                let statusInterval = null;
+
+                function startStatusPolling() {
+                    statusInterval = setInterval(async () => {
+                        try {
+                            const resp = await fetch('/processing-status');
+                            const data = await resp.json();
+                            if (data.status) {
+                                uploadStatus.textContent = data.status;
+                            }
+                        } catch { }
+                    }, 500);
+                }
+
+                function stopStatusPolling() {
+                    if (statusInterval) {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                    }
+                }
+
                 xhr.upload.addEventListener('progress', (e) => {
                     if (e.lengthComputable) {
                         const percent = Math.round((e.loaded / e.total) * 100);
                         uploadPercent.textContent = `${percent}%`;
                         progressBar.style.width = `${percent}%`;
 
-                        if (percent === 100) {
+                        if (percent === 100 && !statusInterval) {
                             uploadStatus.textContent = 'Processing DICOM files...';
+                            startStatusPolling();
                         }
                     }
                 });
 
                 xhr.addEventListener('load', () => {
+                    stopStatusPolling();
                     fileListDiv.classList.add('hidden');
                     if (xhr.status === 200) {
                         const result = JSON.parse(xhr.responseText);
@@ -209,6 +232,7 @@
                 });
 
                 xhr.addEventListener('error', () => {
+                    stopStatusPolling();
                     fileListDiv.classList.add('hidden');
                     showUploadError('Network error occurred');
                 });
@@ -249,6 +273,7 @@
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.niftiPaths[0])}" target="_blank" class="btn btn-secondary">Volume (NIfTI)</a>
                         <a href="/stl-viewer.html?file=${encodeURIComponent(result.stlPaths[0])}" target="_blank" class="btn btn-secondary">View 3D (STL)</a>
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.vtkLegacyPaths[0])}" target="_blank" class="btn btn-secondary">Volume (VTK)</a>
+                        ${result.mprPaths && result.mprPaths[0] ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">MPR Viewer</a>` : ''}
                         <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
@@ -321,6 +346,7 @@
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.niftiPath)}" target="_blank" class="action-btn">🎮 NIfTI</a>
                                     <a href="/stl-viewer.html?file=${encodeURIComponent(folder.stlPath)}" target="_blank" class="action-btn">🎮 STL</a>
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.vtkLegacyPath)}" target="_blank" class="action-btn">🎮 VTK</a>
+                                    ${folder.mprPath ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(folder.mprPath)}" target="_blank" class="action-btn">🔬 MPR</a>` : ''}
                                     <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
                                     <button onclick="showDeleteModal('${folder.path}')" class="action-btn" style="border-color: var(--error); color: var(--error);">🗑 Delete</button>
                                 </div>

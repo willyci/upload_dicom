@@ -7,11 +7,13 @@ import { convertToNrrd } from '../converters/nrrd.js';
 import { convertToNifti } from '../converters/nifti.js';
 import { convertToStl } from '../converters/stl.js';
 import { convertToVtk } from '../converters/vtk.js';
+import { convertToMpr } from '../converters/mpr.js';
 import { showDicomInfo } from '../utils/dicomInfo.js';
 import { buildVolumeData } from '../utils/volumeBuilder.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
 import { DicomMetaDictionary, DicomMessage } from '../utils/dicomHelpers.js';
 import { yieldToEventLoop } from '../utils/pixelData.js';
+import { setProcessingStatus } from '../utils/progress.js';
 
 const gc = typeof global.gc === 'function' ? global.gc : null;
 
@@ -80,7 +82,9 @@ export async function processDirectory(dirPath) {
     // so each file is only read and parsed ONCE instead of twice.
     let volume = null;
     try {
+        setProcessingStatus('Building volume data...');
         volume = await buildVolumeData(dicomFiles, async (filePath, rawBuffer, dcmjsDataset) => {
+            setProcessingStatus(`Creating ${path.basename(filePath)}.jpg ...`);
             const result = await processFileForJpg(filePath, rawBuffer, dcmjsDataset, errors);
             if (result) {
                 jpgResults.set(filePath, result);
@@ -128,30 +132,40 @@ export async function processDirectory(dirPath) {
     const niftiPath = path.join(dirPath, 'volume.nii');
     const stlPath = path.join(dirPath, 'model.stl');
     const vtkLegacyPath = path.join(dirPath, 'volume.vtk');
-    let vtiResult = null, nrrdResult = null, niftiResult = null, stlResult = null, vtkResult = null;
+    let vtiResult = null, nrrdResult = null, niftiResult = null, stlResult = null, vtkResult = null, mprResult = null;
 
     if (volume) {
         try {
+            setProcessingStatus('Creating VTI file...');
             try { await convertToVti(volume, vtiPath); vtiResult = vtiPath; }
             catch (error) { console.error('VTI conversion failed:', error.message); errors.push({ converter: 'vti', error: error.message }); }
 
+            setProcessingStatus('Creating NRRD file...');
             try { await convertToNrrd(volume, nrrdPath); nrrdResult = nrrdPath; }
             catch (error) { console.error('NRRD conversion failed:', error.message); errors.push({ converter: 'nrrd', error: error.message }); }
 
+            setProcessingStatus('Creating NIfTI file...');
             try { await convertToNifti(volume, niftiPath); niftiResult = niftiPath; }
             catch (error) { console.error('NIfTI conversion failed:', error.message); errors.push({ converter: 'nifti', error: error.message }); }
 
+            setProcessingStatus('Creating STL model...');
             try { await convertToStl(volume, stlPath); stlResult = stlPath; }
             catch (error) { console.error('STL conversion failed:', error.message); errors.push({ converter: 'stl', error: error.message }); }
 
+            setProcessingStatus('Creating VTK file...');
             try { await convertToVtk(volume, vtkLegacyPath); vtkResult = vtkLegacyPath; }
             catch (error) { console.error('VTK conversion failed:', error.message); errors.push({ converter: 'vtk', error: error.message }); }
+
+            setProcessingStatus('Creating MPR slices...');
+            try { await convertToMpr(volume, dirPath); mprResult = path.join(dirPath, 'mpr'); }
+            catch (error) { console.error('MPR conversion failed:', error.message); errors.push({ converter: 'mpr', error: error.message }); }
         } finally {
             volume.cleanup();
             volume = null;
         }
     }
 
+    setProcessingStatus('');
     logMemory('processing-done');
 
     // Build processedFiles in original file order
@@ -168,6 +182,7 @@ export async function processDirectory(dirPath) {
                 niftiPath: niftiResult ? removePathBeforeUploads(niftiPath) : null,
                 stlPath: stlResult ? removePathBeforeUploads(stlPath) : null,
                 vtkLegacyPath: vtkResult ? removePathBeforeUploads(vtkLegacyPath) : null,
+                mprPath: mprResult ? removePathBeforeUploads(path.join(mprResult, 'mpr_info.json')) : null,
                 dicomInfo: result.dicomInfo
             });
         }
