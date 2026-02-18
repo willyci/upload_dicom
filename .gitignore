@@ -30,4 +30,7 @@ build/
 .DS_Store
 
 # Uploads
-public/uploads/ 
+public/uploads/
+
+# Self-signed certs for HTTPS/WebXR
+certs/

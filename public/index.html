@@ -24,7 +24,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">📊 DICOM Processor V1.7</div>
+                <div class="logo">📊 DICOM Processor V1.8</div>
                 <nav>
                     <ul>
                         <li><a href="/">Home</a></li>
@@ -284,7 +284,7 @@
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.vtkLegacyPaths[0])}" target="_blank" class="btn btn-secondary">🥽 VTK</a>
                         ${result.mprPaths && result.mprPaths[0] ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🔬 MPR Viewer</a>
                         <a href="/mpr-browser.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🖼 MPR Browser</a>` : ''}
-                        <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" class="btn btn-primary">Browse Files</a>
+                        <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" target="_blank" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
             `;
@@ -358,7 +358,7 @@
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.vtkLegacyPath)}" target="_blank" class="action-btn">🥽 VTK</a>
                                     ${folder.mprPath ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(folder.mprPath)}" target="_blank" class="action-btn">🔬 MPR</a>
                                     <a href="/mpr-browser.html?info=${encodeURIComponent(folder.mprPath)}" target="_blank" class="action-btn">🖼 MPR Browse</a>` : ''}
-                                    <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" class="action-btn">📁 Browse</a>
+                                    <a href="/folder-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📁 Browse</a>
                                     <button onclick="showDeleteModal('${folder.path}')" class="action-btn" style="border-color: var(--error); color: var(--error);">🗑 Delete</button>
                                 </div>
                             </div>

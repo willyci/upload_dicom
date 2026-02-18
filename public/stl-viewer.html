@@ -373,7 +373,7 @@
                 }
             } else {
                 vrButton.disabled = true;
-                vrInfo.textContent = 'WebXR not supported in this browser.';
+                vrInfo.innerHTML = 'WebXR not available. <b>Use HTTPS</b> (port 3443) for VR on Quest/Vision Pro.';
             }
         }
 
@@ -389,8 +389,10 @@
                     });
                     xrSession.addEventListener('end', onSessionEnded);
 
-                    const glCanvas = renderWindow.getViews()[0].getCanvas();
-                    const gl = glCanvas.getContext('webgl', { xrCompatible: true });
+                    const openGLRenderWindow = renderWindow.getViews()[0];
+                    const glCanvas = openGLRenderWindow.getCanvas();
+                    const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
+                    if (!gl) throw new Error('Could not get WebGL context');
                     await gl.makeXRCompatible();
                     xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
                     xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
