@@ -86,9 +86,44 @@
             background: #666;
         }
 
+        button:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+        }
+
         .value-display {
             color: white;
             font-weight: bold;
+        }
+
+        #vrButton {
+            background: #0066cc;
+            font-weight: bold;
+            padding: 10px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+
+        #vrButton:hover:not(:disabled) {
+            background: #0088ff;
+        }
+
+        #vrButton.vr-active {
+            background: #cc0000;
+        }
+
+        .controls.vr-mode {
+            display: none;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #888;
+            margin-top: -5px;
         }
 
         #formatBadge {
@@ -106,7 +141,9 @@
     <div id="error"></div>
     <div id="container"></div>
 
-    <div class="controls">
+    <div class="controls" id="controls">
+        <button id="vrButton" disabled>🥽 Enter VR</button>
+        <p class="info-text" id="vrInfo">Checking VR support...</p>
         <div id="formatBadge"></div>
 
         <div class="control-group">
@@ -458,6 +495,84 @@
 
             volume = actor;
             loading.style.display = 'none';
+
+            checkVRSupport();
+        }
+
+        // --- VR Support ---
+        let xrSession = null;
+        let xrRefSpace = null;
+
+        async function checkVRSupport() {
+            const vrButton = document.getElementById('vrButton');
+            const vrInfo = document.getElementById('vrInfo');
+            if ('xr' in navigator) {
+                try {
+                    const supported = await navigator.xr.isSessionSupported('immersive-vr');
+                    if (supported) {
+                        vrButton.disabled = false;
+                        vrButton.addEventListener('click', toggleVR);
+                        vrInfo.textContent = 'VR headset detected! Click to enter VR mode.';
+                        vrInfo.style.color = '#10b981';
+                    } else {
+                        vrButton.disabled = true;
+                        vrInfo.textContent = 'VR not available. Desktop mode only.';
+                    }
+                } catch (e) {
+                    vrButton.disabled = true;
+                    vrInfo.textContent = 'VR not supported on this device.';
+                }
+            } else {
+                vrButton.disabled = true;
+                vrInfo.textContent = 'WebXR not supported in this browser.';
+            }
+        }
+
+        async function toggleVR() {
+            const vrButton = document.getElementById('vrButton');
+            const controls = document.getElementById('controls');
+            if (xrSession) {
+                await xrSession.end();
+            } else {
+                try {
+                    xrSession = await navigator.xr.requestSession('immersive-vr', {
+                        optionalFeatures: ['local-floor', 'bounded-floor']
+                    });
+                    xrSession.addEventListener('end', onSessionEnded);
+
+                    const glCanvas = renderWindow.getViews()[0].getCanvas();
+                    const gl = glCanvas.getContext('webgl', { xrCompatible: true });
+                    await gl.makeXRCompatible();
+                    xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
+                    xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
+
+                    vrButton.textContent = '🚪 Exit VR';
+                    vrButton.classList.add('vr-active');
+                    controls.classList.add('vr-mode');
+                    xrSession.requestAnimationFrame(onXRFrame);
+                } catch (e) {
+                    console.error('Failed to start VR session:', e);
+                }
+            }
+        }
+
+        function onSessionEnded() {
+            const vrButton = document.getElementById('vrButton');
+            const controls = document.getElementById('controls');
+            xrSession = null;
+            xrRefSpace = null;
+            vrButton.textContent = '🥽 Enter VR';
+            vrButton.classList.remove('vr-active');
+            controls.classList.remove('vr-mode');
+        }
+
+        function onXRFrame(time, frame) {
+            const session = frame.session;
+            session.requestAnimationFrame(onXRFrame);
+            const pose = frame.getViewerPose(xrRefSpace);
+            if (pose) {
+                renderWindow.render();
+            }
         }
 
         function updateTransferFunction() {

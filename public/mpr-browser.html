@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPR Browser - DICOM Processor</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-xl) 0;
+        }
+
+        .image-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary);
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%;
+            background: #000;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .image-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .image-card:hover .image-container img {
+            transform: scale(1.05);
+        }
+
+        .image-info {
+            padding: var(--spacing-md);
+        }
+
+        .image-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            font-size: 0.85rem;
+        }
+
+        .image-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .image-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            flex-wrap: wrap;
+        }
+
+        .tabs {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 2px solid var(--glass-border);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary-light);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab .count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .tab.active .count {
+            color: var(--primary-light);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .sub-tabs {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .sub-tab {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+        }
+
+        .sub-tab:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .sub-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: var(--radius-lg);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 1.5rem;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .lightbox-close:hover {
+            background: var(--error);
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 1.5rem;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .lightbox-nav:hover {
+            background: var(--primary);
+        }
+
+        .lightbox-prev { left: var(--spacing-lg); }
+        .lightbox-next { right: var(--spacing-lg); }
+
+        .lightbox-info {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass-bg);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            z-index: 1001;
+            white-space: nowrap;
+        }
+
+        .comparison-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .comparison-item {
+            text-align: center;
+        }
+
+        .comparison-item h4 {
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .comparison-item img {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            background: #000;
+            object-fit: contain;
+            cursor: pointer;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: var(--spacing-xl);
+            flex-wrap: wrap;
+            margin-bottom: var(--spacing-lg);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .stat-label { color: var(--text-muted); }
+        .stat-value { color: var(--text-primary); font-weight: 600; }
+
+        .plane-color-axial { color: #ef4444; }
+        .plane-color-sagittal { color: #10b981; }
+        .plane-color-coronal { color: #3b82f6; }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">📊 DICOM Processor</div>
+                <nav>
+                    <ul>
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/#uploads">Uploads</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="mt-xl mb-lg">
+            <a href="/" class="btn btn-ghost" style="margin-bottom: var(--spacing-lg);">← Back to Home</a>
+            <h1 id="pageTitle">MPR Browser</h1>
+            <div id="statsBar" class="stats-bar" style="display:none;"></div>
+            <div class="flex gap-md mt-md" id="topActions" style="display:none;">
+                <a id="mprViewerLink" href="#" target="_blank" class="btn btn-primary">🔬 Open MPR Viewer</a>
+            </div>
+        </section>
+
+        <section>
+            <div class="tabs" id="mainTabs">
+                <button class="tab active" data-plane="axial" onclick="switchPlane('axial', this)">
+                    <span class="plane-color-axial">Axial</span> <span class="count" id="countAxial"></span>
+                </button>
+                <button class="tab" data-plane="sagittal" onclick="switchPlane('sagittal', this)">
+                    <span class="plane-color-sagittal">Sagittal</span> <span class="count" id="countSagittal"></span>
+                </button>
+                <button class="tab" data-plane="coronal" onclick="switchPlane('coronal', this)">
+                    <span class="plane-color-coronal">Coronal</span> <span class="count" id="countCoronal"></span>
+                </button>
+            </div>
+
+            <!-- Sub-tabs for each plane -->
+            <div class="sub-tabs" id="subTabs">
+                <button class="sub-tab active" onclick="switchView('images', this)">Images</button>
+                <button class="sub-tab" onclick="switchView('bumpmaps', this)">Bump Maps</button>
+                <button class="sub-tab" onclick="switchView('comparison', this)">Comparison</button>
+            </div>
+
+            <div id="contentArea">
+                <div class="text-center">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <button class="lightbox-nav lightbox-prev" onclick="navLightbox(-1)">‹</button>
+        <button class="lightbox-nav lightbox-next" onclick="navLightbox(1)">›</button>
+        <div class="lightbox-content">
+            <img id="lightboxImage" src="" alt="">
+        </div>
+        <div class="lightbox-info" id="lightboxInfo"></div>
+    </div>
+
+    <script>
+        let info = null;
+        let basePath = '';
+        let currentPlane = 'axial';
+        let currentView = 'images';
+        let lightboxList = [];
+        let lightboxIndex = 0;
+
+        function pad3(n) { return String(n).padStart(3, '0'); }
+
+        function imgUrl(plane, idx) {
+            return `${basePath}${plane}/${plane}_${pad3(idx)}.jpg`;
+        }
+
+        function bumpUrl(plane, idx) {
+            return `${basePath}${plane}_bump/${plane}_${pad3(idx)}_bump.jpg`;
+        }
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const infoUrl = params.get('info');
+
+            if (!infoUrl) {
+                document.getElementById('contentArea').innerHTML =
+                    '<p class="text-center" style="color: var(--error);">No MPR info path provided. Use ?info=path/to/mpr_info.json</p>';
+                return;
+            }
+
+            try {
+                const resp = await fetch(infoUrl);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                info = await resp.json();
+            } catch (e) {
+                document.getElementById('contentArea').innerHTML =
+                    `<p class="text-center" style="color: var(--error);">Failed to load MPR info: ${e.message}</p>`;
+                return;
+            }
+
+            basePath = infoUrl.replace(/mpr_info\.json$/, '');
+
+            // Update stats
+            const totalImages = info.axial.count + info.sagittal.count + info.coronal.count;
+            document.getElementById('statsBar').style.display = 'flex';
+            document.getElementById('statsBar').innerHTML = `
+                <div class="stat-item"><span class="stat-label">Total slices:</span> <span class="stat-value">${totalImages}</span></div>
+                <div class="stat-item"><span class="stat-label">Spacing:</span> <span class="stat-value">${info.spacing.map(s => s.toFixed(2)).join(' × ')} mm</span></div>
+                <div class="stat-item"><span class="stat-label">Window:</span> <span class="stat-value">C:${info.windowCenter} W:${info.windowWidth}</span></div>
+            `;
+
+            // Update counts on tabs
+            document.getElementById('countAxial').textContent = `(${info.axial.count})`;
+            document.getElementById('countSagittal').textContent = `(${info.sagittal.count})`;
+            document.getElementById('countCoronal').textContent = `(${info.coronal.count})`;
+
+            // Show MPR viewer link
+            document.getElementById('topActions').style.display = 'flex';
+            document.getElementById('mprViewerLink').href = `/mpr-viewer.html?info=${encodeURIComponent(infoUrl)}`;
+
+            renderContent();
+        }
+
+        function switchPlane(plane, btn) {
+            currentPlane = plane;
+            document.querySelectorAll('#mainTabs .tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderContent();
+        }
+
+        function switchView(view, btn) {
+            currentView = view;
+            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderContent();
+        }
+
+        function renderContent() {
+            if (!info) return;
+            const area = document.getElementById('contentArea');
+            const planeInfo = info[currentPlane];
+            const count = planeInfo.count;
+
+            if (currentView === 'images') {
+                renderImageGrid(area, currentPlane, count, false);
+            } else if (currentView === 'bumpmaps') {
+                renderImageGrid(area, currentPlane, count, true);
+            } else if (currentView === 'comparison') {
+                renderComparison(area, currentPlane, count);
+            }
+        }
+
+        function renderImageGrid(container, plane, count, isBump) {
+            const urlFn = isBump ? bumpUrl : imgUrl;
+            const label = isBump ? 'bump' : plane;
+
+            // Build lightbox list
+            lightboxList = [];
+            for (let i = 0; i < count; i++) {
+                lightboxList.push({
+                    src: urlFn(plane, i),
+                    title: isBump ? `${plane}_${pad3(i)}_bump.jpg` : `${plane}_${pad3(i)}.jpg`
+                });
+            }
+
+            let html = '<div class="image-grid">';
+            for (let i = 0; i < count; i++) {
+                const src = urlFn(plane, i);
+                const name = isBump ? `${plane}_${pad3(i)}_bump.jpg` : `${plane}_${pad3(i)}.jpg`;
+                const dims = `${info[plane].width} × ${info[plane].height}`;
+
+                html += `
+                    <div class="image-card fade-in">
+                        <div class="image-container" onclick="openLightbox(${i})">
+                            <img src="${src}" alt="${name}" loading="lazy">
+                        </div>
+                        <div class="image-info">
+                            <div class="image-title">${name}</div>
+                            <div class="image-meta">${dims} px &middot; Slice ${i + 1}/${count}</div>
+                            <div class="image-actions">
+                                <button class="action-btn" onclick="openLightbox(${i})">🔍 View</button>
+                                ${!isBump ? `<button class="action-btn" onclick="openLightboxSrc('${bumpUrl(plane, i)}', '${plane}_${pad3(i)}_bump.jpg')">🗺️ Bump</button>` : `<button class="action-btn" onclick="openLightboxSrc('${imgUrl(plane, i)}', '${plane}_${pad3(i)}.jpg')">📷 Original</button>`}
+                                <a href="${src}" download class="action-btn">⬇️ Download</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderComparison(container, plane, count) {
+            // Show a subset for comparison (every Nth to avoid huge page)
+            const step = Math.max(1, Math.floor(count / 20));
+            let html = '';
+
+            for (let i = 0; i < count; i += step) {
+                const origSrc = imgUrl(plane, i);
+                const bumpSrc = bumpUrl(plane, i);
+                const name = `${plane}_${pad3(i)}.jpg`;
+
+                html += `
+                    <div class="card fade-in" style="margin-bottom: var(--spacing-xl);">
+                        <h3 class="card-title">${name} <span style="color: var(--text-muted); font-size: 0.8rem;">(Slice ${i + 1}/${count})</span></h3>
+                        <div class="comparison-view">
+                            <div class="comparison-item">
+                                <h4>Original</h4>
+                                <img src="${origSrc}" alt="${name}" onclick="openLightboxSrc('${origSrc}', '${name}')">
+                            </div>
+                            <div class="comparison-item">
+                                <h4>Bump Map</h4>
+                                <img src="${bumpSrc}" alt="${name} bump" onclick="openLightboxSrc('${bumpSrc}', '${name} bump')">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (step > 1) {
+                html = `<p style="color: var(--text-muted); margin-bottom: var(--spacing-lg);">Showing every ${step}${step === 2 ? 'nd' : step === 3 ? 'rd' : 'th'} slice (${Math.ceil(count / step)} of ${count}). Switch to Images or Bump Maps tab to see all.</p>` + html;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Lightbox
+        function openLightbox(index) {
+            lightboxIndex = index;
+            showLightboxImage();
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function openLightboxSrc(src, title) {
+            lightboxList = [{ src, title }];
+            lightboxIndex = 0;
+            showLightboxImage();
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function showLightboxImage() {
+            const item = lightboxList[lightboxIndex];
+            if (!item) return;
+            document.getElementById('lightboxImage').src = item.src;
+            document.getElementById('lightboxInfo').textContent =
+                lightboxList.length > 1
+                    ? `${item.title}  (${lightboxIndex + 1} / ${lightboxList.length})`
+                    : item.title;
+        }
+
+        function navLightbox(dir) {
+            if (lightboxList.length <= 1) return;
+            lightboxIndex = (lightboxIndex + dir + lightboxList.length) % lightboxList.length;
+            showLightboxImage();
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        document.getElementById('lightbox').addEventListener('click', (e) => {
+            if (e.target.id === 'lightbox') closeLightbox();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') navLightbox(-1);
+            if (e.key === 'ArrowRight') navLightbox(1);
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
