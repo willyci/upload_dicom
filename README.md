@@ -1,60 +1,102 @@
 # DICOM Processor
 
-This project is a DICOM file processor that allows users to upload zip files containing DICOM files, which are then processed and converted into JPG and VTP formats. The application provides a web interface for uploading files, viewing converted VTP files, and displaying images.
+A comprehensive web-based medical imaging platform for processing, analyzing, and visualizing DICOM data. This application handles the entire pipeline from raw DICOM upload to advanced 3D volumetric rendering and VR visualization.
+
+![Home Page](home_page.png)
+![VTI Viewer](vti_view.png)
+
+## Key Features
+
+- **Multi-Format Conversions**: Automatically converts DICOM series into:
+  - **VTI / VTP** (VTK XML Image Data / PolyData)
+  - **NRRD** (Nearly Raw Raster Data)
+  - **NIfTI** (.nii)
+  - **STL** (Stereolithography for 3D printing)
+  - **Legacy VTK** (.vtk)
+  - **JPG** (Thumbnail previews)
+
+- **Advanced Visualization**:
+  - **Volume Rendering**: Ray-casting based 3D visualization of soft tissues and bone.
+  - **MPR (Multi-Planar Reconstruction)**: View cross-sections in Axial, Sagittal, and Coronal planes.
+  - **WebVR / WebXR**: Immersive VR experience for Oculus Quest and Apple Vision Pro.
+  - **Mesh Rendering**: View generated STL models.
 
 ## Project Structure
 
-- **public/**
-  - **upload.html**: HTML page for uploading DICOM files.
-  - **viewer.html**: HTML page for viewing VTP files using vtk.js.
-  - **images.html**: HTML page for displaying all images in the uploaded folder.
+### Public Assets (`public/`)
+The frontend is built with vanilla HTML/JS and served statically.
 
-- **src/**
-  - **app.js**: Entry point of the application, sets up the Express server and routes.
-  - **controllers/**
-    - **uploadController.js**: Handles file uploads and processing.
-    - **viewerController.js**: Renders the viewer page for VTP files.
-    - **imagesController.js**: Renders the images page and lists all images.
-  - **routes/**
-    - **uploadRoutes.js**: Routes for file uploads.
-    - **viewerRoutes.js**: Routes for viewing VTP files.
-    - **imagesRoutes.js**: Routes for displaying images.
-  - **utils/**
-    - **dicomProcessor.js**: Utility functions for processing DICOM files.
-    - **fileHandler.js**: Utility functions for file operations.
+- **`index.html`**: Main landing and upload dashboard.
+- **Viewers**:
+  - **`webvr-viewer.html`**: VR-ready viewer using WebXR (works on Headsets).
+  - **`volume-viewer.html`**: Standard desktop 3D volume renderer using `vtk.js`.
+  - **`mpr-viewer.html`**: Multi-planar reconstruction viewer.
+  - **`stl-viewer.html`**: Basic viewer for STL surface meshes.
+  - **`nifti-viewer.html`**: Specialized NIfTI format viewer.
+  - **`folder-viewer.html`**: File browser for inspected uploaded directories.
+
+### Backend Source (`src/`)
+Node.js Express server handling uploads, file processing, and conversion.
+
+- **`app.js`**: Application entry point and server configuration.
+- **`routes/uploads.js`**: Handles file uploads, zip extraction, and initiates processing.
+- **`converters/vtk.js`**: Logic for converting raw DICOM pixel data into VTK formats.
+- **`services/processor.js`**: Orchestrates the conversion pipeline.
 
 ## Setup Instructions
 
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v16+ recommended)
+- [NPM](https://www.npmjs.com/)
+
+### Installation
+
 1. **Clone the repository**:
-   ```
+   ```bash
    git clone <repository-url>
-   cd dicom-processor
+   cd upload_dicom
    ```
 
 2. **Install dependencies**:
-   ```
+   ```bash
    npm install
    ```
 
-3. **Run the application**:
+### Running the Application
+
+1. **Development Mode** (with auto-reload):
+   ```bash
+   npm run dev
    ```
+
+2. **Start Server**:
+   ```bash
    npm start
    ```
 
+3. **Build WebXR Bundle** (if modifying VR code):
+   ```bash
+   npm run build:webxr
+   ```
+
 4. **Access the application**:
-   Open your web browser and navigate to `http://localhost:3000`.
+   Open http://localhost:3000
 
-## Usage
+## Usage Guide
 
-- Navigate to the **upload page** to upload a zip file containing DICOM files.
-- After uploading, you can view the converted VTP files on the **viewer page**.
-- The **images page** displays all images generated from the DICOM files.
+1. **Upload**: Drag & drop a `.zip` file containing DICOM images or a folder of `.dcm` files onto the upload zone.
+2. **Process**: The server will automatically extract and convert the files. Progress is shown in real-time.
+3. **Visualize**: Once complete, click the action buttons to:
+   - **📄 JSON**: Inspect metadata.
+   - **🥽 VR (VTI/NRRD)**: Launch the VR experience.
+   - **🥽 VTI / NRRD**: Open the desktop volume viewer.
+   - **🦴 STL**: View the extracted surface mesh.
+   - **🔬 MPR**: Analyze cross-sectional slices.
 
 ## Dependencies
 
-- **express**: Web framework for Node.js.
-- **multer**: Middleware for handling file uploads.
-- **vtk.js**: Library for rendering VTP files.
+- **Backend**: `express`, `multer`, `unzipper`, `@kitware/vtk.js`
+- **Frontend**: `vtk.js`, `itk-wasm` (for some conversions)
 
 ## License
 
