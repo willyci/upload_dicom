@@ -248,6 +248,18 @@
         </div>
 
         <button onclick="resetCamera()">Reset Camera</button>
+
+        <hr style="border-color: #555; margin: 8px 0 5px;">
+        <div class="control-group">
+            <label style="align-items: center;">
+                <span><input type="checkbox" id="crossSectionEnable" onchange="toggleCrossSection(this.checked)"
+                    style="width: auto; margin-right: 5px;" disabled>
+                    <strong style="color: #00aaff;">Cross Section</strong></span>
+                <span id="crossSectionValue" class="value-display">50%</span>
+            </label>
+            <input type="range" id="crossSectionSlider" min="0" max="100" value="50" step="1"
+                oninput="updateCrossSection()" disabled>
+        </div>
     </div>
 
     <script>
@@ -549,7 +561,7 @@
             errorDiv.style.display = 'block';
         }
 
-        let renderWindow, renderer, volume, actor;
+        let renderWindow, renderer, volume, actor, storedImageData;
         let currentPreset = 'default';
         let currentMin = -1000;
         let currentMax = 3000;
@@ -586,7 +598,10 @@
             renderWindow.render();
 
             volume = actor;
+            storedImageData = imageData;
             loading.style.display = 'none';
+
+            document.getElementById('crossSectionEnable').disabled = false;
 
             setupVRLink();
         }
@@ -790,6 +805,91 @@
                 } else {
                     actor.getProperty().setUseGradientOpacity(0, false);
                 }
+                renderWindow.render();
+            }
+        };
+
+        // ============================================================
+        // Cross-section (single view-aligned clip plane)
+        // ============================================================
+
+        let crossPlane = null;
+        let cameraSubId = null;
+        let volumeCorners = null;
+
+        function vec3Dot(a, b) {
+            return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        }
+
+        function vec3Normalize(v) {
+            const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+            return len > 0 ? [v[0] / len, v[1] / len, v[2] / len] : [0, 0, 0];
+        }
+
+        function getVolumeCorners() {
+            if (volumeCorners) return volumeCorners;
+            const b = storedImageData.getBounds();
+            volumeCorners = [];
+            for (let i = 0; i < 2; i++)
+                for (let j = 0; j < 2; j++)
+                    for (let k = 0; k < 2; k++)
+                        volumeCorners.push([b[i], b[2 + j], b[4 + k]]);
+            return volumeCorners;
+        }
+
+        function applyCrossSection() {
+            if (!crossPlane || !renderer || !storedImageData) return;
+
+            const camera = renderer.getActiveCamera();
+            const dir = vec3Normalize(camera.getDirectionOfProjection());
+            const corners = getVolumeCorners();
+            const dots = corners.map(c => vec3Dot(c, dir));
+            const front = Math.min(...dots);
+            const back = Math.max(...dots);
+
+            const pct = parseFloat(document.getElementById('crossSectionSlider').value) / 100;
+            const d = front + pct * (back - front);
+
+            crossPlane.setNormal(dir);
+            crossPlane.setOrigin([d * dir[0], d * dir[1], d * dir[2]]);
+        }
+
+        window.toggleCrossSection = function (enabled) {
+            if (!actor) return;
+            const mapper = actor.getMapper();
+            const slider = document.getElementById('crossSectionSlider');
+
+            if (enabled) {
+                crossPlane = vtk.Common.DataModel.vtkPlane.newInstance();
+                applyCrossSection();
+                mapper.addClippingPlane(crossPlane);
+
+                // Update plane every time the camera moves
+                const camera = renderer.getActiveCamera();
+                cameraSubId = camera.onModified(() => {
+                    applyCrossSection();
+                });
+
+                slider.disabled = false;
+            } else {
+                if (crossPlane) {
+                    mapper.removeClippingPlane(crossPlane);
+                    crossPlane = null;
+                }
+                if (cameraSubId) {
+                    cameraSubId.unsubscribe();
+                    cameraSubId = null;
+                }
+                slider.disabled = true;
+            }
+            renderWindow.render();
+        };
+
+        window.updateCrossSection = function () {
+            const slider = document.getElementById('crossSectionSlider');
+            document.getElementById('crossSectionValue').textContent = slider.value + '%';
+            if (crossPlane) {
+                applyCrossSection();
                 renderWindow.render();
             }
         };
