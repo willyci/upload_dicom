@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR 3D Viewer</title>
+    <meta name="description" content="Immersive WebXR 3D viewer for medical STL models. View on Quest, Vision Pro, and other VR headsets.">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            z-index: 10;
+            text-align: center;
+        }
+
+        .progress-container {
+            margin-top: 15px;
+            width: 300px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066cc, #00aaff);
+            border-radius: 3px;
+            transition: width 0.15s ease;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select,
+        input[type="range"],
+        input[type="color"] {
+            width: 100%;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 8px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #ddd;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        #vrButton {
+            background: #0066cc;
+            font-weight: bold;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        #vrButton:hover {
+            background: #0088ff;
+        }
+
+        #vrButton.vr-active {
+            background: #cc0000;
+        }
+
+        #vrButton:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #888;
+            margin-top: -5px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+        }
+
+        .preset-btn {
+            padding: 4px 6px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .controls-help {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .controls-help div {
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">
+        <div id="loadingText">Loading 3D model...</div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+    </div>
+    <div id="error"></div>
+
+    <div class="controls" id="controlPanel">
+        <button id="vrButton" disabled>🥽 Enter VR</button>
+        <p class="info-text" id="vrInfo">Checking VR support...</p>
+
+        <h3>VR 3D Viewer</h3>
+
+        <div class="control-group">
+            <label>Model Color</label>
+            <input type="color" id="colorPicker" value="#d4a574">
+        </div>
+
+        <div class="control-group">
+            <label>Color Presets</label>
+            <div class="preset-grid">
+                <button class="preset-btn" data-color="#d4a573">Bone</button>
+                <button class="preset-btn" data-color="#e6bfa6">Skin</button>
+                <button class="preset-btn" data-color="#ffffff">White</button>
+                <button class="preset-btn" data-color="#cc3333">Red</button>
+                <button class="preset-btn" data-color="#3366cc">Blue</button>
+                <button class="preset-btn" data-color="#999999">Gray</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Metalness <span id="metalnessVal">0.1</span></label>
+            <input type="range" id="metalness" min="0" max="1" step="0.05" value="0.1">
+        </div>
+
+        <div class="control-group">
+            <label>Roughness <span id="roughnessVal">0.6</span></label>
+            <input type="range" id="roughness" min="0" max="1" step="0.05" value="0.6">
+        </div>
+
+        <div class="control-group">
+            <label>Opacity <span id="opacityVal">1.00</span></label>
+            <input type="range" id="opacity" min="0.05" max="1" step="0.01" value="1">
+        </div>
+
+        <div class="control-group">
+            <button id="wireframeBtn">Toggle Wireframe</button>
+        </div>
+
+        <div class="control-group">
+            <button id="resetBtn">Reset Camera</button>
+        </div>
+
+        <div class="controls-help">
+            <div>Rotate: Left click + drag</div>
+            <div>Pan: Right click + drag</div>
+            <div>Zoom: Scroll wheel</div>
+            <div>VR: Use controllers to grab/rotate</div>
+        </div>
+    </div>
+
+    <!-- Three.js from CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+
+        const loadingEl = document.getElementById('loading');
+        const progressFill = document.getElementById('progressFill');
+        const progressTextEl = document.getElementById('progressText');
+        const errorEl = document.getElementById('error');
+        const controlPanel = document.getElementById('controlPanel');
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function showError(msg) {
+            loadingEl.style.display = 'none';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+
+        // Get file URL from query params
+        const params = new URLSearchParams(window.location.search);
+        const fileURL = params.get('file') || params.get('fileURL');
+
+        if (!fileURL) {
+            showError('No STL file specified. Use ?file=path/to/model.stl');
+        } else {
+            init(fileURL);
+        }
+
+        async function init(url) {
+            // Scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111118);
+
+            // Camera
+            const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
+            camera.position.set(0, 1.6, 2);
+
+            // Renderer with WebXR
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.xr.enabled = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.body.appendChild(renderer.domElement);
+
+            // Orbit controls (desktop)
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight1.position.set(5, 10, 7);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x8888ff, 0.4);
+            dirLight2.position.set(-5, 5, -5);
+            scene.add(dirLight2);
+
+            // Ground grid (helps with spatial orientation in VR)
+            const grid = new THREE.GridHelper(10, 20, 0x333333, 0x222222);
+            grid.position.y = -0.01;
+            scene.add(grid);
+
+            // Load STL
+            let mesh;
+            try {
+                const loader = new STLLoader();
+                const geometry = await new Promise((resolve, reject) => {
+                    loader.load(url, resolve, (event) => {
+                        if (event.lengthComputable) {
+                            const percent = (event.loaded / event.total) * 100;
+                            progressFill.style.width = percent.toFixed(1) + '%';
+                            progressTextEl.textContent = formatBytes(event.loaded) + ' / ' + formatBytes(event.total) + '  (' + Math.round(percent) + '%)';
+                        } else {
+                            progressTextEl.textContent = formatBytes(event.loaded) + ' downloaded';
+                        }
+                    }, reject);
+                });
+
+                geometry.computeVertexNormals();
+
+                // Center and scale model
+                geometry.computeBoundingBox();
+                const box = geometry.boundingBox;
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                const size = new THREE.Vector3();
+                box.getSize(size);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 1.0 / maxDim; // normalize to ~1m for VR comfort
+
+                geometry.translate(-center.x, -center.y, -center.z);
+                geometry.scale(scale, scale, scale);
+
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0xd4a574,
+                    metalness: 0.1,
+                    roughness: 0.6,
+                    side: THREE.DoubleSide,
+                });
+
+                mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(0, 1.2, -0.5); // at eye height in VR, slightly in front
+                scene.add(mesh);
+
+                loadingEl.style.display = 'none';
+                controlPanel.style.display = 'flex';
+
+            } catch (err) {
+                showError('Failed to load STL: ' + err.message);
+                console.error(err);
+                return;
+            }
+
+            // --- VR Button ---
+            setupVR(renderer, scene, camera);
+
+            // --- VR Controllers (grab to rotate model) ---
+            const controllerModelFactory = new XRControllerModelFactory();
+
+            const controllerGrip0 = renderer.xr.getControllerGrip(0);
+            controllerGrip0.add(controllerModelFactory.createControllerModel(controllerGrip0));
+            scene.add(controllerGrip0);
+
+            const controllerGrip1 = renderer.xr.getControllerGrip(1);
+            controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+            scene.add(controllerGrip1);
+
+            // Simple grab-to-rotate with controllers
+            const controller0 = renderer.xr.getController(0);
+            const controller1 = renderer.xr.getController(1);
+            scene.add(controller0);
+            scene.add(controller1);
+
+            // Controller ray visuals
+            const lineGeom = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, -3)
+            ]);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.6 });
+            controller0.add(new THREE.Line(lineGeom.clone(), lineMat.clone()));
+            controller1.add(new THREE.Line(lineGeom.clone(), lineMat.clone()));
+
+            // Grab state for rotating model in VR
+            let grabbing = false;
+            let grabController = null;
+            let grabStartQuat = new THREE.Quaternion();
+            let meshStartQuat = new THREE.Quaternion();
+            let grabStartPos = new THREE.Vector3();
+            let meshStartPos = new THREE.Vector3();
+
+            function onSelectStart(event) {
+                if (!mesh) return;
+                grabbing = true;
+                grabController = event.target;
+                grabStartQuat.copy(grabController.quaternion);
+                meshStartQuat.copy(mesh.quaternion);
+                grabStartPos.copy(grabController.position);
+                meshStartPos.copy(mesh.position);
+            }
+
+            function onSelectEnd() {
+                grabbing = false;
+                grabController = null;
+            }
+
+            controller0.addEventListener('selectstart', onSelectStart);
+            controller0.addEventListener('selectend', onSelectEnd);
+            controller1.addEventListener('selectstart', onSelectStart);
+            controller1.addEventListener('selectend', onSelectEnd);
+
+            // --- UI Controls ---
+            setupUI(mesh, renderer, camera, controls);
+
+            // --- Render Loop ---
+            renderer.setAnimationLoop(() => {
+                // VR grab rotation
+                if (grabbing && grabController && mesh) {
+                    const deltaQuat = new THREE.Quaternion();
+                    deltaQuat.copy(grabController.quaternion).multiply(grabStartQuat.clone().invert());
+                    mesh.quaternion.copy(deltaQuat).multiply(meshStartQuat);
+
+                    const deltaPos = new THREE.Vector3().subVectors(grabController.position, grabStartPos);
+                    mesh.position.copy(meshStartPos).add(deltaPos);
+                }
+
+                if (!renderer.xr.isPresenting) {
+                    controls.update();
+                }
+
+                renderer.render(scene, camera);
+            });
+
+            // Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function setupVR(renderer, scene, camera) {
+            const vrButton = document.getElementById('vrButton');
+            const vrInfo = document.getElementById('vrInfo');
+
+            if (!('xr' in navigator)) {
+                vrButton.disabled = true;
+                vrInfo.innerHTML = 'WebXR not available. <b>Use HTTPS</b> (port 3443) for VR on Quest/Vision Pro.';
+                return;
+            }
+
+            navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                if (supported) {
+                    vrButton.disabled = false;
+                    vrInfo.textContent = 'VR headset detected! Click to enter VR.';
+                    vrInfo.style.color = '#10b981';
+
+                    // Replace our button with Three.js VR button functionality
+                    vrButton.addEventListener('click', async () => {
+                        try {
+                            const session = await navigator.xr.requestSession('immersive-vr', {
+                                optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+                            });
+                            renderer.xr.setSession(session);
+                            vrButton.textContent = '🚪 Exit VR';
+                            vrButton.classList.add('vr-active');
+
+                            session.addEventListener('end', () => {
+                                vrButton.textContent = '🥽 Enter VR';
+                                vrButton.classList.remove('vr-active');
+                            });
+                        } catch (e) {
+                            console.error('VR session error:', e);
+                            vrInfo.textContent = 'Failed to start VR: ' + e.message;
+                            vrInfo.style.color = '#ef4444';
+                        }
+                    });
+                } else {
+                    vrButton.disabled = true;
+                    vrInfo.textContent = 'VR not available. Desktop 3D mode only.';
+                }
+            }).catch(() => {
+                vrButton.disabled = true;
+                vrInfo.textContent = 'VR check failed.';
+            });
+        }
+
+        function setupUI(mesh, renderer, camera, orbitControls) {
+            if (!mesh) return;
+            const mat = mesh.material;
+
+            // Color picker
+            document.getElementById('colorPicker').addEventListener('input', (e) => {
+                mat.color.set(e.target.value);
+            });
+
+            // Preset buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const color = btn.dataset.color;
+                    mat.color.set(color);
+                    document.getElementById('colorPicker').value = color;
+                });
+            });
+
+            // Metalness
+            document.getElementById('metalness').addEventListener('input', (e) => {
+                mat.metalness = parseFloat(e.target.value);
+                document.getElementById('metalnessVal').textContent = e.target.value;
+            });
+
+            // Roughness
+            document.getElementById('roughness').addEventListener('input', (e) => {
+                mat.roughness = parseFloat(e.target.value);
+                document.getElementById('roughnessVal').textContent = e.target.value;
+            });
+
+            // Opacity
+            document.getElementById('opacity').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                mat.opacity = val;
+                mat.transparent = val < 1;
+                document.getElementById('opacityVal').textContent = val.toFixed(2);
+            });
+
+            // Wireframe
+            document.getElementById('wireframeBtn').addEventListener('click', () => {
+                mat.wireframe = !mat.wireframe;
+            });
+
+            // Reset camera
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                camera.position.set(0, 1.6, 2);
+                orbitControls.target.set(0, 1.2, -0.5);
+                orbitControls.update();
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -36,6 +36,34 @@
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 24px;
+            text-align: center;
+        }
+
+        .progress-container {
+            margin-top: 15px;
+            width: 300px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066cc, #00aaff);
+            border-radius: 3px;
+            transition: width 0.15s ease;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #aaa;
         }
 
         #error {
@@ -170,7 +198,13 @@
 
 <body>
     <div id="container"></div>
-    <div id="loading">Loading STL...</div>
+    <div id="loading">
+        <div id="loadingText">Loading STL...</div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+    </div>
     <div id="error"></div>
 
     <div class="controls" id="controlPanel" style="display: none;">
@@ -228,9 +262,59 @@
     <script>
         const container = document.getElementById('container');
         const loading = document.getElementById('loading');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
         const errorDiv = document.getElementById('error');
 
         let renderWindow, renderer, actor;
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function updateProgress(percent, loaded, total) {
+            progressFill.style.width = percent.toFixed(1) + '%';
+            if (total) {
+                progressText.textContent = formatBytes(loaded) + ' / ' + formatBytes(total) + '  (' + Math.round(percent) + '%)';
+            } else {
+                progressText.textContent = formatBytes(loaded) + ' downloaded';
+            }
+        }
+
+        async function fetchWithProgress(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const contentLength = response.headers.get('Content-Length');
+            if (!contentLength || !response.body) {
+                const buffer = await response.arrayBuffer();
+                updateProgress(100, buffer.byteLength, buffer.byteLength);
+                return buffer;
+            }
+
+            const total = parseInt(contentLength, 10);
+            const reader = response.body.getReader();
+            const chunks = [];
+            let loaded = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loaded += value.length;
+                updateProgress((loaded / total) * 100, loaded, total);
+            }
+
+            const buffer = new Uint8Array(loaded);
+            let offset = 0;
+            for (const chunk of chunks) {
+                buffer.set(chunk, offset);
+                offset += chunk.length;
+            }
+            return buffer.buffer;
+        }
 
         function showError(msg) {
             loading.style.display = 'none';
@@ -257,10 +341,8 @@
                 renderWindow = fullScreenRenderer.getRenderWindow();
                 renderer = fullScreenRenderer.getRenderer();
 
-                // Load STL file
-                const response = await fetch(fileURL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                const arrayBuffer = await response.arrayBuffer();
+                // Load STL file with progress
+                const arrayBuffer = await fetchWithProgress(fileURL);
 
                 const reader = vtk.IO.Geometry.vtkSTLReader.newInstance();
                 reader.parseAsArrayBuffer(arrayBuffer);
@@ -284,7 +366,7 @@
 
                 // Set up controls
                 setupControls();
-                checkVRSupport();
+                setupVRLink();
 
             } catch (err) {
                 showError('Failed to load STL: ' + err.message);
@@ -348,81 +430,22 @@
             }
         };
 
-        // --- VR Support ---
-        let xrSession = null;
-        let xrRefSpace = null;
-
-        async function checkVRSupport() {
+        // VR: vtk.js doesn't support WebXR — link to Three.js VR viewer
+        function setupVRLink() {
             const vrButton = document.getElementById('vrButton');
             const vrInfo = document.getElementById('vrInfo');
-            if ('xr' in navigator) {
-                try {
-                    const supported = await navigator.xr.isSessionSupported('immersive-vr');
-                    if (supported) {
-                        vrButton.disabled = false;
-                        vrButton.addEventListener('click', toggleVR);
-                        vrInfo.textContent = 'VR headset detected! Click to enter VR mode.';
-                        vrInfo.style.color = '#10b981';
-                    } else {
-                        vrButton.disabled = true;
-                        vrInfo.textContent = 'VR not available. Desktop mode only.';
-                    }
-                } catch (e) {
-                    vrButton.disabled = true;
-                    vrInfo.textContent = 'VR not supported on this device.';
-                }
+            const urlParams = new URLSearchParams(window.location.search);
+            const filePath = urlParams.get('file') || urlParams.get('fileURL') || '';
+            if (filePath.toLowerCase().endsWith('.stl')) {
+                vrButton.disabled = false;
+                vrButton.onclick = () => {
+                    window.open('/vr-viewer.html?file=' + encodeURIComponent(filePath), '_blank');
+                };
+                vrInfo.textContent = 'Opens in Three.js VR viewer (new tab).';
+                vrInfo.style.color = '#10b981';
             } else {
                 vrButton.disabled = true;
-                vrInfo.innerHTML = 'WebXR not available. <b>Use HTTPS</b> (port 3443) for VR on Quest/Vision Pro.';
-            }
-        }
-
-        async function toggleVR() {
-            const vrButton = document.getElementById('vrButton');
-            const controlPanel = document.getElementById('controlPanel');
-            if (xrSession) {
-                await xrSession.end();
-            } else {
-                try {
-                    xrSession = await navigator.xr.requestSession('immersive-vr', {
-                        optionalFeatures: ['local-floor', 'bounded-floor']
-                    });
-                    xrSession.addEventListener('end', onSessionEnded);
-
-                    const openGLRenderWindow = renderWindow.getViews()[0];
-                    const glCanvas = openGLRenderWindow.getCanvas();
-                    const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
-                    if (!gl) throw new Error('Could not get WebGL context');
-                    await gl.makeXRCompatible();
-                    xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
-                    xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
-
-                    vrButton.textContent = '🚪 Exit VR';
-                    vrButton.classList.add('vr-active');
-                    controlPanel.classList.add('vr-mode');
-                    xrSession.requestAnimationFrame(onXRFrame);
-                } catch (e) {
-                    console.error('Failed to start VR session:', e);
-                }
-            }
-        }
-
-        function onSessionEnded() {
-            const vrButton = document.getElementById('vrButton');
-            const controlPanel = document.getElementById('controlPanel');
-            xrSession = null;
-            xrRefSpace = null;
-            vrButton.textContent = '🥽 Enter VR';
-            vrButton.classList.remove('vr-active');
-            controlPanel.classList.remove('vr-mode');
-        }
-
-        function onXRFrame(time, frame) {
-            const session = frame.session;
-            session.requestAnimationFrame(onXRFrame);
-            const pose = frame.getViewerPose(xrRefSpace);
-            if (pose) {
-                renderWindow.render();
+                vrInfo.textContent = 'VR requires STL file.';
             }
         }
 

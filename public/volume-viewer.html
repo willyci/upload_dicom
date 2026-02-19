@@ -36,6 +36,34 @@
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 24px;
+            text-align: center;
+        }
+
+        .progress-container {
+            margin-top: 15px;
+            width: 300px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066cc, #00aaff);
+            border-radius: 3px;
+            transition: width 0.15s ease;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #aaa;
         }
 
         #error {
@@ -146,7 +174,13 @@
 </head>
 
 <body>
-    <div id="loading">Loading volume...</div>
+    <div id="loading">
+        <div id="loadingText">Loading volume...</div>
+        <div class="progress-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+    </div>
     <div id="error"></div>
     <div id="container"></div>
 
@@ -219,6 +253,9 @@
     <script>
         const container = document.getElementById('container');
         const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
         const errorDiv = document.getElementById('error');
         const formatBadge = document.getElementById('formatBadge');
         const thresholdMinDisplay = document.getElementById('thresholdMinValue');
@@ -229,22 +266,72 @@
         const gradientDisplay = document.getElementById('gradientValue');
 
         // ============================================================
+        // Progress helpers
+        // ============================================================
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function updateProgress(percent, loaded, total) {
+            progressFill.style.width = percent.toFixed(1) + '%';
+            if (total) {
+                progressText.textContent = formatBytes(loaded) + ' / ' + formatBytes(total) + '  (' + Math.round(percent) + '%)';
+            } else {
+                progressText.textContent = formatBytes(loaded) + ' downloaded';
+            }
+        }
+
+        async function fetchWithProgress(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const contentLength = response.headers.get('Content-Length');
+            if (!contentLength || !response.body) {
+                const buffer = await response.arrayBuffer();
+                updateProgress(100, buffer.byteLength, buffer.byteLength);
+                return buffer;
+            }
+
+            const total = parseInt(contentLength, 10);
+            const reader = response.body.getReader();
+            const chunks = [];
+            let loaded = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loaded += value.length;
+                updateProgress((loaded / total) * 100, loaded, total);
+            }
+
+            const buffer = new Uint8Array(loaded);
+            let offset = 0;
+            for (const chunk of chunks) {
+                buffer.set(chunk, offset);
+                offset += chunk.length;
+            }
+            return buffer.buffer;
+        }
+
+        // ============================================================
         // Format-specific loaders
         // ============================================================
 
         // --- VTI ---
-        function loadVti(url) {
+        async function loadVti(url) {
+            const buffer = await fetchWithProgress(url);
             const reader = vtk.IO.XML.vtkXMLImageDataReader.newInstance();
-            return reader.setUrl(url)
-                .then(() => reader.loadData())
-                .then(() => reader.getOutputData());
+            reader.parseAsArrayBuffer(buffer);
+            return reader.getOutputData();
         }
 
         // --- NRRD ---
         async function loadNrrd(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const buffer = await response.arrayBuffer();
+            const buffer = await fetchWithProgress(url);
             const { header, data } = parseNrrd(buffer);
             return createVtkImage(header, data);
         }
@@ -320,9 +407,7 @@
 
         // --- NIfTI ---
         async function loadNifti(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch NIfTI file');
-            const buffer = await response.arrayBuffer();
+            const buffer = await fetchWithProgress(url);
             return parseNifti(buffer);
         }
 
@@ -362,9 +447,7 @@
 
         // --- VTK Legacy ---
         async function loadVtkLegacy(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch VTK file');
-            const buffer = await response.arrayBuffer();
+            const buffer = await fetchWithProgress(url);
             return parseVtkLegacy(buffer);
         }
 
@@ -444,7 +527,7 @@
             const formatLabels = { vti: 'VTI', nrrd: 'NRRD', nifti: 'NIfTI', vtk: 'VTK Legacy' };
             const label = formatLabels[format] || format.toUpperCase();
             formatBadge.textContent = label;
-            loading.textContent = `Loading ${label}...`;
+            loadingText.textContent = `Loading ${label}...`;
             document.title = `${label} 3D Viewer`;
 
             switch (format) {
@@ -505,84 +588,26 @@
             volume = actor;
             loading.style.display = 'none';
 
-            checkVRSupport();
+            setupVRLink();
         }
 
-        // --- VR Support ---
-        let xrSession = null;
-        let xrRefSpace = null;
-
-        async function checkVRSupport() {
+        // VR: open in WebXR-enabled viewer (volume → webvr-viewer, STL fallback → vr-viewer)
+        function setupVRLink() {
             const vrButton = document.getElementById('vrButton');
             const vrInfo = document.getElementById('vrInfo');
-            if ('xr' in navigator) {
-                try {
-                    const supported = await navigator.xr.isSessionSupported('immersive-vr');
-                    if (supported) {
-                        vrButton.disabled = false;
-                        vrButton.addEventListener('click', toggleVR);
-                        vrInfo.textContent = 'VR headset detected! Click to enter VR mode.';
-                        vrInfo.style.color = '#10b981';
-                    } else {
-                        vrButton.disabled = true;
-                        vrInfo.textContent = 'VR not available. Desktop mode only.';
-                    }
-                } catch (e) {
-                    vrButton.disabled = true;
-                    vrInfo.textContent = 'VR not supported on this device.';
-                }
+            const urlParams = new URLSearchParams(window.location.search);
+            const filePath = urlParams.get('file') || urlParams.get('fileURL') || '';
+            if (filePath) {
+                vrButton.disabled = false;
+                vrButton.onclick = () => {
+                    // Volume files go to webvr-viewer (native vtk.js WebXR)
+                    window.open('/webvr-viewer.html?file=' + encodeURIComponent(filePath), '_blank');
+                };
+                vrInfo.textContent = 'Opens in WebXR volume viewer (new tab). Use HTTPS for Quest/Vision Pro.';
+                vrInfo.style.color = '#10b981';
             } else {
                 vrButton.disabled = true;
-                vrInfo.innerHTML = 'WebXR not available. <b>Use HTTPS</b> (port 3443) for VR on Quest/Vision Pro.';
-            }
-        }
-
-        async function toggleVR() {
-            const vrButton = document.getElementById('vrButton');
-            const controls = document.getElementById('controls');
-            if (xrSession) {
-                await xrSession.end();
-            } else {
-                try {
-                    xrSession = await navigator.xr.requestSession('immersive-vr', {
-                        optionalFeatures: ['local-floor', 'bounded-floor']
-                    });
-                    xrSession.addEventListener('end', onSessionEnded);
-
-                    const openGLRenderWindow = renderWindow.getViews()[0];
-                    const glCanvas = openGLRenderWindow.getCanvas();
-                    const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
-                    if (!gl) throw new Error('Could not get WebGL context');
-                    await gl.makeXRCompatible();
-                    xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
-                    xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
-
-                    vrButton.textContent = '🚪 Exit VR';
-                    vrButton.classList.add('vr-active');
-                    controls.classList.add('vr-mode');
-                    xrSession.requestAnimationFrame(onXRFrame);
-                } catch (e) {
-                    console.error('Failed to start VR session:', e);
-                }
-            }
-        }
-
-        function onSessionEnded() {
-            const vrButton = document.getElementById('vrButton');
-            const controls = document.getElementById('controls');
-            xrSession = null;
-            xrRefSpace = null;
-            vrButton.textContent = '🥽 Enter VR';
-            vrButton.classList.remove('vr-active');
-            controls.classList.remove('vr-mode');
-        }
-
-        function onXRFrame(time, frame) {
-            const session = frame.session;
-            session.requestAnimationFrame(onXRFrame);
-            const pose = frame.getViewerPose(xrRefSpace);
-            if (pose) {
-                renderWindow.render();
+                vrInfo.textContent = 'No file loaded for VR.';
             }
         }
 

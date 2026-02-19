@@ -280,7 +280,8 @@
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">🥽 VTI</a>
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">🥽 NRRD</a>
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.niftiPaths[0])}" target="_blank" class="btn btn-secondary">🥽 NIfTI</a>
-                        <a href="/stl-viewer.html?file=${encodeURIComponent(result.stlPaths[0])}" target="_blank" class="btn btn-secondary">🥽 STL</a>
+                        <a href="/stl-viewer.html?file=${encodeURIComponent(result.stlPaths[0])}" target="_blank" class="btn btn-secondary">🦴 STL</a>
+                        <a href="/vr-viewer.html?file=${encodeURIComponent(result.stlPaths[0])}" target="_blank" class="btn btn-secondary">🥽 VR</a>
                         <a href="/volume-viewer.html?file=${encodeURIComponent(result.vtkLegacyPaths[0])}" target="_blank" class="btn btn-secondary">🥽 VTK</a>
                         ${result.mprPaths && result.mprPaths[0] ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🔬 MPR Viewer</a>
                         <a href="/mpr-browser.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🖼 MPR Browser</a>` : ''}
@@ -354,7 +355,8 @@
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🥽 VTI</a>
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🥽 NRRD</a>
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.niftiPath)}" target="_blank" class="action-btn">🥽 NIfTI</a>
-                                    <a href="/stl-viewer.html?file=${encodeURIComponent(folder.stlPath)}" target="_blank" class="action-btn">🥽 STL</a>
+                                    <a href="/stl-viewer.html?file=${encodeURIComponent(folder.stlPath)}" target="_blank" class="action-btn">🦴 STL</a>
+                                    <a href="/vr-viewer.html?file=${encodeURIComponent(folder.stlPath)}" target="_blank" class="action-btn">🥽 VR</a>
                                     <a href="/volume-viewer.html?file=${encodeURIComponent(folder.vtkLegacyPath)}" target="_blank" class="action-btn">🥽 VTK</a>
                                     ${folder.mprPath ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(folder.mprPath)}" target="_blank" class="action-btn">🔬 MPR</a>
                                     <a href="/mpr-browser.html?info=${encodeURIComponent(folder.mprPath)}" target="_blank" class="action-btn">🖼 MPR Browse</a>` : ''}
