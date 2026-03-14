@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:unpkg.com)",
+      "WebSearch",
+      "WebFetch(domain:kitware.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh search code:*)",
+      "Bash(where:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(gh:*)",
+      "Bash(gh auth:*)",
+      "Bash(cd:*)",
+      "Bash(echo No jpgs at top level:*)",
+      "Bash(ls:*)",
+      "Bash(echo \"$PATH\" | tr ':' '\\\\n' | grep -i node)",
+      "Bash(node -e \"const https = require\\('https'\\); const fs = require\\('fs'\\); https.get\\('https://registry.npmjs.org/npm/latest', r => { let d=''; r.on\\('data',c=>d+=c\\); r.on\\('end',\\(\\)=>console.log\\(JSON.parse\\(d\\).version\\)\\); }\\);\" 2>/dev/null)"
+    ]
+  }
+}
