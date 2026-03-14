@@ -34,3 +34,6 @@ public/uploads/
 
 # Self-signed certs for HTTPS/WebXR
 certs/
+
+# Built vtk.js WebXR bundle (rebuild with: npm run build:webxr)
+public/webxr-vtk-bundle.js

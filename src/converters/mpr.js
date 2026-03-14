@@ -195,7 +195,7 @@ export async function convertToMpr(volume, outputDir) {
 
     // Step 3: Allocate scatter buffers for sagittal and coronal
     // Sagittal (YZ plane, fixed X): each image is depth(W) x rows(H), one per column
-    // sagittalAll[x * (depth * rows) + z * rows + y] = windowed value
+    // sagittalAll[x * (depth * rows) + y * depth + (depth - 1 - z)] = windowed value
     let sagittalAll = new Uint8Array(columns * depth * rows);
 
     // Coronal (XZ plane, fixed Y): each image is columns(W) x depth(H), one per row
@@ -224,8 +224,8 @@ export async function convertToMpr(volume, outputDir) {
                     // Axial buffer (written immediately)
                     axialSlice[srcIdx] = val;
 
-                    // Scatter to sagittal: image index=x, pixel at (z, y) in a depth x rows image
-                    sagittalAll[x * (depth * rows) + z * rows + y] = val;
+                    // Scatter to sagittal: image index=x, pixel at (col=z, row=y) in a depth x rows image
+                    sagittalAll[x * (depth * rows) + y * depth + z] = val;
 
                     // Scatter to coronal: image index=y, pixel at (x, z) in a columns x depth image
                     coronalAll[y * (columns * depth) + z * columns + x] = val;
@@ -249,7 +249,7 @@ export async function convertToMpr(volume, outputDir) {
     logMemory('mpr-axial-done');
 
     // Step 5: Render sagittal JPGs (one per column x)
-    // Each sagittal image: width=depth, height=rows
+    // Each sagittal image: width=depth, height=rows (Z horizontal, Y vertical)
     const sagittalSlice = new Uint8Array(depth * rows);
     for (let x = 0; x < columns; x++) {
         const offset = x * (depth * rows);
