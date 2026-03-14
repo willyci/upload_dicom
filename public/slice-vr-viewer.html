@@ -227,7 +227,7 @@
                 <option value="none">Grayscale</option>
                 <option value="hotIron">Hot Iron</option>
                 <option value="pet">PET</option>
-                <option value="rainbow">Rainbow</option>
+                <option value="rainbow" selected>Rainbow</option>
                 <option value="coolWarm">Cool-Warm</option>
                 <option value="bone">Bone</option>
                 <option value="inferno">Inferno</option>
@@ -268,6 +268,20 @@
         <div class="control-group">
             <label>Slice To <span id="toVal">1</span></label>
             <input type="range" id="sliceTo" min="1" max="1" step="1" value="1">
+        </div>
+
+        <div class="control-group">
+            <label>Background</label>
+            <div id="bgSwatches" style="display:flex; gap:4px; flex-wrap:wrap;">
+                <div data-bg="#000000" style="width:24px;height:24px;background:#000000;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#ffffff" style="width:24px;height:24px;background:#ffffff;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#ff0000" style="width:24px;height:24px;background:#ff0000;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#00ff00" style="width:24px;height:24px;background:#00ff00;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#0000ff" style="width:24px;height:24px;background:#0000ff;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#ffff00" style="width:24px;height:24px;background:#ffff00;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#ff00ff" style="width:24px;height:24px;background:#ff00ff;border:2px solid transparent;border-radius:4px;cursor:pointer;"></div>
+                <div data-bg="#00ffff" style="width:24px;height:24px;background:#00ffff;border:2px solid #0088ff;border-radius:4px;cursor:pointer;"></div>
+            </div>
         </div>
 
         <div class="control-group">
@@ -376,7 +390,7 @@
 
             // Scene setup
             const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111118);
+            scene.background = new THREE.Color(0x00ffff);
 
             const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
             camera.position.set(0, 1.6, 2);
@@ -473,8 +487,8 @@
                 uThreshMax: { value: 1.0 },
                 uBumpScale: { value: 0.5 },
                 uLightDir: { value: new THREE.Vector3(0.36, 0.72, 0.59).normalize() },
-                lutMap: { value: null },
-                useLut: { value: false },
+                lutMap: { value: lutTextures.rainbow },
+                useLut: { value: true },
                 uBrightness: { value: 0.0 },
                 uContrast: { value: 1.0 }
             };
@@ -711,7 +725,7 @@
                         if (!tex) { console.warn('Failed to load sagittal', idx, texPath); return; }
                         tex.colorSpace = THREE.SRGBColorSpace;
                         const mesh = new THREE.Mesh(sagGeom, makeMat(tex, bump));
-                        mesh.rotation.y = Math.PI / 2;
+                        mesh.rotation.y = -Math.PI / 2;
                         const xPos = (idx / Math.max(sagCount - 1, 1) - 0.5) * extentX;
                         mesh.position.set(xPos, 0, 0);
                         mesh.userData.basePos = xPos;
@@ -904,10 +918,18 @@
                 planesCoronal.forEach(p => { p.position.y = p.userData.basePos * mul; });
             });
 
-            // Plane visibility toggles
-            document.getElementById('wallAxial').addEventListener('change', (e) => { wallAxial.visible = e.target.checked; });
-            document.getElementById('wallSagittal').addEventListener('change', (e) => { wallSagittal.visible = e.target.checked; });
-            document.getElementById('wallCoronal').addEventListener('change', (e) => { wallCoronal.visible = e.target.checked; });
+            // Plane visibility toggles — mark materials dirty so uniforms re-upload
+            function showWall(wall, visible) {
+                wall.visible = visible;
+                if (visible) {
+                    wall.traverse(child => {
+                        if (child.material) child.material.needsUpdate = true;
+                    });
+                }
+            }
+            document.getElementById('wallAxial').addEventListener('change', (e) => { showWall(wallAxial, e.target.checked); });
+            document.getElementById('wallSagittal').addEventListener('change', (e) => { showWall(wallSagittal, e.target.checked); });
+            document.getElementById('wallCoronal').addEventListener('change', (e) => { showWall(wallCoronal, e.target.checked); });
 
             function updateSliceVisibility() {
                 const from = parseInt(sliceFromSlider.value) - 1; // 0-indexed
@@ -936,6 +958,14 @@
                     fromVal.textContent = e.target.value;
                 }
                 updateSliceVisibility();
+            });
+
+            document.getElementById('bgSwatches').addEventListener('click', (e) => {
+                const swatch = e.target.closest('[data-bg]');
+                if (!swatch) return;
+                scene.background = new THREE.Color(swatch.dataset.bg);
+                document.querySelectorAll('#bgSwatches [data-bg]').forEach(s => s.style.borderColor = 'transparent');
+                swatch.style.borderColor = '#0088ff';
             });
 
             document.getElementById('resetBtn').addEventListener('click', () => {
