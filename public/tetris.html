@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tetris</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #080818;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            backdrop-filter: blur(6px);
+            display: none;
+        }
+
+        #ui h1 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+            color: #4af;
+        }
+
+        .stat {
+            font-size: 14px;
+            margin: 5px 0;
+            color: #99a;
+        }
+
+        .stat span {
+            color: #fff;
+            font-weight: bold;
+            font-size: 18px;
+            float: right;
+            margin-left: 20px;
+        }
+
+        #next-panel {
+            position: absolute;
+            top: 320px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            backdrop-filter: blur(6px);
+            text-align: center;
+            display: none;
+        }
+
+        #next-panel h2 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #667;
+            letter-spacing: 3px;
+        }
+
+        #next-canvas {
+            border-radius: 6px;
+        }
+
+        #next-panel-2 {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            backdrop-filter: blur(6px);
+            text-align: center;
+            display: none;
+        }
+
+        #next-panel-2 h2 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #667;
+            letter-spacing: 3px;
+        }
+
+        #next-canvas-2 {
+            border-radius: 6px;
+        }
+
+        #controls-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 18px 24px;
+            border-radius: 14px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+
+        .ctrl-row {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .ctrl-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .ctrl-block-label {
+            font-size: 11px;
+            color: #667;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .ctrl-cross {
+            display: grid;
+            grid-template-columns: 40px 40px 40px;
+            grid-template-rows: 40px 40px 40px;
+            gap: 3px;
+        }
+
+        .ctrl-cross .blank {
+            visibility: hidden;
+        }
+
+        .ctrl-wide {
+            display: flex;
+            gap: 3px;
+        }
+
+        kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 7px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #ccd;
+            text-align: center;
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        kbd.wide {
+            width: 86px;
+        }
+
+        kbd.mouse-icon {
+            width: 60px;
+            height: 70px;
+            border-radius: 22px 22px 14px 14px;
+            font-size: 22px;
+            flex-direction: column;
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        kbd.mouse-icon .scroll {
+            width: 8px;
+            height: 14px;
+            border: 1.5px solid #99a;
+            border-radius: 4px;
+        }
+
+        kbd.mouse-icon::after {
+            content: '';
+            display: block;
+            width: 1px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ── Start menu ── */
+        #start-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10;
+        }
+
+        #start-menu h1 {
+            font-size: 52px;
+            letter-spacing: 8px;
+            color: #4af;
+            text-shadow: 0 0 40px rgba(68, 170, 255, 0.3);
+            margin-bottom: 40px;
+        }
+
+        .option-group {
+            margin-bottom: 28px;
+            text-align: center;
+        }
+
+        .option-group label {
+            display: block;
+            font-size: 13px;
+            color: #667;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .option-group .btns {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .opt-btn {
+            font-size: 15px;
+            padding: 10px 24px;
+            cursor: pointer;
+            background: transparent;
+            color: #99a;
+            border: 1.5px solid #334;
+            border-radius: 8px;
+            font-family: inherit;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+            min-width: 70px;
+        }
+
+        .opt-btn:hover {
+            border-color: #4af;
+            color: #4af;
+        }
+
+        .opt-btn.active {
+            border-color: #4af;
+            color: #fff;
+            background: rgba(68, 170, 255, 0.15);
+        }
+
+        #start-btn {
+            margin-top: 16px;
+            font-size: 18px;
+            padding: 14px 56px;
+            cursor: pointer;
+            background: transparent;
+            color: #4af;
+            border: 2px solid #4af;
+            border-radius: 10px;
+            letter-spacing: 4px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        #start-btn:hover {
+            background: #4af;
+            color: #000;
+        }
+
+        /* ── Game over overlay ── */
+        #overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+
+        #overlay.show {
+            display: flex;
+        }
+
+        #overlay h1 {
+            font-size: 52px;
+            color: #f44;
+            text-shadow: 0 0 40px rgba(255, 50, 50, 0.4);
+            margin-bottom: 8px;
+            letter-spacing: 6px;
+        }
+
+        #overlay .sub {
+            font-size: 18px;
+            color: #aab;
+            margin-bottom: 30px;
+        }
+
+        #overlay .btn-row {
+            display: flex;
+            gap: 14px;
+        }
+
+        .ov-btn {
+            font-size: 16px;
+            padding: 12px 36px;
+            cursor: pointer;
+            background: transparent;
+            border: 2px solid #4af;
+            border-radius: 8px;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            font-family: inherit;
+            color: #4af;
+        }
+
+        .ov-btn:hover {
+            background: #4af;
+            color: #000;
+        }
+
+        .ov-btn.secondary {
+            border-color: #556;
+            color: #889;
+        }
+
+        .ov-btn.secondary:hover {
+            background: #556;
+            color: #fff;
+        }
+
+        /* ── Pause menu ── */
+        #pause-menu {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+
+        #pause-menu.show {
+            display: flex;
+        }
+
+        #pause-menu h1 {
+            font-size: 48px;
+            color: #4af;
+            letter-spacing: 8px;
+            text-shadow: 0 0 40px rgba(68, 170, 255, 0.3);
+            margin-bottom: 36px;
+        }
+
+        #pause-menu .btn-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .pause-btn {
+            font-size: 16px;
+            padding: 14px 48px;
+            cursor: pointer;
+            min-width: 220px;
+            background: transparent;
+            border: 2px solid #4af;
+            border-radius: 8px;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            font-family: inherit;
+            color: #4af;
+        }
+
+        .pause-btn:hover {
+            background: #4af;
+            color: #000;
+        }
+
+        .pause-btn.secondary {
+            border-color: #556;
+            color: #889;
+        }
+
+        .pause-btn.secondary:hover {
+            background: #556;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui">
+        <h1>3D TETRIS</h1>
+        <div class="stat">SCORE <span id="score">0</span></div>
+        <div class="stat">LINES <span id="lines">0</span></div>
+        <div class="stat">LEVEL <span id="level">1</span></div>
+    </div>
+    <div id="next-panel">
+        <h2>NEXT</h2>
+        <canvas id="next-canvas" width="240" height="240"></canvas>
+    </div>
+    <div id="next-panel-2">
+        <h2>THEN</h2>
+        <canvas id="next-canvas-2" width="240" height="240"></canvas>
+    </div>
+    <div id="controls-panel">
+        <div class="ctrl-row">
+            <div class="ctrl-block">
+                <div class="ctrl-cross">
+                    <div class="blank"></div><kbd>W</kbd>
+                    <div class="blank"></div>
+                    <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+                </div>
+                <div class="ctrl-block-label" style="margin-top: -30px;">Rotate</div>
+            </div>
+            <div class="ctrl-block">
+                <kbd class="mouse-icon">
+                    <div class="scroll"></div>
+                </kbd>
+                <div class="ctrl-block-label">Orbit</div>
+            </div>
+            <div class="ctrl-block">
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <div class="ctrl-wide"><kbd class="wide">Space</kbd></div>
+                    <div class="ctrl-wide"><kbd class="wide">Shift</kbd></div>
+                </div>
+                <div class="ctrl-block-label">Drop</div>
+            </div>
+            <div class="ctrl-block">
+                <div class="ctrl-cross">
+                    <div class="blank"></div><kbd>&uarr;</kbd>
+                    <div class="blank"></div>
+                    <kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd>
+                </div>
+                <div class="ctrl-block-label" style="margin-top: -30px;">Move</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start menu -->
+    <div id="start-menu">
+        <h1>3D TETRIS</h1>
+        <div class="option-group">
+            <label>Difficulty</label>
+            <div class="btns">
+                <button class="opt-btn" data-group="diff" data-val="easy">EASY</button>
+                <button class="opt-btn active" data-group="diff" data-val="standard">STANDARD</button>
+                <button class="opt-btn" data-group="diff" data-val="hard">HARD</button>
+            </div>
+        </div>
+        <div class="option-group">
+            <label>Grid Size</label>
+            <div class="btns" id="size-btns">
+                <button class="opt-btn active" data-group="size" data-val="4">4 x 4</button>
+                <button class="opt-btn" data-group="size" data-val="6">6 x 6</button>
+                <button class="opt-btn" data-group="size" data-val="8">8 x 8</button>
+            </div>
+        </div>
+        <div class="option-group">
+            <label>Speed</label>
+            <div class="btns">
+                <button class="opt-btn" data-group="speed" data-val="0.5">0.5x</button>
+                <button class="opt-btn active" data-group="speed" data-val="1">1x</button>
+                <button class="opt-btn" data-group="speed" data-val="1.5">1.5x</button>
+            </div>
+        </div>
+        <button id="start-btn">START</button>
+    </div>
+
+    <!-- Pause menu -->
+    <div id="pause-menu">
+        <h1>PAUSED</h1>
+        <div class="btn-col">
+            <button class="pause-btn" id="resume-btn">RESUME</button>
+            <button class="pause-btn secondary" id="restart-btn">RESTART</button>
+            <button class="pause-btn secondary" id="pause-menu-btn">MAIN MENU</button>
+        </div>
+    </div>
+
+    <!-- Game over -->
+    <div id="overlay">
+        <h1>GAME OVER</h1>
+        <div class="sub">Score: <span id="final-score">0</span></div>
+        <div class="btn-row">
+            <button class="ov-btn" id="retry-btn">RETRY</button>
+            <button class="ov-btn secondary" id="menu-btn">MENU</button>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ── Settings (changed via start menu) ──
+        let GX = 4, GZ = 4, GY = 12;
+        let speedMult = 1;
+        const BASE_DROP_MS = 2000; // base interval (slower than before)
+        const LOCK_DELAY = 500;
+
+        // ── Piece sets by difficulty ──
+        // pivot: fixed rotation center [x,y,z] in local block coords (SRS-style)
+        // J,L,S,T,Z use center block of 3-wide base; I uses midpoint; O uses center of 2x2
+        function defPieces(arr) {
+            return arr.map(p => {
+                if (p.pivot) return p;
+                // Default pivot: geometric center of blocks
+                const n = p.blocks.length;
+                const px = p.blocks.reduce((s, b) => s + b[0], 0) / n;
+                const py = p.blocks.reduce((s, b) => s + b[1], 0) / n;
+                const pz = p.blocks.reduce((s, b) => s + b[2], 0) / n;
+                return { ...p, pivot: [px, py, pz] };
+            });
+        }
+
+        const EASY_PIECES = defPieces([
+            { name: '1', blocks: [[0, 0, 0]], color: 0x4fc3f7, pivot: [0, 0, 0] },
+            { name: '2', blocks: [[0, 0, 0], [1, 0, 0]], color: 0x81c784, pivot: [0.5, 0, 0] },
+            { name: '3', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0]], color: 0xffb74d, pivot: [1, 0, 0] },
+            { name: 'I', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], color: 0x00e5ff, pivot: [1.5, 0, 0.5] },
+            { name: 'L', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 0, 1]], color: 0xff9100, pivot: [1, 0, 0] },
+        ]);
+
+        const STANDARD_PIECES = defPieces([
+            { name: 'I', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], color: 0x00e5ff, pivot: [1.5, 0, 0.5] },
+            { name: 'O', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0xffd600, pivot: [0.5, 0, 0.5] },
+            { name: 'T', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 0, 1]], color: 0xd500f9, pivot: [1, 0, 0] },
+            { name: 'S', blocks: [[1, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0x76ff03, pivot: [1, 0, 0] },
+            { name: 'Z', blocks: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [2, 0, 1]], color: 0xff1744, pivot: [1, 0, 0] },
+            { name: 'L', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 0, 1]], color: 0xff9100, pivot: [1, 0, 0] },
+            { name: 'J', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 0, 1]], color: 0x2979ff, pivot: [1, 0, 0] },
+        ]);
+
+        const HARD_PIECES = defPieces([
+            { name: 'F', blocks: [[1, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2]], color: 0xe91e63 },
+            { name: 'I5', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]], color: 0x00e5ff, pivot: [2, 0, 0.5] },
+            { name: 'L5', blocks: [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [1, 0, 3]], color: 0xff9100 },
+            { name: 'N', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 0, 2], [0, 0, 3]], color: 0x76ff03 },
+            { name: 'P', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 0, 2]], color: 0xd500f9 },
+            { name: 'T5', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 0, 1], [1, 0, 2]], color: 0xffd600, pivot: [1, 0, 1] },
+            { name: 'U', blocks: [[0, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1], [2, 0, 1]], color: 0x2979ff, pivot: [1, 0, 0] },
+            { name: 'V', blocks: [[0, 0, 0], [0, 0, 1], [0, 0, 2], [1, 0, 2], [2, 0, 2]], color: 0xff1744 },
+            { name: 'W', blocks: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0x00e676 },
+            { name: 'X', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [2, 0, 1], [1, 0, 2]], color: 0xff6d00, pivot: [1, 0, 1] },
+            { name: 'Y', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [1, 0, 3]], color: 0xaa00ff },
+            { name: 'Z5', blocks: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0x64ffda },
+        ]);
+
+        let activePieces = STANDARD_PIECES;
+
+        // ── Three.js core (created once) ──
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x080818);
+
+        const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 200);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const orbit = new OrbitControls(camera, renderer.domElement);
+        orbit.enableDamping = true;
+        orbit.dampingFactor = 0.08;
+        orbit.minDistance = 6;
+        orbit.maxDistance = 50;
+
+        let isDragging = false;
+        let isAutoAligningAz = false;
+        let isAutoAligningPolar = false;
+        orbit.addEventListener('start', () => {
+            isDragging = true;
+            isAutoAligningAz = false;
+            isAutoAligningPolar = false;
+        });
+        orbit.addEventListener('end', () => {
+            isDragging = false;
+            let az = orbit.getAzimuthalAngle();
+            let nearest = Math.round((az - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4;
+            let diff = az - nearest;
+            if (diff > Math.PI) diff -= 2 * Math.PI;
+            if (diff < -Math.PI) diff += 2 * Math.PI;
+            if (Math.abs(diff) > 15 * Math.PI / 180) {
+                isAutoAligningAz = true;
+            }
+            if (orbit.getPolarAngle() > Math.PI * 120 / 180) {
+                isAutoAligningPolar = true;
+            }
+        });
+
+        // ── Lighting (created once) ──
+        scene.add(new THREE.AmbientLight(0x334466, 1.2));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(1024, 1024);
+        scene.add(sun);
+        const fillLight = new THREE.DirectionalLight(0x4488cc, 0.4);
+        scene.add(fillLight);
+
+        // ── Groups ──
+        const staticGroup = new THREE.Group();  // grid, slab, boundary, pillars
+        const placedGroup = new THREE.Group();
+        const pieceGroup = new THREE.Group();
+        const ghostGroup = new THREE.Group();
+        const animGroup = new THREE.Group();   // layer-clear animation
+        const dustGroup = new THREE.Group();   // dust particles
+        const dropGroup = new THREE.Group();   // dropping blocks
+        scene.add(staticGroup, placedGroup, pieceGroup, ghostGroup, animGroup, dustGroup, dropGroup);
+
+        // ── Background floating pieces ──
+        const bgGroup = new THREE.Group();
+        scene.add(bgGroup);
+        const BG_COUNT = 20;
+        const BG_SPREAD = 40;  // how far from center they spawn
+        const BG_HEIGHT = 50;
+
+        function spawnBgPiece() {
+            const d = activePieces[Math.floor(Math.random() * activePieces.length)];
+            const group = new THREE.Group();
+            const c = new THREE.Color(d.color);
+            for (const b of d.blocks) {
+                const mesh = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+                    color: c, emissive: c.clone().multiplyScalar(0.3),
+                    transparent: true, opacity: 0.12, depthWrite: false
+                }));
+                mesh.position.set(b[0], b[1], b[2]);
+                group.add(mesh);
+            }
+            // Random position in a ring around the grid
+            const angle = Math.random() * Math.PI * 2;
+            const dist = BG_SPREAD * 0.5 + Math.random() * BG_SPREAD * 0.5;
+            group.position.set(
+                Math.cos(angle) * dist,
+                Math.random() * BG_HEIGHT - BG_HEIGHT * 0.3,
+                Math.sin(angle) * dist
+            );
+            const s = 0.8 + Math.random() * 1.2;
+            group.scale.setScalar(s);
+            group.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            group.userData.vy = -(0.3 + Math.random() * 0.6);
+            group.userData.rotX = (Math.random() - 0.5) * 0.3;
+            group.userData.rotY = (Math.random() - 0.5) * 0.4;
+            group.userData.rotZ = (Math.random() - 0.5) * 0.2;
+            bgGroup.add(group);
+            return group;
+        }
+
+        function initBgPieces() {
+            while (bgGroup.children.length) {
+                const c = bgGroup.children[0];
+                bgGroup.remove(c);
+                c.traverse(m => { if (m.material) m.material.dispose(); });
+            }
+            for (let i = 0; i < BG_COUNT; i++) spawnBgPiece();
+        }
+
+        function updateBgPieces(dt) {
+            for (const g of bgGroup.children) {
+                g.position.y += g.userData.vy * dt;
+                g.rotation.x += g.userData.rotX * dt;
+                g.rotation.y += g.userData.rotY * dt;
+                g.rotation.z += g.userData.rotZ * dt;
+            }
+            // Respawn any that fell too low
+            for (let i = bgGroup.children.length - 1; i >= 0; i--) {
+                const g = bgGroup.children[i];
+                if (g.position.y < -BG_HEIGHT * 0.5) {
+                    bgGroup.remove(g);
+                    g.traverse(m => { if (m.material) m.material.dispose(); });
+                    spawnBgPiece();
+                    // New one starts high
+                    const last = bgGroup.children[bgGroup.children.length - 1];
+                    last.position.y = BG_HEIGHT * 0.5 + Math.random() * 10;
+                }
+            }
+        }
+
+        // ── Next piece preview ──
+        const nxtRenderer = new THREE.WebGLRenderer({ canvas: document.getElementById('next-canvas'), antialias: true });
+        nxtRenderer.setSize(240, 240);
+        nxtRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        nxtRenderer.setClearColor(0x0a0a1e);
+        const nxtScene = new THREE.Scene();
+        nxtScene.add(new THREE.AmbientLight(0xffffff, 0.9));
+        const nxtDL = new THREE.DirectionalLight(0xffffff, 0.6);
+        nxtDL.position.set(3, 5, 3);
+        nxtScene.add(nxtDL);
+        const nxtCam = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+        const nxtGroup = new THREE.Group();
+        nxtScene.add(nxtGroup);
+
+        const nxtRenderer2 = new THREE.WebGLRenderer({ canvas: document.getElementById('next-canvas-2'), antialias: true });
+        nxtRenderer2.setSize(240, 240);
+        nxtRenderer2.setPixelRatio(Math.min(devicePixelRatio, 2));
+        nxtRenderer2.setClearColor(0x0a0a1e);
+        const nxtScene2 = new THREE.Scene();
+        nxtScene2.add(new THREE.AmbientLight(0xffffff, 0.9));
+        const nxtDL2 = new THREE.DirectionalLight(0xffffff, 0.6);
+        nxtDL2.position.set(3, 5, 3);
+        nxtScene2.add(nxtDL2);
+        const nxtCam2 = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+        const nxtGroup2 = new THREE.Group();
+        nxtScene2.add(nxtGroup2);
+
+        // ── Shared geometry ──
+        const blockGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+        const edgeGeo = new THREE.EdgesGeometry(blockGeo);
+        const dustGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+
+        function makeBlock(color, opacity = 1) {
+            const c = new THREE.Color(color);
+            const mesh = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+                color: c, metalness: 0.2, roughness: 0.3,
+                emissive: c.clone().multiplyScalar(0.25),
+                transparent: opacity < 1, opacity
+            }));
+            mesh.add(new THREE.LineSegments(edgeGeo,
+                new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: opacity * 0.2 })
+            ));
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        initBgPieces();
+
+        // ── Build / rebuild static scene for current grid size ──
+        function buildStaticScene() {
+            // Clear old static geometry
+            while (staticGroup.children.length) {
+                const c = staticGroup.children[0];
+                staticGroup.remove(c);
+                if (c.geometry) c.geometry.dispose();
+                if (c.material) {
+                    if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                    else c.material.dispose();
+                }
+            }
+
+            // Floor grid
+            const gh = new THREE.GridHelper(GX, GX, 0x336688, 0x1a3344);
+            gh.position.set(GX / 2, 0, GZ / 2);
+            staticGroup.add(gh);
+
+            // Base slab
+            const slab = new THREE.Mesh(
+                new THREE.BoxGeometry(GX + 0.2, 0.1, GZ + 0.2),
+                new THREE.MeshStandardMaterial({ color: 0x112233, metalness: 0.6, roughness: 0.3 })
+            );
+            slab.position.set(GX / 2, -0.05, GZ / 2);
+            slab.receiveShadow = true;
+            staticGroup.add(slab);
+
+            // Boundary wireframe
+            const bnd = new THREE.LineSegments(
+                new THREE.EdgesGeometry(new THREE.BoxGeometry(GX, GY, GZ)),
+                new THREE.LineBasicMaterial({ color: 0x445566, transparent: true, opacity: 0.2 })
+            );
+            bnd.position.set(GX / 2, GY / 2, GZ / 2);
+            staticGroup.add(bnd);
+
+            // Corner pillars
+            for (const x of [0, GX])
+                for (const z of [0, GZ])
+                    staticGroup.add(new THREE.Line(
+                        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, 0, z), new THREE.Vector3(x, GY, z)]),
+                        new THREE.LineBasicMaterial({ color: 0x445566, transparent: true, opacity: 0.25 })
+                    ));
+
+            // Layer guide lines every 4 levels
+            for (let y = 4; y < GY; y += 4) {
+                const lg = new THREE.GridHelper(GX, GX, 0x223344, 0x112233);
+                lg.position.set(GX / 2, y, GZ / 2);
+                lg.material.transparent = true;
+                lg.material.opacity = 0.15;
+                staticGroup.add(lg);
+            }
+
+            // Reposition camera and lights for this grid size
+            const maxDim = Math.max(GX, GY, GZ);
+            camera.position.set(GX + maxDim, GY + 4, GZ + maxDim);
+            orbit.target.set(GX / 2, GY / 2, GZ / 2);
+            orbit.update();
+
+            sun.position.set(GX / 2, GY + 12, GZ / 2);
+            sun.target.position.set(GX / 2, 0, GZ / 2);
+            fillLight.position.set(GX / 2, GY + 6, GZ / 2);
+        }
+
+        // ── Game state ──
+        let grid, cur, nextPieces = [];
+        let score, lines, level;
+        let gameOver, dropMs, lastDrop;
+        let softDrop = false;
+        let locking = false, lockTime = 0;
+        let playing = false;
+        let paused = false;
+        let animating = false, animPhase = null, animPhaseStart = 0, pendingLayers = [];
+        const FLASH_MS = 250, EXPLODE_MS = 450, DROP_MS = 350;
+
+        function initGrid() {
+            grid = [];
+            for (let x = 0; x < GX; x++) {
+                grid[x] = [];
+                for (let z = 0; z < GZ; z++)
+                    grid[x][z] = new Array(GY).fill(0);
+            }
+        }
+
+        function rndIdx() { return Math.floor(Math.random() * activePieces.length); }
+
+        function spawn(idx) {
+            const d = activePieces[idx];
+            const blocks = d.blocks.map(b => [...b]);
+            let mnX = 99, mxX = -99, mnZ = 99, mxZ = -99, mxY = -99;
+            for (const b of blocks) {
+                mnX = Math.min(mnX, b[0]); mxX = Math.max(mxX, b[0]);
+                mnZ = Math.min(mnZ, b[2]); mxZ = Math.max(mxZ, b[2]);
+                mxY = Math.max(mxY, b[1]);
+            }
+            return {
+                name: d.name,
+                blocks,
+                pivot: [...d.pivot],
+                pos: {
+                    x: Math.floor((GX - (mxX - mnX + 1)) / 2),
+                    y: GY - 1 - mxY,
+                    z: Math.floor((GZ - (mxZ - mnZ + 1)) / 2)
+                },
+                color: d.color
+            };
+        }
+
+        function wb(piece) {
+            return piece.blocks.map(b => [piece.pos.x + b[0], piece.pos.y + b[1], piece.pos.z + b[2]]);
+        }
+
+        function valid(piece) {
+            for (const [x, y, z] of wb(piece)) {
+                if (x < 0 || x >= GX || z < 0 || z >= GZ || y < 0) return false;
+                if (y < GY && grid[x][z][y] !== 0) return false;
+            }
+            return true;
+        }
+
+        function tryMove(dx, dy, dz) {
+            const t = { blocks: cur.blocks, pos: { x: cur.pos.x + dx, y: cur.pos.y + dy, z: cur.pos.z + dz }, color: cur.color };
+            if (valid(t)) {
+                cur.pos = t.pos;
+                if (locking) lockTime = performance.now();
+                return true;
+            }
+            return false;
+        }
+
+        function tryRotate(axis, dir) {
+            // O piece: Y rotation has no visible effect
+            if (cur.name === 'O' && axis === 'y') return true;
+
+            const [cx, cy, cz] = cur.pivot;
+
+            const nb = cur.blocks.map(b => {
+                let x = b[0] - cx, y = b[1] - cy, z = b[2] - cz;
+                let rx, ry, rz;
+                if (dir === 1) {
+                    if (axis === 'y') { rx = z; ry = y; rz = -x; }
+                    else if (axis === 'x') { rx = x; ry = -z; rz = y; }
+                    else { rx = -y; ry = x; rz = z; }
+                } else {
+                    if (axis === 'y') { rx = -z; ry = y; rz = x; }
+                    else if (axis === 'x') { rx = x; ry = z; rz = -y; }
+                    else { rx = y; ry = -x; rz = z; }
+                }
+                return [Math.round(rx + cx), Math.round(ry + cy), Math.round(rz + cz)];
+            });
+
+            const kicks = [[0, 0, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1]];
+            for (const [kx, ky, kz] of kicks) {
+                const t = { blocks: nb, pos: { x: cur.pos.x + kx, y: cur.pos.y + ky, z: cur.pos.z + kz }, color: cur.color };
+                if (valid(t)) {
+                    cur.blocks = nb;
+                    cur.pos = t.pos;
+                    // Rotate the pivot itself for X/Z rotations (piece tilts in 3D)
+                    if (axis !== 'y') {
+                        let [px, py, pz] = cur.pivot;
+                        let dx = px - cx, dy = py - cy, dz = pz - cz;
+                        if (dir === 1) {
+                            if (axis === 'x') cur.pivot = [cx + dx, cy - dz, cz + dy];
+                            else cur.pivot = [cx - dy, cy + dx, cz + dz];
+                        } else {
+                            if (axis === 'x') cur.pivot = [cx + dx, cy + dz, cz - dy];
+                            else cur.pivot = [cx + dy, cy - dx, cz + dz];
+                        }
+                    }
+                    if (locking) lockTime = performance.now();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function hardDrop() {
+            let d = 0;
+            while (tryMove(0, -1, 0)) d++;
+            score += d * 2;
+            lock();
+        }
+
+        // After locking, drop the just-placed piece as a whole if floating
+        function applyPieceGravity() {
+            const positions = wb(cur);
+
+            // Remove piece from grid temporarily
+            for (const [x, y, z] of positions)
+                if (y >= 0 && y < GY) grid[x][z][y] = 0;
+
+            // Find how far the whole piece can drop
+            let dropBy = 0;
+            while (true) {
+                let canDrop = true;
+                for (const [x, y, z] of positions) {
+                    const ny = y - dropBy - 1;
+                    if (ny < 0 || (ny < GY && grid[x][z][ny] !== 0)) {
+                        canDrop = false;
+                        break;
+                    }
+                }
+                if (!canDrop) break;
+                dropBy++;
+            }
+
+            // Place piece at dropped position
+            for (const [x, y, z] of positions) {
+                const ny = y - dropBy;
+                if (ny >= 0 && ny < GY) grid[x][z][ny] = cur.color;
+            }
+        }
+
+        function lock() {
+            for (const [x, y, z] of wb(cur))
+                if (y >= 0 && y < GY) grid[x][z][y] = cur.color;
+            locking = false;
+            applyPieceGravity();
+
+            // Detect full layers
+            const fullLayers = [];
+            for (let y = GY - 1; y >= 0; y--) {
+                let full = true;
+                for (let x = 0; x < GX && full; x++)
+                    for (let z = 0; z < GZ && full; z++)
+                        if (!grid[x][z][y]) full = false;
+                if (full) fullLayers.push(y);
+            }
+
+            if (fullLayers.length > 0) {
+                startClearAnim(fullLayers);
+            } else {
+                spawnNext();
+                rebuildPlaced();
+                refreshPiece();
+            }
+        }
+
+        function fillNextPieces() {
+            const targetSize = selectedDiff === 'easy' ? 2 : 1;
+            while (nextPieces.length < targetSize) {
+                nextPieces.push(rndIdx());
+            }
+        }
+
+        function spawnNext() {
+            cur = spawn(nextPieces.shift());
+            fillNextPieces();
+            refreshNext();
+            if (!valid(cur)) {
+                gameOver = true;
+                playing = false;
+                document.getElementById('overlay').classList.add('show');
+                document.getElementById('final-score').textContent = score;
+            }
+        }
+
+        function calcDropMs() {
+            const base = BASE_DROP_MS / speedMult;
+            return Math.max(80, base - (level - 1) * (60 / speedMult));
+        }
+
+        function startClearAnim(layers) {
+            animating = true;
+            animPhase = 'flash';
+            animPhaseStart = performance.now();
+            pendingLayers = layers;
+
+            clearGroup(pieceGroup);
+            clearGroup(ghostGroup);
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+
+            // Build block meshes for the clearing layers
+            const cx = GX / 2, cz = GZ / 2;
+            for (const y of layers) {
+                for (let x = 0; x < GX; x++) {
+                    for (let z = 0; z < GZ; z++) {
+                        const color = grid[x][z][y];
+                        if (!color) continue;
+                        const m = makeBlock(color);
+                        m.position.set(x + 0.5, y + 0.5, z + 0.5);
+                        const dx = (x + 0.5 - cx), dz = (z + 0.5 - cz);
+                        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+                        m.userData.vx = (dx / len) * (2 + Math.random() * 3);
+                        m.userData.vy = 1.5 + Math.random() * 4;
+                        m.userData.vz = (dz / len) * (2 + Math.random() * 3);
+                        m.userData.rotSpeed = (Math.random() - 0.5) * 10;
+                        m.userData.color = color;
+                        m.userData.ox = x + 0.5;
+                        m.userData.oy = y + 0.5;
+                        m.userData.oz = z + 0.5;
+                        animGroup.add(m);
+                    }
+                }
+            }
+            rebuildPlaced();
+        }
+
+        function spawnDust() {
+            for (const m of animGroup.children) {
+                const c = new THREE.Color(m.userData.color);
+                for (let i = 0; i < 5; i++) {
+                    const p = new THREE.Mesh(dustGeo, new THREE.MeshStandardMaterial({
+                        color: c.clone().lerp(new THREE.Color(0xffffff), 0.4 + Math.random() * 0.4),
+                        emissive: c, emissiveIntensity: 0.5,
+                        transparent: true, opacity: 1
+                    }));
+                    p.position.set(m.userData.ox, m.userData.oy, m.userData.oz);
+                    p.userData.vx = (Math.random() - 0.5) * 6;
+                    p.userData.vy = Math.random() * 5 + 1;
+                    p.userData.vz = (Math.random() - 0.5) * 6;
+                    p.userData.life = 0.6 + Math.random() * 0.4;
+                    p.userData.age = 0;
+                    dustGroup.add(p);
+                }
+            }
+        }
+
+        function startDropPhase() {
+            // Remove cleared layers from grid
+            pendingLayers.sort((a, b) => b - a);
+            const cleared = pendingLayers.length;
+
+            // Snapshot which blocks need to drop and from where
+            // Collect blocks above any cleared layer with their old y
+            const dropBlocks = [];
+            const layerSet = new Set(pendingLayers);
+            for (let x = 0; x < GX; x++)
+                for (let z = 0; z < GZ; z++)
+                    for (let y = 0; y < GY; y++) {
+                        if (layerSet.has(y) || !grid[x][z][y]) continue;
+                        // Count how many cleared layers are below this y
+                        let dropBy = 0;
+                        for (const ly of pendingLayers) if (ly < y) dropBy++;
+                        if (dropBy > 0)
+                            dropBlocks.push({ x, z, oldY: y, dropBy, color: grid[x][z][y] });
+                    }
+
+            // Actually remove layers from grid
+            for (const y of pendingLayers) {
+                for (let yy = y; yy < GY - 1; yy++)
+                    for (let x = 0; x < GX; x++)
+                        for (let z = 0; z < GZ; z++)
+                            grid[x][z][yy] = grid[x][z][yy + 1];
+                for (let x = 0; x < GX; x++)
+                    for (let z = 0; z < GZ; z++)
+                        grid[x][z][GY - 1] = 0;
+            }
+
+            score += [0, 100, 300, 600, 1000][Math.min(cleared, 4)] * level;
+            lines += cleared;
+            level = Math.floor(lines / 3) + 1;
+            dropMs = calcDropMs();
+            updateUI();
+
+            clearGroup(animGroup);
+            clearGroup(placedGroup); // hide placed, show drop meshes instead
+
+            // Build drop meshes: blocks that don't move + blocks that animate down
+            clearGroup(dropGroup);
+            for (let x = 0; x < GX; x++)
+                for (let z = 0; z < GZ; z++)
+                    for (let y = 0; y < GY; y++)
+                        if (grid[x][z][y]) {
+                            const m = makeBlock(grid[x][z][y]);
+                            const newY = y + 0.5;
+                            // Check if this block was one that needs to drop
+                            const db = dropBlocks.find(b => b.x === x && b.z === z && b.oldY - b.dropBy === y);
+                            if (db) {
+                                m.position.set(x + 0.5, db.oldY + 0.5, z + 0.5);
+                                m.userData.fromY = db.oldY + 0.5;
+                                m.userData.toY = newY;
+                                m.userData.drops = true;
+                            } else {
+                                m.position.set(x + 0.5, newY, z + 0.5);
+                                m.userData.drops = false;
+                            }
+                            dropGroup.add(m);
+                        }
+
+            animPhase = 'drop';
+            animPhaseStart = performance.now();
+        }
+
+        function updateClearAnim(now) {
+            const elapsed = now - animPhaseStart;
+
+            if (animPhase === 'flash') {
+                const t = Math.min(elapsed / FLASH_MS, 1);
+                for (const m of animGroup.children) {
+                    const pulse = 1 + 0.15 * Math.sin(t * Math.PI * 4);
+                    m.scale.setScalar(pulse);
+                    const flash = Math.sin(t * Math.PI * 3);
+                    m.material.emissive.setRGB(flash, flash, flash);
+                    m.material.emissiveIntensity = 2;
+                }
+                if (t >= 1) {
+                    // Transition to explode
+                    animPhase = 'explode';
+                    animPhaseStart = now;
+                    spawnDust();
+                }
+            } else if (animPhase === 'explode') {
+                const t = Math.min(elapsed / EXPLODE_MS, 1);
+                const ease = t * t;
+                // Animate exploding blocks
+                for (const m of animGroup.children) {
+                    m.position.x += m.userData.vx * 0.016;
+                    m.position.y += m.userData.vy * 0.016;
+                    m.position.z += m.userData.vz * 0.016;
+                    m.userData.vy -= 9.8 * 0.016;
+                    m.rotation.x += m.userData.rotSpeed * 0.016;
+                    m.rotation.z += m.userData.rotSpeed * 0.016;
+                    const s = Math.max(0, 1 - ease);
+                    m.scale.setScalar(s);
+                    m.material.opacity = s;
+                    m.material.transparent = true;
+                }
+                // Animate dust particles
+                const toRemove = [];
+                for (const p of dustGroup.children) {
+                    p.userData.age += 0.016;
+                    const life = p.userData.life;
+                    p.position.x += p.userData.vx * 0.016;
+                    p.position.y += p.userData.vy * 0.016;
+                    p.position.z += p.userData.vz * 0.016;
+                    p.userData.vy -= 6 * 0.016;
+                    p.userData.vx *= 0.97;
+                    p.userData.vz *= 0.97;
+                    const a = 1 - p.userData.age / life;
+                    if (a <= 0) { toRemove.push(p); continue; }
+                    p.material.opacity = a;
+                    p.scale.setScalar(1 + p.userData.age * 2); // puff up as they fade
+                }
+                for (const p of toRemove) {
+                    dustGroup.remove(p);
+                    p.material.dispose();
+                }
+                if (t >= 1) {
+                    clearGroup(dustGroup);
+                    startDropPhase();
+                }
+            } else if (animPhase === 'drop') {
+                const t = Math.min(elapsed / DROP_MS, 1);
+                // Ease out bounce
+                const ease = t < 0.7
+                    ? (t / 0.7) * (t / 0.7)  // accelerate
+                    : 1 - Math.pow(1 - t, 3); // smooth land
+                for (const m of dropGroup.children) {
+                    if (m.userData.drops) {
+                        m.position.y = m.userData.fromY + (m.userData.toY - m.userData.fromY) * ease;
+                    }
+                }
+                if (t >= 1) finishClearAnim();
+            }
+        }
+
+        function finishClearAnim() {
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+            animating = false;
+            animPhase = null;
+            pendingLayers = [];
+            lastDrop = performance.now();
+
+            spawnNext();
+            rebuildPlaced();
+            refreshPiece();
+        }
+
+        // ── Visual updates ──
+        function clearGroup(g) {
+            while (g.children.length) {
+                const c = g.children[0];
+                g.remove(c);
+                if (c.material) c.material.dispose();
+            }
+        }
+
+        function rebuildPlaced() {
+            clearGroup(placedGroup);
+            for (let x = 0; x < GX; x++)
+                for (let z = 0; z < GZ; z++)
+                    for (let y = 0; y < GY; y++) {
+                        if (pendingLayers.includes(y)) continue; // skip animating rows
+                        if (grid[x][z][y]) {
+                            const m = makeBlock(grid[x][z][y]);
+                            m.position.set(x + 0.5, y + 0.5, z + 0.5);
+                            placedGroup.add(m);
+                        }
+                    }
+        }
+
+        function refreshPiece() {
+            clearGroup(pieceGroup);
+            clearGroup(ghostGroup);
+            if (!cur || gameOver) return;
+
+            for (const [x, y, z] of wb(cur)) {
+                const m = makeBlock(cur.color);
+                m.position.set(x + 0.5, y + 0.5, z + 0.5);
+                pieceGroup.add(m);
+            }
+
+            // Ghost
+            const gp = { blocks: cur.blocks.map(b => [...b]), pos: { ...cur.pos }, color: cur.color };
+            while (valid({ blocks: gp.blocks, pos: { ...gp.pos, y: gp.pos.y - 1 }, color: gp.color }))
+                gp.pos.y--;
+            if (gp.pos.y !== cur.pos.y) {
+                for (const [x, y, z] of wb(gp)) {
+                    const m = makeBlock(cur.color, 0.12);
+                    m.position.set(x + 0.5, y + 0.5, z + 0.5);
+                    ghostGroup.add(m);
+                }
+            }
+        }
+
+        function refreshNext() {
+            while (nxtGroup.children.length) nxtGroup.remove(nxtGroup.children[0]);
+            while (nxtGroup2.children.length) nxtGroup2.remove(nxtGroup2.children[0]);
+
+            if (nextPieces.length > 0) {
+                const d = activePieces[nextPieces[0]];
+                let cx = 0, cz = 0;
+                for (const b of d.blocks) { cx += b[0]; cz += b[2]; }
+                cx /= d.blocks.length; cz /= d.blocks.length;
+                for (const b of d.blocks) {
+                    const m = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+                        color: d.color, emissive: new THREE.Color(d.color).multiplyScalar(0.15)
+                    }));
+                    m.position.set(b[0] - cx + 0.5, b[1] + 0.5, b[2] - cz + 0.5);
+                    nxtGroup.add(m);
+                }
+            }
+
+            if (nextPieces.length > 1) {
+                document.getElementById('next-panel-2').style.display = 'block';
+                const d2 = activePieces[nextPieces[1]];
+                let cx2 = 0, cz2 = 0;
+                for (const b of d2.blocks) { cx2 += b[0]; cz2 += b[2]; }
+                cx2 /= d2.blocks.length; cz2 /= d2.blocks.length;
+                for (const b of d2.blocks) {
+                    const m = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+                        color: d2.color, emissive: new THREE.Color(d2.color).multiplyScalar(0.15)
+                    }));
+                    m.position.set(b[0] - cx2 + 0.5, b[1] + 0.5, b[2] - cz2 + 0.5);
+                    nxtGroup2.add(m);
+                }
+            } else {
+                document.getElementById('next-panel-2').style.display = 'none';
+            }
+
+            nxtCam.position.set(5.5, 4.0, 5.5);
+            nxtCam.lookAt(0.5, 0.3, 0.5);
+
+            nxtCam2.position.set(5.5, 4.0, 5.5);
+            nxtCam2.lookAt(0.5, 0.3, 0.5);
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('lines').textContent = lines;
+            document.getElementById('level').textContent = level;
+        }
+
+        // ── Start menu logic ──
+        let selectedSize = 4;
+        let selectedSpeed = 1;
+        let selectedDiff = 'standard';
+
+        const sizeOptions = {
+            easy: [{ label: '4 x 4', val: 4 }, { label: '6 x 6', val: 6 }, { label: '8 x 8', val: 8 }],
+            standard: [{ label: '4 x 4', val: 4 }, { label: '6 x 6', val: 6 }, { label: '8 x 8', val: 8 }],
+            hard: [{ label: '5 x 5', val: 5 }, { label: '10 x 10', val: 10 }],
+        };
+
+        function rebuildSizeButtons(diff) {
+            const container = document.getElementById('size-btns');
+            container.innerHTML = '';
+            const opts = sizeOptions[diff];
+            opts.forEach((o, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn' + (i === 0 ? ' active' : '');
+                btn.dataset.group = 'size';
+                btn.dataset.val = o.val;
+                btn.textContent = o.label;
+                btn.addEventListener('click', handleOptClick);
+                container.appendChild(btn);
+            });
+            selectedSize = opts[0].val;
+        }
+
+        function handleOptClick(e) {
+            const btn = e.currentTarget;
+            const group = btn.dataset.group;
+            document.querySelectorAll(`.opt-btn[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (group === 'size') selectedSize = parseInt(btn.dataset.val);
+            if (group === 'speed') selectedSpeed = parseFloat(btn.dataset.val);
+            if (group === 'diff') {
+                selectedDiff = btn.dataset.val;
+                rebuildSizeButtons(selectedDiff);
+            }
+        }
+
+        document.querySelectorAll('.opt-btn').forEach(btn => {
+            btn.addEventListener('click', handleOptClick);
+        });
+
+        function showUI(show) {
+            const d = show ? 'block' : 'none';
+            document.getElementById('ui').style.display = d;
+            document.getElementById('next-panel').style.display = d;
+            document.getElementById('controls-panel').style.display = d;
+            if (!show) {
+                document.getElementById('next-panel-2').style.display = 'none';
+            } else if (nextPieces.length > 1) {
+                document.getElementById('next-panel-2').style.display = 'block';
+            }
+        }
+
+        function applySettings() {
+            GX = selectedSize;
+            GZ = selectedSize;
+            if (selectedDiff === 'easy') activePieces = EASY_PIECES;
+            else if (selectedDiff === 'hard') activePieces = HARD_PIECES;
+            else activePieces = STANDARD_PIECES;
+            GY = 8 + GX;
+            speedMult = selectedSpeed;
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-menu').style.display = 'none';
+            showUI(true);
+            applySettings();
+            buildStaticScene();
+            startGame();
+        });
+
+        function pauseGame() {
+            if (!playing || gameOver) return;
+            paused = true;
+            document.getElementById('pause-menu').classList.add('show');
+        }
+
+        function resumeGame() {
+            paused = false;
+            lastDrop = performance.now();
+            if (locking) lockTime = performance.now();
+            document.getElementById('pause-menu').classList.remove('show');
+        }
+
+        document.getElementById('resume-btn').addEventListener('click', resumeGame);
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('pause-menu').classList.remove('show');
+            paused = false;
+            startGame();
+        });
+
+        document.getElementById('pause-menu-btn').addEventListener('click', () => {
+            document.getElementById('pause-menu').classList.remove('show');
+            paused = false;
+            playing = false;
+            animating = false;
+            animPhase = null;
+            pendingLayers = [];
+            showUI(false);
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+            clearGroup(placedGroup);
+            clearGroup(pieceGroup);
+            clearGroup(ghostGroup);
+            document.getElementById('start-menu').style.display = 'flex';
+        });
+
+        document.getElementById('retry-btn').addEventListener('click', () => {
+            document.getElementById('overlay').classList.remove('show');
+            startGame();
+        });
+
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('overlay').classList.remove('show');
+            showUI(false);
+            playing = false;
+            animating = false;
+            animPhase = null;
+            pendingLayers = [];
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+            clearGroup(placedGroup);
+            clearGroup(pieceGroup);
+            clearGroup(ghostGroup);
+            document.getElementById('start-menu').style.display = 'flex';
+        });
+
+        // ── Input ──
+        // Map arrow keys to grid directions based on current camera view angle
+        function getViewRotation() {
+            // Compute azimuthal angle directly from camera position (avoids OrbitControls sync issues)
+            const dx = camera.position.x - orbit.target.x;
+            const dz = camera.position.z - orbit.target.z;
+            const az = Math.atan2(dx, dz);
+            const step = Math.round((az - Math.PI / 4) / (Math.PI / 2));
+            return ((-step) % 4 + 4) % 4; // number of 90° CW rotations from base view
+        }
+
+        function viewMove(dx, dz) {
+            const rot = getViewRotation();
+            for (let i = 0; i < rot; i++) [dx, dz] = [-dz, dx];
+            return tryMove(dx, 0, dz);
+        }
+
+        let yCounter = 0; // A increments, D decrements; even→WS=X, odd→WS=Z
+        const held = new Set();
+        document.addEventListener('keydown', e => {
+            if (e.code === 'Escape' && playing && !gameOver) {
+                e.preventDefault();
+                if (paused) resumeGame(); else pauseGame();
+                return;
+            }
+            if (!playing || gameOver || paused || held.has(e.code)) return;
+            held.add(e.code);
+            let ok = true;
+            switch (e.code) {
+                case 'ArrowLeft': viewMove(-1, 0); break;
+                case 'ArrowRight': viewMove(1, 0); break;
+                case 'ArrowUp': viewMove(0, -1); break;
+                case 'ArrowDown': viewMove(0, 1); break;
+                case 'KeyA': tryRotate('y', 1); break;
+                case 'KeyD': tryRotate('y', -1); break;
+                case 'KeyW': tryRotate('x', 1); break;
+                case 'KeyS': tryRotate('x', -1); break;
+                case 'Space': hardDrop(); break;
+                case 'ShiftLeft': case 'ShiftRight': softDrop = true; break;
+                default: ok = false;
+            }
+            if (ok) { e.preventDefault(); refreshPiece(); updateUI(); }
+        });
+        document.addEventListener('keyup', e => {
+            held.delete(e.code);
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') softDrop = false;
+        });
+
+        // ── Game loop ──
+        function startGame() {
+            initGrid();
+            score = 0; lines = 0; level = 1;
+            dropMs = calcDropMs();
+            gameOver = false;
+            playing = true;
+            lastDrop = performance.now();
+            locking = false;
+            yCounter = 0;
+            animating = false;
+            animPhase = null;
+            pendingLayers = [];
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+
+            nextPieces = [];
+            fillNextPieces();
+            cur = spawn(nextPieces.shift());
+            fillNextPieces();
+
+            initBgPieces(); // refresh background pieces for current piece set
+
+            document.getElementById('overlay').classList.remove('show');
+            showUI(true);
+            updateUI();
+            refreshNext();
+            rebuildPlaced();
+            refreshPiece();
+        }
+
+        let lastTickTime = 0;
+        function tick(now) {
+            requestAnimationFrame(tick);
+            const dt = Math.min((now - (lastTickTime || now)) / 1000, 0.1);
+            lastTickTime = now;
+
+            updateBgPieces(dt);
+
+            if (playing && !gameOver && !paused) {
+                if (animating) {
+                    updateClearAnim(now);
+                } else if (cur) {
+                    const interval = softDrop ? Math.min(dropMs, 80) : dropMs;
+                    if (now - lastDrop >= interval) {
+                        if (!tryMove(0, -1, 0)) {
+                            if (!locking) { locking = true; lockTime = now; }
+                        } else {
+                            locking = false;
+                        }
+                        refreshPiece();
+                        lastDrop = now;
+                    }
+                    if (locking && now - lockTime >= LOCK_DELAY) {
+                        lock();
+                    }
+                }
+            }
+
+            nxtGroup.rotation.y += 0.008;
+            nxtGroup2.rotation.y += 0.008;
+            orbit.update();
+
+            if (!isDragging && (isAutoAligningAz || isAutoAligningPolar)) {
+                let az = orbit.getAzimuthalAngle();
+                let nearest = Math.round((az - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4;
+                let diffAz = az - nearest;
+
+                if (diffAz > Math.PI) diffAz -= 2 * Math.PI;
+                if (diffAz < -Math.PI) diffAz += 2 * Math.PI;
+
+                let polar = orbit.getPolarAngle();
+                let newAz = az;
+                let newPolar = polar;
+
+                if (isAutoAligningAz) {
+                    if (Math.abs(diffAz) > 0.005) {
+                        newAz = az - diffAz * 0.05;
+                    } else {
+                        isAutoAligningAz = false;
+                    }
+                }
+
+                if (isAutoAligningPolar) {
+                    let diffPolar = polar - Math.PI / 4;
+                    if (Math.abs(diffPolar) > 0.005) {
+                        newPolar = polar - diffPolar * 0.05;
+                    } else {
+                        isAutoAligningPolar = false;
+                    }
+                }
+
+                if (isAutoAligningAz || isAutoAligningPolar) {
+                    const radius = orbit.getDistance();
+                    camera.position.x = orbit.target.x + radius * Math.sin(newPolar) * Math.sin(newAz);
+                    camera.position.y = orbit.target.y + radius * Math.cos(newPolar);
+                    camera.position.z = orbit.target.z + radius * Math.sin(newPolar) * Math.cos(newAz);
+                    camera.lookAt(orbit.target);
+                }
+            }
+
+            renderer.render(scene, camera);
+            nxtRenderer.render(nxtScene, nxtCam);
+            if (nextPieces.length > 1) {
+                nxtRenderer2.render(nxtScene2, nxtCam2);
+            }
+        }
+
+        addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        // ── Initial state: show start menu, render empty scene ──
+        buildStaticScene();
+        requestAnimationFrame(tick);
+    </script>
+</body>
+
+</html>
