@@ -5,22 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Tetris</title>
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Play 3D Tetris for free. A modern, engaging 3D block puzzle experience with dynamic camera controls, beautiful visuals, and escalating difficulty.">
-    <meta name="keywords" content="3D Tetris, WebGL puzzle, Tetris game, browser games, free online games, Three.js, logic puzzle">
+    <meta name="description"
+        content="Play 3D Tetris for free. A modern, engaging 3D block puzzle experience with dynamic camera controls, beautiful visuals, and escalating difficulty.">
+    <meta name="keywords"
+        content="3D Tetris, WebGL puzzle, Tetris game, browser games, free online games, Three.js, logic puzzle">
     <meta name="author" content="Willyci">
     <meta name="robots" content="index, follow">
-    
+
     <!-- Open Graph for Social Sharing -->
     <meta property="og:title" content="3D Tetris">
-    <meta property="og:description" content="A visually stunning 3D version of the classic block puzzle game built with Three.js. Play directly in your browser without any downloads.">
+    <meta property="og:description"
+        content="A visually stunning 3D version of the classic block puzzle game built with Three.js. Play directly in your browser without any downloads.">
     <meta property="og:type" content="website">
-    
+
     <!-- Twitter Card Data -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="3D Tetris Web Game">
-    <meta name="twitter:description" content="Play the modern 3D version of Tetris directly in your browser. Complete with smooth orbital controls and stunning visuals.">
+    <meta name="twitter:description"
+        content="Play the modern 3D version of Tetris directly in your browser. Complete with smooth orbital controls and stunning visuals.">
     <style>
         * {
             margin: 0;
@@ -482,10 +486,6 @@
                 </div>
                 <div class="ctrl-block-label" style="margin-top: -30px;">Move</div>
             </div>
-            <div class="ctrl-block">
-                <kbd class="wide">Esc</kbd>
-                <div class="ctrl-block-label">Pause</div>
-            </div>
         </div>
     </div>
 
@@ -550,6 +550,7 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
 
         // ── Settings (changed via start menu) ──
         let GX = 4, GZ = 4, GY = 12;
@@ -617,7 +618,9 @@
         renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
+        document.body.appendChild(VRButton.createButton(renderer));
 
         const orbit = new OrbitControls(camera, renderer.domElement);
         orbit.enableDamping = true;
@@ -658,6 +661,11 @@
         scene.add(fillLight);
 
         // ── Groups ──
+        const worldGroup = new THREE.Group();
+        worldGroup.scale.setScalar(0.04);
+        worldGroup.position.set(-0.08, 0.8, -0.6);
+        scene.add(worldGroup);
+
         const staticGroup = new THREE.Group();  // grid, slab, boundary, pillars
         const placedGroup = new THREE.Group();
         const pieceGroup = new THREE.Group();
@@ -665,11 +673,163 @@
         const animGroup = new THREE.Group();   // layer-clear animation
         const dustGroup = new THREE.Group();   // dust particles
         const dropGroup = new THREE.Group();   // dropping blocks
-        scene.add(staticGroup, placedGroup, pieceGroup, ghostGroup, animGroup, dustGroup, dropGroup);
+        worldGroup.add(staticGroup, placedGroup, pieceGroup, ghostGroup, animGroup, dustGroup, dropGroup);
 
         // ── Background floating pieces ──
         const bgGroup = new THREE.Group();
-        scene.add(bgGroup);
+        worldGroup.add(bgGroup);
+
+        // ── VR Controllers ──
+        const controller1 = renderer.xr.getController(0);
+        scene.add(controller1);
+        const controller2 = renderer.xr.getController(1);
+        scene.add(controller2);
+
+        controller1.addEventListener('selectstart', () => {
+            if (!playing || gameOver || paused) {
+                // If game is over, restart on trigger press
+                if (gameOver) { startGame(); }
+                return;
+            }
+            hardDrop();
+        });
+        controller2.addEventListener('selectstart', () => {
+            if (!playing || gameOver || paused) return;
+            softDrop = true;
+        });
+        controller2.addEventListener('selectend', () => { softDrop = false; });
+
+        // Squeeze/grip on either controller → exit VR back to main menu
+        controller1.addEventListener('squeezestart', () => {
+            const session = renderer.xr.getSession();
+            if (session) session.end();
+        });
+        controller2.addEventListener('squeezestart', () => {
+            const session = renderer.xr.getSession();
+            if (session) session.end();
+        });
+
+        const ctrlLine = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -15)]),
+            new THREE.LineBasicMaterial({ color: 0x44aaff })
+        );
+        controller1.add(ctrlLine.clone());
+        controller2.add(ctrlLine.clone());
+
+        const inputState = { lastMove: 0, lastRot: 0 };
+        function pollControllers(now) {
+            const session = renderer.xr.getSession();
+            if (!session) return;
+            if (!playing || gameOver || paused) return;
+            let acted = false;
+            for (const source of session.inputSources) {
+                if (!source.gamepad) continue;
+                const axes = source.gamepad.axes;
+                const x = axes[2] || axes[0] || 0;
+                const y = axes[3] || axes[1] || 0;
+                const deadzone = 0.5;
+                if (source.handedness === 'left') {
+                    if (now - inputState.lastMove > 150) {
+                        if (x < -deadzone) { tryMove(-1, 0, 0); inputState.lastMove = now; acted = true; }
+                        else if (x > deadzone) { tryMove(1, 0, 0); inputState.lastMove = now; acted = true; }
+                        else if (y < -deadzone) { tryMove(0, 0, -1); inputState.lastMove = now; acted = true; }
+                        else if (y > deadzone) { tryMove(0, 0, 1); inputState.lastMove = now; acted = true; }
+                    }
+                } else if (source.handedness === 'right') {
+                    if (now - inputState.lastRot > 200) {
+                        if (x < -deadzone) { tryRotate('y', -1); inputState.lastRot = now; acted = true; }
+                        else if (x > deadzone) { tryRotate('y', 1); inputState.lastRot = now; acted = true; }
+                        else if (y < -deadzone) { tryRotate('x', 1); inputState.lastRot = now; acted = true; }
+                        else if (y > deadzone) { tryRotate('x', -1); inputState.lastRot = now; acted = true; }
+                    }
+                }
+            }
+            if (acted) { refreshPiece(); updateUI(); }
+        }
+
+        // ── 3D UI Canvas ──
+        const uiCanvas = document.createElement('canvas');
+        uiCanvas.width = 512; uiCanvas.height = 256;
+        const uiCtx = uiCanvas.getContext('2d');
+        const uiTexture = new THREE.CanvasTexture(uiCanvas);
+        const uiMesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), new THREE.MeshBasicMaterial({ map: uiTexture, transparent: true }));
+        uiMesh.position.set(-6, GY, GZ / 2);
+        worldGroup.add(uiMesh);
+
+        // ── 3D Controls Info Panel ──
+        const ctrlCanvas = document.createElement('canvas');
+        ctrlCanvas.width = 512; ctrlCanvas.height = 512;
+        const ctrlCtx = ctrlCanvas.getContext('2d');
+        const ctrlTexture = new THREE.CanvasTexture(ctrlCanvas);
+        const ctrlMesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ map: ctrlTexture, transparent: true }));
+        ctrlMesh.position.set(-6, GY / 2 - 2, GZ / 2);
+        worldGroup.add(ctrlMesh);
+
+        function drawControlsPanel() {
+            const c = ctrlCtx;
+            c.clearRect(0, 0, 512, 512);
+            c.fillStyle = 'rgba(0,0,0,0.6)';
+            if (c.roundRect) { c.beginPath(); c.roundRect(0, 0, 512, 512, 20); c.fill(); }
+            else c.fillRect(0, 0, 512, 512);
+
+            c.fillStyle = '#4af';
+            c.font = 'bold 28px sans-serif';
+            c.fillText('CONTROLS', 30, 45);
+
+            const col1 = 30, col2 = 280;
+            let y = 90;
+            const lineH = 42;
+
+            // Left controller
+            c.fillStyle = '#6cf';
+            c.font = 'bold 22px sans-serif';
+            c.fillText('LEFT', col1, y);
+            y += lineH;
+
+            c.fillStyle = '#99a'; c.font = '20px sans-serif';
+            c.fillText('Stick', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Move piece', col1 + 80, y);
+            y += lineH;
+
+            c.fillStyle = '#99a';
+            c.fillText('Trigger', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Hard drop', col1 + 80, y);
+            y += lineH;
+
+            c.fillStyle = '#99a';
+            c.fillText('Grip', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Exit to menu', col1 + 80, y);
+            y += lineH + 16;
+
+            // Right controller
+            c.fillStyle = '#6cf';
+            c.font = 'bold 22px sans-serif';
+            c.fillText('RIGHT', col1, y);
+            y += lineH;
+
+            c.fillStyle = '#99a'; c.font = '20px sans-serif';
+            c.fillText('Stick', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Rotate piece', col1 + 80, y);
+            y += lineH;
+
+            c.fillStyle = '#99a';
+            c.fillText('Trigger', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Soft drop', col1 + 80, y);
+            y += lineH;
+
+            c.fillStyle = '#99a';
+            c.fillText('Grip', col1, y);
+            c.fillStyle = '#fff';
+            c.fillText('Exit to menu', col1 + 80, y);
+
+            ctrlTexture.needsUpdate = true;
+        }
+        drawControlsPanel();
         const BG_COUNT = 20;
         const BG_SPREAD = 40;  // how far from center they spawn
         const BG_HEIGHT = 50;
@@ -736,31 +896,13 @@
         }
 
         // ── Next piece preview ──
-        const nxtRenderer = new THREE.WebGLRenderer({ canvas: document.getElementById('next-canvas'), antialias: true });
-        nxtRenderer.setSize(240, 240);
-        nxtRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-        nxtRenderer.setClearColor(0x0a0a1e);
-        const nxtScene = new THREE.Scene();
-        nxtScene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const nxtDL = new THREE.DirectionalLight(0xffffff, 0.6);
-        nxtDL.position.set(3, 5, 3);
-        nxtScene.add(nxtDL);
-        const nxtCam = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
         const nxtGroup = new THREE.Group();
-        nxtScene.add(nxtGroup);
+        nxtGroup.position.set(GX + 10, GY / 2 - 2, GZ / 2);
+        worldGroup.add(nxtGroup);
 
-        const nxtRenderer2 = new THREE.WebGLRenderer({ canvas: document.getElementById('next-canvas-2'), antialias: true });
-        nxtRenderer2.setSize(240, 240);
-        nxtRenderer2.setPixelRatio(Math.min(devicePixelRatio, 2));
-        nxtRenderer2.setClearColor(0x0a0a1e);
-        const nxtScene2 = new THREE.Scene();
-        nxtScene2.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const nxtDL2 = new THREE.DirectionalLight(0xffffff, 0.6);
-        nxtDL2.position.set(3, 5, 3);
-        nxtScene2.add(nxtDL2);
-        const nxtCam2 = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
         const nxtGroup2 = new THREE.Group();
-        nxtScene2.add(nxtGroup2);
+        nxtGroup2.position.set(GX + 10, GY / 2 + 2, GZ / 2);
+        worldGroup.add(nxtGroup2);
 
         // ── Shared geometry ──
         const blockGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
@@ -915,9 +1057,9 @@
 
         // O piece rotation state machine (avoids Math.round drift with half-integer pivot)
         const O_STATES = {
-            xz: { blocks: [[0,0,0],[1,0,0],[0,0,1],[1,0,1]], pivot: [0.5, 0, 0.5] },
-            xy: { blocks: [[0,0,0],[1,0,0],[0,1,0],[1,1,0]], pivot: [0.5, 0.5, 0] },
-            yz: { blocks: [[0,0,0],[0,1,0],[0,0,1],[0,1,1]], pivot: [0, 0.5, 0.5] },
+            xz: { blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]], pivot: [0.5, 0, 0.5] },
+            xy: { blocks: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]], pivot: [0.5, 0.5, 0] },
+            yz: { blocks: [[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]], pivot: [0, 0.5, 0.5] },
         };
         const O_NEXT = {
             xz: { x: 'xy', y: 'xz', z: 'yz' },
@@ -932,9 +1074,9 @@
                 const next = O_NEXT[cur.oState][axis];
                 if (next === cur.oState) return true; // symmetric, no-op
                 const st = O_STATES[next];
-                const kicks = [[0,0,0], [-1,0,0], [1,0,0], [0,0,-1], [0,0,1], [0,1,0], [0,-1,0]];
+                const kicks = [[0, 0, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1], [0, 1, 0], [0, -1, 0]];
                 for (const [kx, ky, kz] of kicks) {
-                    const t = { blocks: st.blocks, pos: { x: cur.pos.x+kx, y: cur.pos.y+ky, z: cur.pos.z+kz }, color: cur.color };
+                    const t = { blocks: st.blocks, pos: { x: cur.pos.x + kx, y: cur.pos.y + ky, z: cur.pos.z + kz }, color: cur.color };
                     if (valid(t)) {
                         cur.blocks = st.blocks.map(b => [...b]);
                         cur.pivot = [...st.pivot];
@@ -1067,7 +1209,31 @@
                 playing = false;
                 document.getElementById('overlay').classList.add('show');
                 document.getElementById('final-score').textContent = score;
+                showGameOver3D();
             }
+        }
+
+        function showGameOver3D() {
+            uiCtx.clearRect(0, 0, 512, 256);
+            uiCtx.fillStyle = 'rgba(0,0,0,0.85)';
+            if (uiCtx.roundRect) {
+                uiCtx.beginPath();
+                uiCtx.roundRect(0, 0, 512, 256, 20);
+                uiCtx.fill();
+            } else {
+                uiCtx.fillRect(0, 0, 512, 256);
+            }
+            uiCtx.fillStyle = '#f44';
+            uiCtx.font = 'bold 50px sans-serif';
+            uiCtx.fillText('GAME OVER', 80, 60);
+            uiCtx.fillStyle = '#fff';
+            uiCtx.font = 'bold 36px sans-serif';
+            uiCtx.fillText('Score: ' + score, 80, 120);
+            uiCtx.fillStyle = '#99a';
+            uiCtx.font = '24px sans-serif';
+            uiCtx.fillText('Trigger  \u2192  restart', 80, 180);
+            uiCtx.fillText('Grip  \u2192  exit to menu', 80, 220);
+            uiTexture.needsUpdate = true;
         }
 
         function calcDropMs() {
@@ -1343,42 +1509,53 @@
                 for (const b of d.blocks) { cx += b[0]; cz += b[2]; }
                 cx /= d.blocks.length; cz /= d.blocks.length;
                 for (const b of d.blocks) {
-                    const m = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
-                        color: d.color, emissive: new THREE.Color(d.color).multiplyScalar(0.15)
-                    }));
+                    const m = makeBlock(d.color);
                     m.position.set(b[0] - cx + 0.5, b[1] + 0.5, b[2] - cz + 0.5);
                     nxtGroup.add(m);
                 }
             }
 
             if (nextPieces.length > 1) {
-                document.getElementById('next-panel-2').style.display = 'block';
                 const d2 = activePieces[nextPieces[1]];
                 let cx2 = 0, cz2 = 0;
                 for (const b of d2.blocks) { cx2 += b[0]; cz2 += b[2]; }
                 cx2 /= d2.blocks.length; cz2 /= d2.blocks.length;
                 for (const b of d2.blocks) {
-                    const m = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
-                        color: d2.color, emissive: new THREE.Color(d2.color).multiplyScalar(0.15)
-                    }));
+                    const m = makeBlock(d2.color);
                     m.position.set(b[0] - cx2 + 0.5, b[1] + 0.5, b[2] - cz2 + 0.5);
                     nxtGroup2.add(m);
                 }
-            } else {
-                document.getElementById('next-panel-2').style.display = 'none';
             }
-
-            nxtCam.position.set(5.5, 4.0, 5.5);
-            nxtCam.lookAt(0.5, 0.3, 0.5);
-
-            nxtCam2.position.set(5.5, 4.0, 5.5);
-            nxtCam2.lookAt(0.5, 0.3, 0.5);
         }
 
         function updateUI() {
             document.getElementById('score').textContent = score;
             document.getElementById('lines').textContent = lines;
             document.getElementById('level').textContent = level;
+
+            uiCtx.clearRect(0, 0, 512, 256);
+            uiCtx.fillStyle = 'rgba(0,0,0,0.6)';
+            if (uiCtx.roundRect) {
+                uiCtx.beginPath();
+                uiCtx.roundRect(0, 0, 512, 256, 20);
+                uiCtx.fill();
+            } else {
+                uiCtx.fillRect(0, 0, 512, 256);
+            }
+            uiCtx.fillStyle = '#4af';
+            uiCtx.font = 'bold 40px sans-serif';
+            uiCtx.fillText('3D TETRIS', 30, 60);
+            uiCtx.fillStyle = '#99a';
+            uiCtx.font = '30px sans-serif';
+            uiCtx.fillText('SCORE: ', 30, 130);
+            uiCtx.fillText('LINES: ', 30, 180);
+            uiCtx.fillText('LEVEL: ', 30, 230);
+            uiCtx.fillStyle = '#fff';
+            uiCtx.font = 'bold 32px sans-serif';
+            uiCtx.fillText(score, 180, 130);
+            uiCtx.fillText(lines, 180, 180);
+            uiCtx.fillText(level, 180, 230);
+            uiTexture.needsUpdate = true;
         }
 
         // ── Start menu logic ──
@@ -1595,10 +1772,11 @@
         }
 
         let lastTickTime = 0;
-        function tick(now) {
-            requestAnimationFrame(tick);
+        function tick(now, frame) {
             const dt = Math.min((now - (lastTickTime || now)) / 1000, 0.1);
             lastTickTime = now;
+
+            pollControllers(now);
 
             updateBgPieces(dt);
 
@@ -1665,11 +1843,8 @@
             }
 
             renderer.render(scene, camera);
-            nxtRenderer.render(nxtScene, nxtCam);
-            if (nextPieces.length > 1) {
-                nxtRenderer2.render(nxtScene2, nxtCam2);
-            }
         }
+        renderer.setAnimationLoop(tick);
 
         addEventListener('resize', () => {
             camera.aspect = innerWidth / innerHeight;
@@ -1677,9 +1852,31 @@
             renderer.setSize(innerWidth, innerHeight);
         });
 
+        renderer.xr.addEventListener('sessionstart', () => {
+            if (!playing) startGame();
+        });
+        renderer.xr.addEventListener('sessionend', () => {
+            playing = false;
+            gameOver = false;
+            paused = false;
+            animating = false;
+            animPhase = null;
+            pendingLayers = [];
+            softDrop = false;
+            showUI(false);
+            clearGroup(animGroup);
+            clearGroup(dustGroup);
+            clearGroup(dropGroup);
+            clearGroup(placedGroup);
+            clearGroup(pieceGroup);
+            clearGroup(ghostGroup);
+            document.getElementById('overlay').classList.remove('show');
+            document.getElementById('pause-menu').classList.remove('show');
+            document.getElementById('start-menu').style.display = 'flex';
+        });
+
         // ── Initial state: show start menu, render empty scene ──
         buildStaticScene();
-        requestAnimationFrame(tick);
     </script>
 </body>
 
