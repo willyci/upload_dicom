@@ -7,20 +7,24 @@
     <title>AI Magic 8-Ball</title>
 
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Ask the AI Magic 8-Ball your deepest questions. Powered entirely by a brutally honest local WebLLM directly in your browser.">
-    <meta name="keywords" content="Magic 8-Ball, AI Magic Ball, WebLLM, Local AI browser game, LLM 8-ball, free AI oracle, Gen-Z Magic 8-Ball">
+    <meta name="description"
+        content="Ask the AI Magic 8-Ball your deepest questions. Powered entirely by a brutally honest local WebLLM directly in your browser.">
+    <meta name="keywords"
+        content="Magic 8-Ball, AI Magic Ball, WebLLM, Local AI browser game, LLM 8-ball, free AI oracle, Gen-Z Magic 8-Ball">
     <meta name="author" content="Willyci">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph for Social Sharing -->
     <meta property="og:title" content="AI Magic 8-Ball">
-    <meta property="og:description" content="A brutally honest, snarky Magic 8-Ball powered entirely by a local browser-based LLM.">
+    <meta property="og:description"
+        content="A brutally honest, snarky Magic 8-Ball powered entirely by a local browser-based LLM.">
     <meta property="og:type" content="website">
 
     <!-- Twitter Card Data -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="AI Magic 8-Ball">
-    <meta name="twitter:description" content="A snarky Magic 8-Ball powered entirely by a local browser-based language model. Test your luck!">
+    <meta name="twitter:description"
+        content="A snarky Magic 8-Ball powered entirely by a local browser-based language model. Test your luck!">
     <style>
         body {
             background: radial-gradient(circle at center, #1a1a3a 0%, #000000 100%);
@@ -276,7 +280,7 @@
         <div class="magic-ball" id="ball">
             <div class="window">
                 <div class="triangle" id="triangle">
-                    <div class="answer-text default" id="answer">8</div>
+                    <div class="answer-text default" id="answer">&nbsp;&nbsp;8</div>
                 </div>
             </div>
         </div>
@@ -526,6 +530,8 @@
         const bucketLabel = document.getElementById('bucket-label');
 
         let engine = null;
+        const questionHistory = [];
+        let historyIndex = -1;
 
         // Uses a highly optimized model suitable for WebGL
         // Llama-3.2-1B handles instruction following beautifully and downloads extremely fast.
@@ -558,10 +564,30 @@
             }
         }
 
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (questionHistory.length === 0) return;
+                if (historyIndex === -1) historyIndex = questionHistory.length;
+                historyIndex = Math.max(0, historyIndex - 1);
+                input.value = questionHistory[historyIndex];
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex === -1) return;
+                historyIndex = Math.min(questionHistory.length, historyIndex + 1);
+                input.value = historyIndex === questionHistory.length ? '' : questionHistory[historyIndex];
+                if (historyIndex === questionHistory.length) historyIndex = -1;
+            }
+        });
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userQuestion = input.value.trim();
             if (!userQuestion || !engine) return;
+
+            // Save to history
+            questionHistory.push(userQuestion);
+            historyIndex = -1;
 
             // Lock UI
             submitBtn.disabled = true;
