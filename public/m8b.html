@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Magic 8-Ball</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Ask the AI Magic 8-Ball your deepest questions. Powered entirely by a brutally honest local WebLLM directly in your browser.">
+    <meta name="keywords" content="Magic 8-Ball, AI Magic Ball, WebLLM, Local AI browser game, LLM 8-ball, free AI oracle, Gen-Z Magic 8-Ball">
+    <meta name="author" content="Willyci">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph for Social Sharing -->
+    <meta property="og:title" content="AI Magic 8-Ball">
+    <meta property="og:description" content="A brutally honest, snarky Magic 8-Ball powered entirely by a local browser-based LLM.">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card Data -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AI Magic 8-Ball">
+    <meta name="twitter:description" content="A snarky Magic 8-Ball powered entirely by a local browser-based language model. Test your luck!">
+    <style>
+        body {
+            background: radial-gradient(circle at center, #1a1a3a 0%, #000000 100%);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0px 4px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        h2 {
+            font-size: 1rem;
+            font-weight: 300;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        /* The Mystical 8-Ball */
+        .magic-ball-container {
+            position: relative;
+            width: 420px;
+            height: 420px;
+            margin-bottom: 40px;
+            perspective: 1000px;
+        }
+
+        .magic-ball {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 100px 100px, #444, #000 70%);
+            box-shadow:
+                inset -20px -20px 40px rgba(0, 0, 0, 0.9),
+                inset 20px 20px 40px rgba(255, 255, 255, 0.2),
+                0 20px 50px rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.5s ease;
+        }
+
+        .magic-ball.shake {
+            animation: shake 0.6s cubic-bezier(.36, .07, .19, .97) both;
+        }
+
+        @keyframes shake {
+
+            10%,
+            90% {
+                transform: translate3d(-4px, 0, 0) rotate(-2deg);
+            }
+
+            20%,
+            80% {
+                transform: translate3d(8px, 0, 0) rotate(4deg);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-12px, 0, 0) rotate(-6deg);
+            }
+
+            40%,
+            60% {
+                transform: translate3d(12px, 0, 0) rotate(6deg);
+            }
+        }
+
+        /* The Window */
+        .window {
+            width: 270px;
+            height: 270px;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, #05051a 0%, #000 100%);
+            border: 4px solid #111;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 1);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* The Blue Triangle */
+        .triangle {
+            width: 220px;
+            height: 200px;
+            background: #1a2a6c;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 1s ease-in-out;
+            padding: 10px 30px 40px 30px;
+            box-sizing: border-box;
+            margin-top: 40px;
+        }
+
+        .triangle.hidden {
+            opacity: 0;
+        }
+
+        /* The Answer Text */
+        .answer-text {
+            width: 140px;
+            color: #bbf;
+            font-size: 14px;
+            text-align: center;
+            font-weight: bold;
+            line-height: 1.2;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(100, 150, 255, 0.8);
+            opacity: 1;
+            transition: opacity 1.5s ease-in-out;
+            pointer-events: none;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 6;
+            -webkit-box-orient: vertical;
+            word-wrap: break-word;
+        }
+
+        .answer-text.hidden {
+            opacity: 0;
+        }
+
+        .answer-text.default {
+            font-size: 80px;
+            color: white;
+            text-shadow: none;
+            margin-top: -10px;
+            overflow: visible;
+            display: flex;
+            -webkit-line-clamp: unset;
+        }
+
+        /* Input Form */
+        .input-group {
+            display: flex;
+            width: 500px;
+            max-width: 90vw;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 5px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.1rem;
+            padding: 15px 25px;
+            outline: none;
+        }
+
+        input::placeholder {
+            color: #777;
+        }
+
+        button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #000;
+            border: none;
+            border-radius: 25px;
+            padding: 0 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.6);
+        }
+
+        button:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Status & Progress */
+        #status-container {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #888;
+            height: 40px;
+            text-align: center;
+            width: 500px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #222;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #4facfe;
+            transition: width 0.1s;
+        }
+
+        .bucket-label {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Magic 8-Ball</h1>
+        <h2>Powered by Local AI</h2>
+    </div>
+
+    <div class="magic-ball-container">
+        <div class="magic-ball" id="ball">
+            <div class="window">
+                <div class="triangle" id="triangle">
+                    <div class="answer-text default" id="answer">8</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="ask-form" class="input-group">
+        <input type="text" id="question" placeholder="Ask the Magic 8-Ball a question..." required autocomplete="off">
+        <button type="submit" id="submit-btn" disabled>Loading...</button>
+    </form>
+
+    <div id="status-container">
+        <div id="status-text">Initializing AI Model (This runs fully in your browser)...</div>
+        <div class="progress-bar" id="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="bucket-label" id="bucket-label"></div>
+    </div>
+
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        const BUCKETS = {
+            RELATIONSHIP: [
+                "Signs point to: It's complicated. Run.",
+                "My sources say: They are just not that into you.",
+                "Outlook not so good. Try adopting a cat instead.",
+                "The stars say yes, but my code says no.",
+                "Ghost them immediately."
+            ],
+            WORK: [
+                "Don't count on a raise this year.",
+                "You should probably just reply to that email.",
+                "Without a doubt, your boss is wrong.",
+                "Schedule a meeting to discuss scheduling a meeting.",
+                "Promote yourself to customer."
+            ],
+            STUPID_IDEA: [
+                "Are you seriously asking me this?",
+                "Very doubtful. Try thinking for once.",
+                "My reply is no. Don't do that.",
+                "Even the Magic 8-Ball is judging you right now.",
+                "Is this a joke? No."
+            ],
+            COWARD: [
+                "You may rely on it. Just do it already!",
+                "It is decidedly so. Stop being scared!",
+                "As I see it, yes. Take the leap.",
+                "What's the worst that could happen?",
+                "Fortune favors the bold."
+            ],
+            ALREADY_KNOWS: [
+                "You already know the answer to this.",
+                "Why are you asking a ball? You know what to do.",
+                "Search your feelings, you know it to be true.",
+                "I'm a web app, not a therapist.",
+                "Flip a coin. You'll know what you want while it's in the air."
+            ],
+            MONEY: [
+                "Are you made of money? No.",
+                "Invest in yourself instead.",
+                "You can't afford that right now.",
+                "Wait until your next paycheck.",
+                "Money can't buy happiness, but it buys pizza."
+            ],
+            EXISTENTIAL: [
+                "Nothing matters anyway, so yes.",
+                "We live in a simulation.",
+                "In the grand scheme of the universe: No.",
+                "Does it really matter?",
+                "The void says nothing in return."
+            ],
+            HEALTH: [
+                "Drink some water first, then decide.",
+                "Please go outside and touch some grass.",
+                "Eight hours of sleep would fix this.",
+                "You are just tired.",
+                "Take a deep breath and let it go."
+            ],
+            GOSSIP: [
+                "Keep that to yourself.",
+                "Spill the tea. Do it.",
+                "Mind your own business.",
+                "They already know."
+            ],
+            FOOD: [
+                "Yes, you should eat that.",
+                "Get pizza instead.",
+                "You're just hungry, not thinking clearly.",
+                "No, order takeout."
+            ],
+            TECH_SUPPORT: [
+                "Have you tried turning it off and on again?",
+                "It's definitely a DNS issue.",
+                "Clear your cache and try again.",
+                "Just buy a new one."
+            ],
+            GAMING: [
+                "Git gud first.",
+                "Stop camping and push.",
+                "You're lagging in real life.",
+                "Blame it on the ping."
+            ],
+            PETS: [
+                "Ask your dog instead.",
+                "Your cat is judging you right now.",
+                "More treats. Always more treats."
+            ],
+            TRAVEL: [
+                "Book the flight right now.",
+                "Stay home, it's cheaper.",
+                "Are you sure you packed your toothbrush?",
+                "Only if there's room service."
+            ],
+            LAZY: [
+                "Do it tomorrow.",
+                "Take a nap first.",
+                "Why stand when you can sit?",
+                "A nap is the only correct answer."
+            ],
+            FASHION: [
+                "Absolutely do not wear that.",
+                "You can totally pull it off.",
+                "Needs more black.",
+                "Honestly? Tragic."
+            ],
+            CONSPIRACY: [
+                "The government already knows.",
+                "They are watching you.",
+                "Don't believe what the media tells you.",
+                "It's a psy-op."
+            ],
+            DRAMA: [
+                "I'm living for this drama.",
+                "Cut them off immediately.",
+                "Send the screenshots right now.",
+                "Oh, absolutely spill it."
+            ],
+            LUCK: [
+                "Go buy a lottery ticket.",
+                "Lady Luck is ignoring you today.",
+                "Don't press your luck.",
+                "The odds are ever in your favor."
+            ],
+            SOCIAL_MEDIA: [
+                "Post it. What could go wrong?",
+                "Do NOT tweet that.",
+                "Nobody cares about your hot take.",
+                "This will get exactly 3 likes.",
+                "Main character energy. Go for it."
+            ],
+            FITNESS: [
+                "Never skip leg day.",
+                "Your gym crush is not impressed.",
+                "Rest day is the best day.",
+                "You won't regret working out. You will regret skipping.",
+                "Just do one more rep. Or don't."
+            ],
+            DATING: [
+                "Swipe left. Trust me.",
+                "That's a red flag and you know it.",
+                "Lower your standards slightly.",
+                "They're not texting back. Move on.",
+                "You deserve better. Or do you?"
+            ],
+            SCHOOL: [
+                "You should have started that essay weeks ago.",
+                "Wikipedia is not a source. Use it anyway.",
+                "Sleep is more important than studying. Maybe.",
+                "Drop the class. It's not too late.",
+                "ChatGPT can't save you now."
+            ],
+            SHOPPING: [
+                "Add to cart. Checkout. No regrets.",
+                "You do NOT need that.",
+                "Wait for the sale.",
+                "Your bank account is crying.",
+                "Treat yourself. You've earned it. Probably."
+            ],
+            SPORTS: [
+                "Your team is going to lose.",
+                "Bold prediction: overtime.",
+                "Fantasy league says no.",
+                "Bet the underdog.",
+                "Refs are going to ruin it anyway."
+            ],
+            REVENGE: [
+                "Living well is the best revenge.",
+                "Be petty. You've earned it.",
+                "Take the high road. It's boring but correct.",
+                "Send the screenshot. Burn the bridge.",
+                "Revenge is a dish best served never."
+            ],
+            SUPERNATURAL: [
+                "The ghost says yes.",
+                "Aliens have no opinion on this.",
+                "Something is watching you right now.",
+                "The spirits are confused by your question.",
+                "Mercury is in retrograde. Blame that."
+            ],
+            PARENTING: [
+                "Because I said so.",
+                "You're turning into your parents.",
+                "Screen time won't hurt. Probably.",
+                "Pick your battles. This isn't one of them.",
+                "Nobody knows what they're doing. You're fine."
+            ],
+            AGING: [
+                "Your back hurts just reading this.",
+                "You used to be cool. Used to.",
+                "Nostalgia is lying to you.",
+                "It's all downhill from here. Enjoy the ride.",
+                "You're not old, you're vintage."
+            ],
+            MUSIC: [
+                "Your playlist needs help.",
+                "That's a guilty pleasure and you know it.",
+                "Turn it up. Annoy the neighbors.",
+                "Concert tickets are worth it. Always.",
+                "Your music taste peaked in 2012."
+            ],
+            MOVIES: [
+                "Just rewatch the same movie again.",
+                "The book was better.",
+                "Skip the sequel.",
+                "You'll fall asleep 20 minutes in.",
+                "No spoilers, but it's not worth it."
+            ],
+            NORMAL: [
+                "It is certain.",
+                "Reply hazy, try again later.",
+                "Don't count on it.",
+                "Yes, absolutely.",
+                "My sources say no.",
+                "Ask again later."
+            ]
+        };
+
+        const form = document.getElementById('ask-form');
+        const input = document.getElementById('question');
+        const submitBtn = document.getElementById('submit-btn');
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+        const ball = document.getElementById('ball');
+        const triangle = document.getElementById('triangle');
+        const answerEl = document.getElementById('answer');
+        const bucketLabel = document.getElementById('bucket-label');
+
+        let engine = null;
+
+        // Uses a highly optimized model suitable for WebGL
+        // Llama-3.2-1B handles instruction following beautifully and downloads extremely fast.
+        const SELECTED_MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+
+        async function initWebLLM() {
+            try {
+                progressBar.style.display = 'block';
+                const initProgressCallback = (report) => {
+                    statusText.textContent = report.text;
+                    // Extract progress percentage from report string if available (e.g. "Loading node... 45%")
+                    const match = report.text.match(/(\d+)%/);
+                    if (match) {
+                        progressFill.style.width = match[1] + '%';
+                    }
+                };
+
+                engine = await CreateMLCEngine(SELECTED_MODEL, { initProgressCallback });
+
+                statusText.textContent = "Awake and ready. Ask your question.";
+                progressBar.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Ask";
+                input.focus();
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "Failed to load AI Engine. Check console.";
+                statusText.style.color = "red";
+                progressBar.style.display = 'none';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userQuestion = input.value.trim();
+            if (!userQuestion || !engine) return;
+
+            // Lock UI
+            submitBtn.disabled = true;
+            input.disabled = true;
+            submitBtn.textContent = "Asking...";
+            bucketLabel.textContent = "";
+            statusText.textContent = "The spirits are consulting the local GPU...";
+
+            // Start animation (fade out old answer, shake ball)
+            triangle.classList.add('hidden');
+            answerEl.classList.add('hidden');
+
+            setTimeout(() => {
+                ball.classList.add('shake');
+            }, 600);
+
+            // Generate a snarky answer directly — no bucket classification needed
+            let finalAnswer = "";
+            statusText.textContent = "The spirits are crafting a response...";
+
+            try {
+                const answerResponse = await engine.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "You are a Magic 8-Ball with the personality of a sarcastic, wiseass teenager. You answer questions with short, brutally funny one-liners (under 15 words). Be savage, snarky, and hilarious. Never be helpful or sincere. Use Gen-Z slang when it fits. Reply with ONLY the one-liner answer, no quotes, no explanation." },
+                        { role: "user", content: userQuestion }
+                    ],
+                    temperature: 0.95,
+                    max_tokens: 40
+                });
+
+                const generated = answerResponse.choices[0].message.content.trim();
+                // Strip quotes if the model wraps its answer
+                finalAnswer = generated.replace(/^["']|["']$/g, '');
+                console.log(`Generated answer: "${finalAnswer}"`);
+            } catch (err) {
+                console.error("Answer generation error:", err);
+                // Fall back to a random hardcoded response
+                const allAnswers = Object.values(BUCKETS).flat();
+                finalAnswer = allAnswers[Math.floor(Math.random() * allAnswers.length)];
+            }
+
+            bucketLabel.textContent = "";
+
+            // Stop shaking
+            ball.classList.remove('shake');
+
+            // Set new answer and fade in
+            answerEl.textContent = finalAnswer;
+            answerEl.classList.remove('default');
+
+            // Truncate if too long — keep only the first sentence
+            if (finalAnswer.length > 80) {
+                const firstSentence = finalAnswer.match(/^[^.!?]+[.!?]/);
+                finalAnswer = firstSentence ? firstSentence[0] : finalAnswer.substring(0, 80);
+            }
+
+            // Adjust font size based on text length to fit in triangle
+            if (finalAnswer.length > 60) {
+                answerEl.style.fontSize = '10px';
+            } else if (finalAnswer.length > 45) {
+                answerEl.style.fontSize = '11px';
+            } else if (finalAnswer.length > 30) {
+                answerEl.style.fontSize = '12px';
+            } else if (finalAnswer.length > 20) {
+                answerEl.style.fontSize = '13px';
+            } else {
+                answerEl.style.fontSize = '15px';
+            }
+
+            triangle.classList.remove('hidden');
+            answerEl.classList.remove('hidden');
+
+            // Unlock UI
+            submitBtn.disabled = false;
+            input.disabled = false;
+            input.value = "";
+            submitBtn.textContent = "Ask";
+            statusText.textContent = "The Magic 8-Ball has spoken.";
+            input.focus();
+        });
+
+        // Start initialization
+        initWebLLM();
+    </script>
+</body>
+
+</html>
