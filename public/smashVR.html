@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smash It VR</title>
+
+    <meta name="description" content="A WebXR VR vase smashing game. Grab a baseball bat and smash vases rising from the floor all around you.">
+    <meta name="keywords" content="Smash It, Vase Smash, WebVR, WebXR game, VR browser game, Three.js VR, Baseball bat game, free VR game">
+    <meta name="author" content="Willyci">
+    <meta name="robots" content="index, follow">
+
+    <meta property="og:title" content="Smash It VR - A WebXR Vase Smashing Game">
+    <meta property="og:description" content="Grab a baseball bat and smash vases rising from the floor in 360 degrees around you.">
+    <meta property="og:type" content="website">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Smash It VR">
+    <meta name="twitter:description" content="Smash vases with a baseball bat in VR!">
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; pointer-events: none;
+            background: rgba(0,0,0,0.85); z-index: 10;
+        }
+        h1 { font-size: 5rem; margin: 0; background: linear-gradient(135deg, #ff6600, #ff0066); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(255,255,255,0.2); }
+        h2 { font-size: 1.5rem; margin-top: 10px; color: #aaa; font-weight: 300; }
+        p { font-size: 1.2rem; margin-top: 40px; color: #777; max-width: 600px; text-align: center; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div id="overlay">
+        <h1>SMASH IT</h1>
+        <h2>A WebXR Vase Smashing Game</h2>
+        <p>You hold a baseball bat. Vases on stands will rise from the floor all around you — 360 degrees. Swing and smash them!</p>
+        <p style="color: white; margin-top: 50px;">Click "ENTER VR" below to start.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.170.0/build/three.module.js';
+        import { VRButton } from 'https://unpkg.com/three@0.170.0/examples/jsm/webxr/VRButton.js';
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x1a0a0a, 8, 40);
+        scene.background = new THREE.Color(0x1a0a0a);
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.6, 3);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.xr.enabled = true;
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        document.body.appendChild(VRButton.createButton(renderer));
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+        const spotLight = new THREE.SpotLight(0xffaa44, 4, 30, Math.PI / 3);
+        spotLight.position.set(0, 12, 0);
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(3, 8, 5);
+        scene.add(dirLight);
+
+        // Floor
+        const floorGeo = new THREE.CircleGeometry(20, 64);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.7, metalness: 0.2 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Decorative ring on floor
+        const ringGeo = new THREE.RingGeometry(2.5, 2.7, 64);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0x331100, side: THREE.DoubleSide });
+        const floorRing = new THREE.Mesh(ringGeo, ringMat);
+        floorRing.rotation.x = -Math.PI / 2;
+        floorRing.position.y = 0.01;
+        scene.add(floorRing);
+
+        // Baseball bat model
+        function createBat() {
+            const group = new THREE.Group();
+
+            // Handle (thin cylinder)
+            const handleGeo = new THREE.CylinderGeometry(0.018, 0.022, 0.35, 12);
+            handleGeo.rotateX(-Math.PI / 2);
+            handleGeo.translate(0, 0, -0.175);
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.8 });
+            group.add(new THREE.Mesh(handleGeo, handleMat));
+
+            // Grip tape
+            const gripGeo = new THREE.CylinderGeometry(0.021, 0.024, 0.15, 12);
+            gripGeo.rotateX(-Math.PI / 2);
+            gripGeo.translate(0, 0, -0.05);
+            const gripMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 });
+            group.add(new THREE.Mesh(gripGeo, gripMat));
+
+            // Barrel (tapered, thicker)
+            const barrelGeo = new THREE.CylinderGeometry(0.025, 0.045, 0.55, 16);
+            barrelGeo.rotateX(-Math.PI / 2);
+            barrelGeo.translate(0, 0, -0.625);
+            const barrelMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.4, metalness: 0.1 });
+            group.add(new THREE.Mesh(barrelGeo, barrelMat));
+
+            // Tip cap
+            const tipGeo = new THREE.SphereGeometry(0.045, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            tipGeo.rotateX(Math.PI / 2);
+            tipGeo.translate(0, 0, -0.9);
+            group.add(new THREE.Mesh(tipGeo, barrelMat));
+
+            return group;
+        }
+
+        // Controllers and bats
+        const controller0 = renderer.xr.getController(0);
+        const controller1 = renderer.xr.getController(1);
+        scene.add(controller0);
+        scene.add(controller1);
+
+        const bat0 = createBat();
+        const bat1 = createBat();
+        controller0.add(bat0);
+        controller1.add(bat1);
+
+        let playing = false;
+        renderer.xr.addEventListener('sessionstart', () => {
+            playing = true;
+            document.getElementById('overlay').style.display = 'none';
+        });
+        renderer.xr.addEventListener('sessionend', () => {
+            playing = false;
+            document.getElementById('overlay').style.display = 'flex';
+        });
+
+        // Vase shapes (using LatheGeometry)
+        const vaseProfiles = [
+            // Classic vase
+            () => {
+                const pts = [];
+                for (let i = 0; i < 20; i++) {
+                    const t = i / 19;
+                    const r = 0.08 + 0.12 * Math.sin(t * Math.PI) - 0.04 * Math.sin(t * Math.PI * 2);
+                    pts.push(new THREE.Vector2(r, t * 0.35));
+                }
+                return pts;
+            },
+            // Tall slim vase
+            () => {
+                const pts = [];
+                for (let i = 0; i < 20; i++) {
+                    const t = i / 19;
+                    const r = 0.06 + 0.06 * Math.sin(t * Math.PI * 0.8);
+                    pts.push(new THREE.Vector2(r, t * 0.45));
+                }
+                return pts;
+            },
+            // Wide bowl vase
+            () => {
+                const pts = [];
+                for (let i = 0; i < 20; i++) {
+                    const t = i / 19;
+                    const r = 0.05 + 0.15 * Math.pow(Math.sin(t * Math.PI * 0.6), 0.7);
+                    pts.push(new THREE.Vector2(r, t * 0.3));
+                }
+                return pts;
+            },
+            // Amphora
+            () => {
+                const pts = [];
+                for (let i = 0; i < 20; i++) {
+                    const t = i / 19;
+                    const r = 0.04 + 0.1 * Math.sin(t * Math.PI) + 0.03 * Math.cos(t * Math.PI * 3);
+                    pts.push(new THREE.Vector2(Math.max(0.03, r), t * 0.4));
+                }
+                return pts;
+            },
+            // Goblet
+            () => {
+                const pts = [];
+                for (let i = 0; i < 20; i++) {
+                    const t = i / 19;
+                    let r;
+                    if (t < 0.15) r = 0.1 * (1 - t / 0.15) + 0.025;
+                    else if (t < 0.5) r = 0.025;
+                    else r = 0.025 + 0.12 * ((t - 0.5) / 0.5);
+                    pts.push(new THREE.Vector2(r, t * 0.35));
+                }
+                return pts;
+            },
+        ];
+
+        const vaseColors = [
+            { color: 0xcc4444, emissive: 0x220000 },
+            { color: 0x44aacc, emissive: 0x002222 },
+            { color: 0xcc8844, emissive: 0x221100 },
+            { color: 0x8844cc, emissive: 0x110022 },
+            { color: 0x44cc66, emissive: 0x002200 },
+            { color: 0xcccc44, emissive: 0x222200 },
+            { color: 0xeeeedd, emissive: 0x111111 },
+            { color: 0xff6699, emissive: 0x220011 },
+        ];
+
+        // Active vases and debris
+        const vases = [];
+        const debris = [];
+        let score = 0;
+        let smashed = 0;
+        let missed = 0;
+
+        // Score UI
+        const uiCanvas = document.createElement('canvas');
+        uiCanvas.width = 1024; uiCanvas.height = 512;
+        const uiCtx = uiCanvas.getContext('2d');
+        const uiTex = new THREE.CanvasTexture(uiCanvas);
+        const uiMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(4, 2),
+            new THREE.MeshBasicMaterial({ map: uiTex, transparent: true })
+        );
+        uiMesh.position.set(0, 4, -5);
+        scene.add(uiMesh);
+
+        function updateUI() {
+            uiCtx.clearRect(0, 0, 1024, 512);
+
+            uiCtx.fillStyle = '#ff6600';
+            uiCtx.font = 'bold 70px sans-serif';
+            uiCtx.textAlign = 'center';
+            uiCtx.fillText('SMASH IT', 512, 80);
+
+            uiCtx.fillStyle = '#fff';
+            uiCtx.font = 'bold 60px sans-serif';
+            uiCtx.fillText('SCORE: ' + score, 512, 180);
+
+            uiCtx.fillStyle = '#00ffaa';
+            uiCtx.font = 'bold 45px sans-serif';
+            uiCtx.fillText('SMASHED: ' + smashed, 512, 280);
+
+            uiCtx.fillStyle = '#ff4444';
+            uiCtx.font = 'bold 45px sans-serif';
+            uiCtx.fillText('MISSED: ' + missed, 512, 360);
+
+            uiTex.needsUpdate = true;
+        }
+        updateUI();
+
+        // UI billboard - always face player
+        function billboardUI() {
+            uiMesh.position.set(camera.position.x, 4, camera.position.z - 5);
+            uiMesh.lookAt(camera.position.x, camera.position.y, camera.position.z);
+        }
+
+        // Spawn a vase on a stand
+        function spawnVase() {
+            const group = new THREE.Group();
+
+            // Random 360 position around player
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 1.8 + Math.random() * 1.5;
+            const x = camera.position.x + Math.cos(angle) * dist;
+            const z = camera.position.z + Math.sin(angle) * dist;
+
+            group.position.set(x, -1.2, z); // start below floor
+
+            // Stand / pedestal
+            const standGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.9, 12);
+            const standMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.3 });
+            const stand = new THREE.Mesh(standGeo, standMat);
+            stand.position.y = 0.45;
+            group.add(stand);
+
+            // Stand top plate
+            const plateGeo = new THREE.CylinderGeometry(0.18, 0.15, 0.04, 16);
+            const plate = new THREE.Mesh(plateGeo, standMat);
+            plate.position.y = 0.92;
+            group.add(plate);
+
+            // Stand base
+            const baseGeo = new THREE.CylinderGeometry(0.15, 0.18, 0.04, 16);
+            const base = new THREE.Mesh(baseGeo, standMat);
+            base.position.y = 0.02;
+            group.add(base);
+
+            // Vase
+            const profile = vaseProfiles[Math.floor(Math.random() * vaseProfiles.length)]();
+            const vaseGeo = new THREE.LatheGeometry(profile, 24);
+            const vc = vaseColors[Math.floor(Math.random() * vaseColors.length)];
+            const vaseMat = new THREE.MeshStandardMaterial({
+                color: vc.color, emissive: vc.emissive,
+                roughness: 0.3, metalness: 0.4
+            });
+            const vase = new THREE.Mesh(vaseGeo, vaseMat);
+            vase.position.y = 0.94;
+            group.add(vase);
+
+            // Point light for drama
+            const pl = new THREE.PointLight(vc.color, 0.8, 2);
+            pl.position.y = 1.2;
+            group.add(pl);
+
+            group.userData = {
+                targetY: 0,
+                rising: true,
+                riseSpeed: 0.8 + Math.random() * 0.5,
+                alive: true,
+                lifeTime: 6 + Math.random() * 4, // seconds before sinking
+                age: 0,
+                sinking: false,
+                vaseRef: vase,
+                vaseMat: vaseMat,
+                vaseColor: vc,
+                standRef: stand
+            };
+
+            scene.add(group);
+            vases.push(group);
+        }
+
+        // Smash vase into shards
+        function smashVase(group) {
+            const vase = group.userData.vaseRef;
+            const worldPos = new THREE.Vector3();
+            vase.getWorldPosition(worldPos);
+            const vc = group.userData.vaseColor;
+
+            // Create shards
+            const shardCount = 8 + Math.floor(Math.random() * 8);
+            const shardGeos = [
+                new THREE.TetrahedronGeometry(0.04 + Math.random() * 0.03),
+                new THREE.BoxGeometry(0.06, 0.03, 0.04),
+                new THREE.OctahedronGeometry(0.03),
+                new THREE.TetrahedronGeometry(0.05),
+            ];
+            const shardMat = new THREE.MeshStandardMaterial({
+                color: vc.color, roughness: 0.5, metalness: 0.3
+            });
+
+            for (let i = 0; i < shardCount; i++) {
+                const geo = shardGeos[Math.floor(Math.random() * shardGeos.length)];
+                const shard = new THREE.Mesh(geo, shardMat);
+                shard.position.copy(worldPos);
+                shard.position.x += (Math.random() - 0.5) * 0.15;
+                shard.position.y += Math.random() * 0.2;
+                shard.position.z += (Math.random() - 0.5) * 0.15;
+
+                const speed = 2 + Math.random() * 3;
+                const angle = Math.random() * Math.PI * 2;
+                shard.userData = {
+                    velocity: new THREE.Vector3(
+                        Math.cos(angle) * speed,
+                        2 + Math.random() * 3,
+                        Math.sin(angle) * speed
+                    ),
+                    spin: new THREE.Vector3(
+                        (Math.random() - 0.5) * 15,
+                        (Math.random() - 0.5) * 15,
+                        (Math.random() - 0.5) * 15
+                    ),
+                    grounded: false
+                };
+
+                scene.add(shard);
+                debris.push(shard);
+            }
+
+            // Remove the vase mesh but keep the stand
+            group.remove(vase);
+            group.userData.alive = false;
+            group.userData.sinking = true;
+            group.userData.age = 0;
+            group.userData.lifeTime = 3; // stand sinks after 3s
+        }
+
+        // Bat collision check
+        const batTip = new THREE.Vector3();
+        const batMid = new THREE.Vector3();
+        const batBase = new THREE.Vector3();
+        const vaseWorld = new THREE.Vector3();
+        const hitRadius = 0.2;
+        const batLength = 0.9;
+
+        function checkBatHit(controller) {
+            controller.getWorldPosition(batBase);
+            controller.getWorldDirection(batTip);
+            batTip.negate();
+            batMid.copy(batBase).addScaledVector(batTip, batLength * 0.5);
+            batTip.copy(batBase).addScaledVector(batTip, batLength);
+
+            for (let i = vases.length - 1; i >= 0; i--) {
+                const g = vases[i];
+                if (!g.userData.alive) continue;
+
+                const vaseRef = g.userData.vaseRef;
+                vaseRef.getWorldPosition(vaseWorld);
+                vaseWorld.y += 0.15; // center of vase
+
+                // Check distance to bat tip and mid
+                const dTip = vaseWorld.distanceTo(batTip);
+                const dMid = vaseWorld.distanceTo(batMid);
+                const d = Math.min(dTip, dMid);
+
+                if (d < hitRadius) {
+                    smashVase(g);
+                    smashed++;
+                    score += 100;
+                    updateUI();
+                }
+            }
+        }
+
+        // Spawn timer
+        let lastSpawn = 0;
+        let spawnInterval = 2500;
+        let lastTime = performance.now();
+
+        renderer.setAnimationLoop((time) => {
+            const dt = Math.min((time - lastTime) / 1000, 0.1);
+            lastTime = time;
+
+            if (playing) {
+                billboardUI();
+
+                // Spawn
+                if (time - lastSpawn > spawnInterval) {
+                    spawnVase();
+                    lastSpawn = time;
+                    if (spawnInterval > 1000) spawnInterval -= 10;
+                }
+
+                // Check collisions with both controllers
+                checkBatHit(controller0);
+                checkBatHit(controller1);
+
+                // Update vases
+                for (let i = vases.length - 1; i >= 0; i--) {
+                    const g = vases[i];
+
+                    if (g.userData.rising) {
+                        g.position.y += g.userData.riseSpeed * dt;
+                        if (g.position.y >= g.userData.targetY) {
+                            g.position.y = g.userData.targetY;
+                            g.userData.rising = false;
+                        }
+                    } else {
+                        g.userData.age += dt;
+
+                        if (g.userData.alive && g.userData.age > g.userData.lifeTime) {
+                            // Missed — start sinking
+                            g.userData.sinking = true;
+                            g.userData.alive = false;
+                            missed++;
+                            updateUI();
+                        }
+
+                        if (g.userData.sinking) {
+                            g.position.y -= 0.6 * dt;
+                            if (g.position.y < -1.5) {
+                                scene.remove(g);
+                                vases.splice(i, 1);
+                            }
+                        }
+                    }
+                }
+
+                // Update debris / shards
+                for (let i = debris.length - 1; i >= 0; i--) {
+                    const d = debris[i];
+                    if (d.userData.grounded) continue;
+
+                    d.userData.velocity.y -= 9.8 * dt;
+                    d.position.addScaledVector(d.userData.velocity, dt);
+                    d.rotation.x += d.userData.spin.x * dt;
+                    d.rotation.y += d.userData.spin.y * dt;
+                    d.rotation.z += d.userData.spin.z * dt;
+
+                    if (d.position.y <= 0.02) {
+                        d.position.y = 0.01 + Math.random() * 0.01;
+                        d.userData.grounded = true;
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

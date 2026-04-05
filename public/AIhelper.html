@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Helper — Offline Writing Improver, Rewriter &amp; Voice Dictation</title>
+
+    <!-- ── Primary SEO ──────────────────────────────────────── -->
+    <meta name="description" content="AI Helper is a free, fully offline AI writing assistant. Improve grammar, rewrite emails, generate text from voice or a brief, and choose styles like Formal, Casual, Shorter, or Persuasive — all running privately in your browser with no data sent to any server.">
+    <meta name="keywords" content="AI writing assistant, offline AI, local LLM, WebLLM, grammar fixer, email rewriter, voice to text, writing improver, text rewriter, free AI tool, no signup, private AI, US English writing, browser AI, Llama 3">
+    <meta name="author" content="Willyci">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0b0d14">
+    <link rel="canonical" href="https://willyci.github.io/upload_dicom/AIhelper.html">
+
+    <!-- ── Open Graph (Facebook / LinkedIn / Discord) ──────── -->
+    <meta property="og:type"        content="website">
+    <meta property="og:site_name"   content="AI Helper">
+    <meta property="og:locale"      content="en_US">
+    <meta property="og:title"       content="AI Helper — Free Offline AI Writing Assistant">
+    <meta property="og:description" content="Improve, rewrite, shorten, or generate any text — instantly and privately, with a local AI that runs entirely in your browser. No login. No API key. No cloud.">
+    <meta property="og:url"         content="https://willyci.github.io/upload_dicom/AIhelper.html">
+
+    <!-- ── Twitter / X Card ────────────────────────────────── -->
+    <meta name="twitter:card"        content="summary_large_image">
+    <meta name="twitter:title"       content="AI Helper — Free Offline AI Writing Assistant">
+    <meta name="twitter:description" content="Improve, rewrite, shorten, or generate any text — privately and instantly with a local AI running entirely in your browser.">
+    <meta name="twitter:creator"     content="@willyci">
+
+    <!-- ── Mobile / PWA hints ──────────────────────────────── -->
+    <meta name="apple-mobile-web-app-capable"          content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title"            content="AI Helper">
+    <meta name="mobile-web-app-capable"                content="yes">
+
+    <!-- ── Structured Data (JSON-LD) ───────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AI Helper",
+      "description": "A free, fully offline AI writing assistant that improves grammar, rewrites emails, generates text from prompts, and supports voice dictation — all running privately in the browser.",
+      "url": "https://willyci.github.io/upload_dicom/AIhelper.html",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Any (runs in modern browsers)",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "Offline AI — no internet required after first load",
+        "Voice-to-text dictation (Alt key or click-to-toggle)",
+        "Multiple rewrite styles: Formal, Casual, Shorter, Simpler, Longer, Persuasive, Bullet Points",
+        "Write-from-brief mode",
+        "Model selector (Llama 3.2 1B and 3B)",
+        "Stop generation mid-stream",
+        "One-click copy to clipboard",
+        "100% private — no data leaves the device"
+      ],
+      "browserRequirements": "Requires Chrome 94+ or Edge 94+ with WebGPU support"
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── Design Tokens ────────────────────────────────── */
+        :root {
+            --bg:           #0b0d14;
+            --surface:      #13161f;
+            --surface2:     #1a1e2e;
+            --border:       rgba(120,140,255,0.12);
+            --border-active:rgba(120,180,255,0.4);
+            --accent:       #5b87ff;
+            --accent2:      #7c5cfc;
+            --accent-grad:  linear-gradient(135deg, #5b87ff 0%, #7c5cfc 100%);
+            --danger:       #ff5f6d;
+            --success:      #3dd68c;
+            --text:         #e6eaf7;
+            --text-muted:   #6b748f;
+            --text-dim:     #9aa3bf;
+            --radius:       14px;
+            --radius-lg:    20px;
+            --shadow:       0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ─────────────────────────────────────── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(11,13,20,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .logo { display: flex; align-items: center; gap: 12px; }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: var(--accent-grad);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 16px rgba(91,135,255,0.4);
+        }
+
+        .logo h1 {
+            font-size: 1.1rem; font-weight: 700;
+            background: var(--accent-grad);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.3px;
+        }
+
+        .logo p { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+
+        /* ── Model selector ──────────────────────────────── */
+        #model-select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 12px;
+            color: var(--text-dim);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #model-select:hover  { border-color: var(--border-active); }
+        #model-select:focus  { border-color: var(--border-active); }
+        #model-select option { background: #1a1e2e; }
+
+        #status-pill {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 7px 16px;
+            font-size: 0.8rem; color: var(--text-dim);
+            transition: all 0.3s;
+            max-width: 320px;
+        }
+
+        #status-pill .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.4s; flex-shrink: 0;
+        }
+
+        #status-pill.loading .dot  { background: #f5a623; animation: pulse-dot 1.2s ease-in-out infinite; }
+        #status-pill.ready   .dot  { background: var(--success); }
+        #status-pill.typing  .dot  { background: var(--accent); animation: pulse-dot 0.7s ease-in-out infinite; }
+        #status-pill.error   .dot  { background: var(--danger); }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        /* ── Progress bar ────────────────────────────────── */
+        #progress-wrap { height: 3px; background: var(--surface2); flex-shrink: 0; display: none; }
+        #progress-fill { height: 100%; width: 0%; background: var(--accent-grad); transition: width 0.15s ease; }
+
+        /* ── Main split layout ───────────────────────────── */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+        }
+
+        .panel { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .panel:first-child { border-right: 1px solid var(--border); }
+
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 24px;
+            min-height: 57px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .panel-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.78rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-dim);
+        }
+
+        .panel-label span.badge {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 6px; padding: 2px 8px; font-size: 0.65rem;
+        }
+
+        /* ── Mode toggle ─────────────────────────────────── */
+        .mode-toggle {
+            display: flex;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .mode-toggle button {
+            background: none; border: none; cursor: pointer;
+            padding: 5px 14px; border-radius: 6px;
+            font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+
+        .mode-toggle button.active {
+            background: var(--accent-grad);
+            color: #fff;
+        }
+
+        .mode-toggle button:not(.active):hover { color: var(--text); }
+
+        /* ── Textarea ────────────────────────────────────── */
+        #email-input {
+            flex: 1; resize: none; background: transparent;
+            border: none; outline: none;
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 0.95rem; line-height: 1.7;
+            padding: 24px; overflow-y: auto;
+        }
+
+        #email-input::placeholder { color: var(--text-muted); }
+
+        /* ── Input toolbar ───────────────────────────────── */
+        .input-toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            gap: 12px; flex-shrink: 0;
+        }
+
+        .toolbar-left { display: flex; align-items: center; gap: 8px; }
+
+        #voice-btn {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 8px 16px;
+            color: var(--text-dim);
+            font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; user-select: none;
+        }
+
+        #voice-btn:hover { border-color: var(--border-active); color: var(--text); }
+
+        #voice-btn.recording {
+            background: rgba(255,95,109,0.12);
+            border-color: var(--danger);
+            color: var(--danger);
+            animation: glow-danger 1.5s ease-in-out infinite;
+        }
+
+        @keyframes glow-danger {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,95,109,0); }
+            50%       { box-shadow: 0 0 0 6px rgba(255,95,109,0.2); }
+        }
+
+        .key-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+        kbd {
+            display: inline-block; background: var(--surface2);
+            border: 1px solid var(--border); border-radius: 5px;
+            padding: 1px 6px; font-family: inherit; font-size: 0.7rem; color: var(--text-dim);
+        }
+
+        #clear-btn, #clear-output-btn, #paste-btn {
+            background: transparent; border: 1px solid var(--border); border-radius: 8px;
+            padding: 7px 14px; color: var(--text-muted);
+            font-family: 'Inter', sans-serif; font-size: 0.78rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+
+        #clear-btn:hover, #clear-output-btn:hover { border-color: var(--danger); color: var(--danger); }
+        #paste-btn:hover { border-color: var(--border-active); color: var(--text); }
+
+        #rewrite-btn {
+            background: var(--accent-grad); border: none; border-radius: 10px;
+            padding: 9px 22px; color: #fff;
+            font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 16px rgba(91,135,255,0.35);
+        }
+
+        #rewrite-btn:hover:not(:disabled)  { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(91,135,255,0.5); }
+        #rewrite-btn:active:not(:disabled) { transform: translateY(0); }
+        #rewrite-btn:disabled              { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        #stop-btn {
+            display: none;
+            align-items: center; gap: 6px;
+            background: rgba(255,95,109,0.12); border: 1px solid var(--danger);
+            border-radius: 10px; padding: 9px 22px; color: var(--danger);
+            font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        #stop-btn:hover { background: rgba(255,95,109,0.22); }
+
+        /* ── Output panel ────────────────────────────────── */
+        #output-area {
+            flex: 1; overflow-y: auto; padding: 24px;
+            font-size: 0.95rem; line-height: 1.7;
+            color: var(--text); white-space: pre-wrap; word-break: break-word;
+        }
+
+        #output-area.empty {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--text-muted); gap: 12px;
+        }
+
+        .empty-icon { font-size: 48px; opacity: 0.25; }
+        .empty-msg  { font-size: 0.85rem; text-align: center; max-width: 240px; line-height: 1.5; }
+
+        .stream-cursor::after { content: '▍'; animation: blink 0.8s step-end infinite; color: var(--accent); }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .output-toolbar {
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 10px 16px; border-bottom: 1px solid var(--border);
+            background: var(--surface); gap: 8px; flex-shrink: 0;
+        }
+
+        /* ── Variant style bar (lives in INPUT panel) ─────── */
+        .variant-bar {
+            display: none; /* hidden until first generation */
+            align-items: center; gap: 6px; flex-wrap: wrap;
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .variant-bar.visible { display: flex; }
+
+        .variant-bar-label {
+            font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.07em; color: var(--text-muted);
+            white-space: nowrap; margin-right: 2px;
+        }
+
+        .variant-btn {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 8px; padding: 5px 11px;
+            color: var(--text-dim);
+            font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+
+        .variant-btn:hover:not(:disabled) { border-color: var(--border-active); color: var(--text); transform: translateY(-1px); }
+        .variant-btn:disabled             { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+        .toolbar-right { display: flex; align-items: center; gap: 8px; }
+
+        #copy-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 8px; padding: 7px 14px; color: var(--text-dim);
+            font-family: 'Inter', sans-serif; font-size: 0.78rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+
+        #copy-btn:hover:not(:disabled) { border-color: var(--border-active); color: var(--text); }
+        #copy-btn:disabled             { opacity: 0.35; cursor: not-allowed; }
+        #copy-btn.copied               { border-color: var(--success); color: var(--success); }
+
+        /* ── Voice overlay ───────────────────────────────── */
+        #voice-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(11,13,20,0.82);
+            backdrop-filter: blur(6px); z-index: 100;
+            align-items: center; justify-content: center;
+            flex-direction: column; gap: 20px;
+            pointer-events: none;   /* IMPORTANT: let keyup events pass through */
+        }
+
+        #voice-overlay.active { display: flex; }
+
+        .voice-ring {
+            width: 100px; height: 100px; border-radius: 50%;
+            border: 3px solid var(--danger);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 42px;
+            animation: ring-pulse 1.2s ease-in-out infinite;
+            position: relative;
+        }
+
+        .voice-ring::before {
+            content: ''; position: absolute; inset: -10px; border-radius: 50%;
+            border: 2px solid rgba(255,95,109,0.35);
+            animation: ring-expand 1.2s ease-in-out infinite;
+        }
+
+        @keyframes ring-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,95,109,0.5); }
+            50%       { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(255,95,109,0); }
+        }
+
+        @keyframes ring-expand {
+            0%   { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .voice-label { font-size: 1rem; font-weight: 500; color: var(--danger); }
+        .voice-hint  { font-size: 0.82rem; color: var(--text-muted); }
+
+        /* ── Scrollbar ───────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(120,140,255,0.3); }
+
+        /* ── Loading overlay ─────────────────────────────── */
+        #loading-overlay {
+            position: fixed; inset: 0; background: var(--bg); z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 28px; transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        #loading-overlay.hidden { opacity: 0; visibility: hidden; }
+
+        .loader-logo    { font-size: 56px; }
+        .loader-title   { font-size: 1.4rem; font-weight: 700; background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .loader-subtitle{ font-size: 0.85rem; color: var(--text-muted); text-align: center; max-width: 360px; }
+
+        .loader-progress-wrap  { width: 340px; display: flex; flex-direction: column; gap: 10px; }
+        .loader-progress-bar   { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+        .loader-progress-fill  { height: 100%; width: 0%; background: var(--accent-grad); transition: width 0.15s ease; }
+        .loader-status         { font-size: 0.78rem; color: var(--text-muted); text-align: center; min-height: 20px; }
+
+        .private-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(61,214,140,0.08); border: 1px solid rgba(61,214,140,0.25);
+            border-radius: 999px; padding: 6px 14px;
+            font-size: 0.75rem; color: var(--success);
+        }
+
+        /* ── Responsive ──────────────────────────────────── */
+        @media (max-width: 760px) {
+            main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+            .panel:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" role="status" aria-live="polite">
+        <div class="loader-logo">✍️</div>
+        <div class="loader-title">AI Writing Improver</div>
+        <div class="loader-subtitle" id="loader-subtitle">Loading the AI model into your browser. This is a one-time download — everything runs privately on your device.</div>
+        <div class="loader-progress-wrap">
+            <div class="loader-progress-bar">
+                <div class="loader-progress-fill" id="loader-progress-fill"></div>
+            </div>
+            <div class="loader-status" id="loader-status">Initializing…</div>
+        </div>
+        <div class="private-badge">🔒 100% offline — no data leaves your device</div>
+    </div>
+
+    <!-- Voice overlay  (pointer-events:none so keyup can still fire) -->
+    <div id="voice-overlay" role="status" aria-label="Voice recording in progress">
+        <div class="voice-ring">🎤</div>
+        <div class="voice-label">Listening…</div>
+        <div class="voice-hint">Release <kbd>Alt</kbd> — or click mic — to stop</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon">✍️</div>
+            <div>
+                <h1>AI Writing Improver</h1>
+                <p>Offline · Private · Instant</p>
+            </div>
+        </div>
+        <select id="model-select" aria-label="Select AI model">
+            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 · 1B (fast)</option>
+            <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 · 3B (better)</option>
+        </select>
+        <div id="status-pill" class="loading">
+            <span class="dot"></span>
+            <span id="status-text">Loading model…</span>
+        </div>
+    </header>
+
+    <!-- Thin progress bar -->
+    <div id="progress-wrap"><div id="progress-fill"></div></div>
+
+    <!-- Split panels -->
+    <main>
+
+        <!-- LEFT — Input -->
+        <section class="panel" aria-label="Text input">
+            <div class="panel-header">
+                <div class="panel-label">
+                    📝 Your Text <span class="badge">Input</span>
+                </div>
+                <div class="mode-toggle" role="group" aria-label="Input mode">
+                    <button id="mode-improve" class="active" title="Polish or fix existing text">✏️ Improve</button>
+                    <button id="mode-write"   title="Generate text from a brief or outline">✍️ Write</button>
+                </div>
+            </div>
+
+            <div class="input-toolbar">
+                <div class="toolbar-left">
+                    <button id="voice-btn" aria-label="Click to toggle voice recording, or hold Alt key">
+                        <span>🎤</span>
+                        <span id="voice-btn-label">Click / Alt</span>
+                    </button>
+                    <span class="key-hint"><kbd>Alt</kbd> = push-to-talk</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button id="paste-btn" aria-label="Paste from clipboard">📋 Paste</button>
+                    <button id="clear-btn" aria-label="Clear input">🗑️ Clear</button>
+                    <button id="rewrite-btn" disabled aria-label="Improve writing with AI">✦ Improve</button>
+                    <button id="stop-btn" aria-label="Stop generation">■ Stop</button>
+                </div>
+            </div>
+
+            <textarea
+                id="email-input"
+                placeholder="Paste text to improve — fix grammar, tone, clarity, and style."
+                aria-label="Text to improve"
+                spellcheck="true"
+            ></textarea>
+
+            <!-- Style variant bar — shown after first generation, operates on input text -->
+            <div class="variant-bar" id="variant-btns" role="group" aria-label="Re-process input with a different style">
+                <span class="variant-bar-label">Also try:</span>
+                <button class="variant-btn" id="btn-again"       title="Generate a different version of your input">🔄 Try Again</button>
+                <button class="variant-btn" id="btn-formal"      title="Re-process your input in a formal tone">🎩 Formal</button>
+                <button class="variant-btn" id="btn-casual"      title="Re-process your input in a casual tone">😊 Casual</button>
+                <button class="variant-btn" id="btn-shorter"     title="Make your input more concise">✂️ Shorter</button>
+                <button class="variant-btn" id="btn-simpler"     title="Simplify your input text">🧩 Simpler</button>
+                <button class="variant-btn" id="btn-longer"      title="Expand and elaborate your input">📝 Longer</button>
+                <button class="variant-btn" id="btn-persuasive"  title="Make your input more persuasive">💡 Persuasive</button>
+                <button class="variant-btn" id="btn-bullets"     title="Restructure your input as bullet points">• Bullets</button>
+            </div>
+        </section>
+
+        <!-- RIGHT — Output -->
+        <section class="panel" aria-label="Improved writing output">
+            <div class="panel-header">
+                <div class="panel-label">
+                    ✨ AI Output <span class="badge">Generated</span>
+                </div>
+            </div>
+
+            <div class="output-toolbar">
+                <button id="clear-output-btn" aria-label="Clear output">🗑️ Clear</button>
+                <button id="copy-btn" disabled aria-label="Copy improved text to clipboard">📋 Copy</button>
+            </div>
+
+            <div id="output-area" class="empty" aria-live="polite" aria-label="Improved writing output">
+                <div class="empty-icon">✨</div>
+                <p class="empty-msg">Your result will appear here. Paste text to improve, describe what to write, or drop in an outline.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script type="module">
+        import { CreateMLCEngine, hasModelInCache } from "https://esm.run/@mlc-ai/web-llm";
+
+        // ── Model ─────────────────────────────────────────── //
+        const modelSelect = document.getElementById('model-select');
+        let SELECTED_MODEL = modelSelect.value;
+
+        // ── DOM ───────────────────────────────────────────── //
+        const loadingOverlay  = document.getElementById('loading-overlay');
+        const loaderStatus    = document.getElementById('loader-status');
+        const loaderFill      = document.getElementById('loader-progress-fill');
+        const loaderSubtitle  = document.getElementById('loader-subtitle');
+        const statusPill     = document.getElementById('status-pill');
+        const statusText     = document.getElementById('status-text');
+        const progressWrap   = document.getElementById('progress-wrap');
+        const progressFill   = document.getElementById('progress-fill');
+        const emailInput     = document.getElementById('email-input');
+        const voiceBtn       = document.getElementById('voice-btn');
+        const voiceBtnLabel  = document.getElementById('voice-btn-label');
+        const clearBtn       = document.getElementById('clear-btn');
+        const rewriteBtn     = document.getElementById('rewrite-btn');
+        const outputArea     = document.getElementById('output-area');
+        const copyBtn        = document.getElementById('copy-btn');
+        const voiceOverlay   = document.getElementById('voice-overlay');
+
+        // ── State ─────────────────────────────────────────── //
+        let engine           = null;
+        let isGenerating     = false;
+        let recognition      = null;
+        let voiceActive      = false;
+        let altHeld          = false;
+        let accumulatedFinal = '';
+        let currentMode      = 'improve'; // 'improve' | 'write'
+
+        // ── Mode toggle ───────────────────────────────────── //
+        const modeImproveBtn = document.getElementById('mode-improve');
+        const modeWriteBtn   = document.getElementById('mode-write');
+
+        const MODE_CONFIG = {
+            improve: {
+                placeholder: 'Paste text to improve — fix grammar, tone, clarity, and style.',
+                btnLabel:    '✦ Improve',
+                ariaLabel:   'Improve writing with AI',
+            },
+            write: {
+                placeholder: 'Describe what to write — e.g. "a polite email declining a meeting", "cover letter for a marketing manager role", or paste an outline to expand.',
+                btnLabel:    '✦ Write',
+                ariaLabel:   'Generate text with AI',
+            }
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            const cfg = MODE_CONFIG[mode];
+            emailInput.placeholder = cfg.placeholder;
+            rewriteBtn.setAttribute('aria-label', cfg.ariaLabel);
+            if (!isGenerating) rewriteBtn.textContent = cfg.btnLabel;
+            modeImproveBtn.classList.toggle('active', mode === 'improve');
+            modeWriteBtn.classList.toggle('active',   mode === 'write');
+        }
+
+        modeImproveBtn.addEventListener('click', () => setMode('improve'));
+        modeWriteBtn.addEventListener('click',   () => setMode('write'));
+
+        // ── Generic helpers ───────────────────────────────── //
+        function setStatus(state, msg) {
+            statusPill.className = state;
+            statusText.textContent = msg;
+        }
+
+        function setPanelProgress(pct) {
+            progressFill.style.width = pct + '%';
+        }
+
+        function showVoiceError(msg) {
+            setStatus('error', msg);
+            setTimeout(() => { if (engine) setStatus('ready', 'Model ready'); }, 4000);
+        }
+
+        // ── WebLLM init ───────────────────────────────────── //
+        async function initWebLLM() {
+            try {
+                const cached = await hasModelInCache(SELECTED_MODEL);
+                if (cached) {
+                    loaderSubtitle.textContent = 'Loading model from cache…';
+                    loaderFill.style.transition = 'none';
+                    loaderFill.style.width = '100%';
+                }
+
+                engine = await CreateMLCEngine(SELECTED_MODEL, {
+                    initProgressCallback: (report) => {
+                        loaderStatus.textContent = report.text;
+                        if (!cached) {
+                            const m = report.text.match(/(\d+)%/);
+                            if (m) {
+                                loaderFill.style.transition = 'width 0.15s ease';
+                                loaderFill.style.width = m[1] + '%';
+                                setPanelProgress(parseInt(m[1]));
+                            }
+                        }
+                    }
+                });
+                loadingOverlay.classList.add('hidden');
+                rewriteBtn.disabled = false;
+                setStatus('ready', 'Model ready');
+                emailInput.focus();
+                // If user already typed before model finished, show variant bar
+                if (emailInput.value.trim()) variantBtns.classList.add('visible');
+            } catch (err) {
+                console.error(err);
+                loaderStatus.textContent = '⚠ Failed to load model. Check console & refresh.';
+                loaderStatus.style.color = 'var(--danger)';
+                setStatus('error', 'Model failed to load');
+            }
+        }
+
+        // ── Voice recognition ─────────────────────────────── //
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        function startVoice() {
+            if (!SpeechRecognitionAPI) {
+                showVoiceError('Voice not supported — use Chrome or Edge');
+                return;
+            }
+            if (voiceActive) return;
+
+            voiceActive = true;
+            accumulatedFinal = emailInput.value; // snapshot existing text for this session
+
+            recognition = new SpeechRecognitionAPI();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                voiceBtn.classList.add('recording');
+                voiceBtnLabel.textContent = 'Stop ■';
+                voiceOverlay.classList.add('active');
+                setStatus('typing', 'Listening…');
+            };
+
+            recognition.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const t = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        const sep = (accumulatedFinal && !accumulatedFinal.endsWith(' ')) ? ' ' : '';
+                        accumulatedFinal += sep + t;
+                    } else {
+                        interim = t;
+                    }
+                }
+                emailInput.value = accumulatedFinal + (interim ? ' ' + interim : '');
+            };
+
+            recognition.onerror = (e) => {
+                console.error('SpeechRecognition error:', e.error);
+                const msgs = {
+                    'not-allowed':   'Microphone access denied — allow mic in browser settings',
+                    'no-speech':     'No speech detected — try speaking louder',
+                    'audio-capture': 'No microphone found — check your audio input',
+                    'network':       'Network error during speech recognition',
+                    'aborted':       null,
+                };
+                const m = msgs[e.error];
+                if (m) showVoiceError(m);
+            };
+
+            recognition.onend = () => {
+                recognition  = null;
+                voiceActive  = false;
+                altHeld      = false;
+                voiceBtn.classList.remove('recording');
+                voiceBtnLabel.textContent = 'Click / Alt';
+                voiceOverlay.classList.remove('active');
+                if (engine) setStatus('ready', 'Model ready');
+                emailInput.value = emailInput.value.trim();
+            };
+
+            recognition.start();
+        }
+
+        function stopVoice() {
+            if (recognition) recognition.stop(); // fires onend automatically
+        }
+
+        // Click to toggle recording on/off
+        voiceBtn.addEventListener('click', () => {
+            if (voiceActive) stopVoice();
+            else startVoice();
+        });
+
+        // Alt key = push-to-talk (hold to record, release to stop)
+        document.addEventListener('keydown', (e) => {
+            if ((e.code === 'AltLeft' || e.code === 'AltRight') && !e.repeat) {
+                e.preventDefault();
+                if (!altHeld && !voiceActive) {
+                    altHeld = true;
+                    startVoice();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'AltLeft' || e.code === 'AltRight') {
+                e.preventDefault();
+                if (altHeld) {
+                    altHeld = false;
+                    stopVoice();
+                }
+            }
+        });
+
+        // ── Paste ─────────────────────────────────────────── //
+        document.getElementById('paste-btn').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    emailInput.value = text;
+                    emailInput.focus();
+                }
+            } catch {
+                emailInput.focus();
+                document.execCommand('paste');
+            }
+            updateVariantBar();
+        });
+
+        // ── Clear ─────────────────────────────────────────── //
+        clearBtn.addEventListener('click', () => {
+            emailInput.value = '';
+            showEmptyOutput();
+            updateVariantBar();
+            emailInput.focus();
+        });
+
+        document.getElementById('clear-output-btn').addEventListener('click', () => {
+            showEmptyOutput();
+        });
+
+        // ── Output helpers ────────────────────────────────── //
+        const variantBtns  = document.getElementById('variant-btns');
+        const btnAgain       = document.getElementById('btn-again');
+        const btnFormal      = document.getElementById('btn-formal');
+        const btnCasual      = document.getElementById('btn-casual');
+        const btnShorter     = document.getElementById('btn-shorter');
+        const btnSimpler     = document.getElementById('btn-simpler');
+        const btnLonger      = document.getElementById('btn-longer');
+        const btnPersuasive  = document.getElementById('btn-persuasive');
+        const btnBullets     = document.getElementById('btn-bullets');
+        const allVariants    = [btnAgain, btnFormal, btnCasual, btnShorter, btnSimpler, btnLonger, btnPersuasive, btnBullets];
+
+        function showEmptyOutput() {
+            outputArea.className = 'empty';
+            outputArea.innerHTML = `
+                <div class="empty-icon">✨</div>
+                <p class="empty-msg">Your result will appear here. Paste text to improve, describe what to write, or drop in an outline.</p>
+            `;
+            copyBtn.disabled = true;
+            // NOTE: do NOT touch variantBtns here — its visibility is controlled
+            // by whether the INPUT textarea has text, not by output state.
+        }
+
+        // Variant bar visibility is driven by input content alone
+        function updateVariantBar() {
+            if (emailInput.value.trim() && engine) variantBtns.classList.add('visible');
+            else variantBtns.classList.remove('visible');
+        }
+
+        emailInput.addEventListener('input', updateVariantBar);
+
+        // Strip common LLM preamble phrases the model adds despite instructions
+        const PREAMBLE_RE = /^(?:here\s+(?:is|are|'?s)\s+(?:the\s+)?(?:rewritten|improved|corrected|edited|revised|updated|polished|a|an)?\s*(?:text|version|email|writing|output|result|response)?\s*[:\-]?\s*|sure[!,]?\s*|of\s+course[!,]?\s*|certainly[!,]?\s*|(?:I['\s]ve\s+)?(?:rewritten|improved|edited|revised|polished)\s+(?:the\s+)?(?:text|email|writing)[:\s]+)/i;
+
+        function setOutputText(text, streaming = false) {
+            const cleaned = text.replace(PREAMBLE_RE, '').trimStart();
+            outputArea.className = streaming ? 'stream-cursor' : '';
+            outputArea.textContent = cleaned;
+            copyBtn.disabled = !cleaned.trim();
+        }
+
+        // ── Style variant prompts ─────────────────────────── //
+        // STRATEGY FOR 1B MODELS:
+        //   - Small models echo negative instructions ("don't respond" → "I won't respond")
+        //   - Instead, use POSITIVE-ONLY instructions + a FEW-SHOT EXAMPLE
+        //   - The example user→assistant pair teaches the pattern by demonstration
+        //   - Keep system prompts SHORT — long prompts confuse small models
+
+        // Few-shot example pair: teaches the model the rewrite pattern
+        const REWRITE_EX_IN  = `Please rewrite this text:\n\nHey mike, can you sent me the file i need it by friday. also the meating is at 3pm tommorow thanks`;
+        const REWRITE_EX_OUT = `Hi Mike,\n\nCould you send me the file? I need it by Friday.\n\nAlso, the meeting is at 3 PM tomorrow.\n\nThanks`;
+
+        // Few-shot example pair: teaches the model the write-from-brief pattern
+        const WRITE_EX_IN  = `Please write the following:\n\nA short polite email to Sarah declining a meeting on Tuesday because I have a conflict, suggest Wednesday instead`;
+        const WRITE_EX_OUT = `Hi Sarah,\n\nThank you for the meeting invite for Tuesday. Unfortunately, I have a scheduling conflict at that time.\n\nWould Wednesday work for you instead? I'm happy to adjust to fit your availability.\n\nBest regards`;
+
+        function makeSystem(style) {
+            return `You are a text rewriting tool. The user gives you text. You rewrite it and output the improved version. ${style}`;
+        }
+
+        const STYLES = {
+            improve: {
+                temp: 0.5,
+                mode: 'rewrite',
+                system: makeSystem('Fix grammar, spelling, and punctuation. Improve clarity and flow. Keep the same meaning and tone.')
+            },
+            write: {
+                temp: 0.6,
+                mode: 'write',
+                system: `You are a writing tool. The user describes what they want written. You write it for them. Use clear, professional American English.`
+            },
+            again: {
+                temp: 0.85,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite with different word choices and sentence structures. Fix any errors. Keep the same meaning.')
+            },
+            formal: {
+                temp: 0.4,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite in a formal, professional tone. Use precise vocabulary. Avoid contractions.')
+            },
+            casual: {
+                temp: 0.6,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite in a warm, friendly, casual tone. Use contractions and everyday language.')
+            },
+            shorter: {
+                temp: 0.4,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite to be much shorter and more concise. Remove unnecessary words. Keep the key message.')
+            },
+            simpler: {
+                temp: 0.4,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite using simple, everyday words and short sentences. Keep all key information.')
+            },
+            longer: {
+                temp: 0.5,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite with more detail and elaboration. Add context where helpful. Keep a natural flow.')
+            },
+            persuasive: {
+                temp: 0.55,
+                mode: 'rewrite',
+                system: makeSystem('Rewrite to be more compelling and persuasive. Use confident, action-oriented language.')
+            },
+            bullets: {
+                temp: 0.4,
+                mode: 'rewrite',
+                system: makeSystem('Restructure as clear bullet points. Keep all information.')
+            }
+        };
+
+        // Build messages array with few-shot example for pattern learning
+        function buildMessages(raw, style) {
+            const messages = [
+                { role: 'system', content: style.system }
+            ];
+
+            if (style.mode === 'write') {
+                // Write mode: user gives a brief/instructions → model writes from scratch
+                messages.push({ role: 'user',      content: WRITE_EX_IN });
+                messages.push({ role: 'assistant',  content: WRITE_EX_OUT });
+                messages.push({ role: 'user',       content: `Please write the following:\n\n${raw}` });
+            } else {
+                // Rewrite mode: user gives existing text → model improves it
+                messages.push({ role: 'user',      content: REWRITE_EX_IN });
+                messages.push({ role: 'assistant',  content: REWRITE_EX_OUT });
+                messages.push({ role: 'user',       content: `Please rewrite this text:\n\n${raw}` });
+            }
+
+            return messages;
+        }
+
+        // ── Stop ──────────────────────────────────────────── //
+        const stopBtn = document.getElementById('stop-btn');
+
+        function showStopBtn(triggerBtn) {
+            rewriteBtn.style.display = 'none';
+            if (triggerBtn) triggerBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+        }
+
+        function hideStopBtn(triggerBtn) {
+            stopBtn.style.display = 'none';
+            rewriteBtn.style.display = 'inline-flex';
+            if (triggerBtn) triggerBtn.style.display = 'inline-flex';
+        }
+
+        stopBtn.addEventListener('click', () => {
+            if (engine) engine.interruptGenerate();
+        });
+
+        // ── Shared generate function ──────────────────────── //
+        async function generate(styleKey, triggerBtn, triggerLabel) {
+            const raw = emailInput.value.trim();
+            if (!raw || !engine || isGenerating) return;
+
+            const style = STYLES[styleKey];
+            isGenerating = true;
+
+            // Lock all rewrite-type buttons, show stop
+            allVariants.forEach(b => { if (b !== triggerBtn) b.disabled = true; });
+            if (triggerBtn) { triggerBtn.textContent = '⏳…'; }
+            else { rewriteBtn.textContent = '⏳ Improving…'; }
+            showStopBtn(triggerBtn);
+
+            setStatus('typing', 'Generating…');
+            progressWrap.style.display = 'block';
+            setPanelProgress(0);
+            setOutputText('', true);
+
+            let outputText = '';
+            let stopped = false;
+
+            try {
+                const stream = await engine.chat.completions.create({
+                    messages: buildMessages(raw, style),
+                    temperature: style.temp,
+                    max_tokens: 1024,
+                    stream: true
+                });
+
+                for await (const chunk of stream) {
+                    const delta = chunk.choices[0]?.delta?.content;
+                    if (delta) {
+                        outputText += delta;
+                        setOutputText(outputText, true);
+                        outputArea.scrollTop = outputArea.scrollHeight;
+                    }
+                    if (chunk.choices[0]?.finish_reason === 'abort') { stopped = true; break; }
+                    setPanelProgress(Math.min((outputText.length / 600) * 100, 95));
+                }
+
+                setOutputText(outputText, false);
+                setPanelProgress(100);
+                setStatus('ready', stopped ? 'Stopped' : 'Done ✓');
+                if (outputText.trim()) variantBtns.classList.add('visible');
+                setTimeout(() => { progressWrap.style.display = 'none'; setPanelProgress(0); }, 800);
+
+            } catch (err) {
+                if (outputText.trim()) {
+                    setOutputText(outputText, false); // keep partial output
+                    setStatus('ready', 'Stopped');
+                    variantBtns.classList.add('visible');
+                } else {
+                    setOutputText('⚠ Error generating response. Please try again.');
+                    setStatus('error', 'Generation error');
+                }
+                progressWrap.style.display = 'none';
+            }
+
+            isGenerating = false;
+            hideStopBtn(triggerBtn);
+            rewriteBtn.disabled = false;
+            rewriteBtn.textContent = MODE_CONFIG[currentMode].btnLabel;
+            allVariants.forEach((b, i) => {
+                b.disabled = false;
+                b.textContent = ['🔄 Try Again','🎩 More Formal','😊 More Casual','✂️ Shorter','🧩 Simpler','📝 Longer','💡 Persuasive','• Bullet Points'][i];
+            });
+        }
+
+        // ── Wire up all buttons ───────────────────────────── //
+        rewriteBtn.addEventListener('click', () => generate(currentMode));
+        btnAgain.addEventListener('click',       () => generate('again',      btnAgain,      '🔄 Try Again'));
+        btnFormal.addEventListener('click',      () => generate('formal',     btnFormal,     '🎩 More Formal'));
+        btnCasual.addEventListener('click',      () => generate('casual',     btnCasual,     '😊 More Casual'));
+        btnShorter.addEventListener('click',     () => generate('shorter',    btnShorter,    '✂️ Shorter'));
+        btnSimpler.addEventListener('click',     () => generate('simpler',    btnSimpler,    '🧩 Simpler'));
+        btnLonger.addEventListener('click',      () => generate('longer',     btnLonger,     '📝 Longer'));
+        btnPersuasive.addEventListener('click',  () => generate('persuasive', btnPersuasive, '💡 Persuasive'));
+        btnBullets.addEventListener('click',     () => generate('bullets',    btnBullets,    '• Bullet Points'));
+
+        // ── Copy ──────────────────────────────────────────── //
+        copyBtn.addEventListener('click', async () => {
+            const text = outputArea.textContent.trim();
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                copyBtn.classList.add('copied');
+                copyBtn.textContent = '✓ Copied!';
+                setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.innerHTML = '📋 Copy'; }, 2000);
+            } catch {
+                copyBtn.textContent = '⚠ Failed';
+            }
+        });
+
+        // ── Model switch ──────────────────────────────────── //
+        modelSelect.addEventListener('change', async () => {
+            if (isGenerating) { modelSelect.value = SELECTED_MODEL; return; }
+            SELECTED_MODEL = modelSelect.value;
+            engine = null;
+            rewriteBtn.disabled = true;
+            loaderSubtitle.textContent = 'Loading the AI model into your browser. This is a one-time download — everything runs privately on your device.';
+            loaderFill.style.transition = 'none';
+            loaderFill.style.width = '0%';
+            loaderStatus.textContent = 'Initializing…';
+            loaderStatus.style.color = '';
+            loadingOverlay.classList.remove('hidden');
+            setStatus('loading', 'Loading model…');
+            await initWebLLM();
+        });
+
+        // ── Boot ──────────────────────────────────────────── //
+        initWebLLM();
+    </script>
+
+</body>
+</html>
