@@ -206,10 +206,12 @@ router.post('/upload', handleUpload, async (req, res, next) => {
         }
 
         // Process extracted files
-        const { processedFiles, errors } = await processDirectory(extractPath + '/');
+        const { processedFiles, errors, aiAnalysis } = await processDirectory(extractPath + '/');
 
-        // Create JSON file
-        const jsonData = JSON.stringify(processedFiles, null, 2);
+        // Create JSON file — include AI analysis at top level
+        const jsonOutput = { files: processedFiles };
+        if (aiAnalysis) jsonOutput.aiAnalysis = aiAnalysis;
+        const jsonData = JSON.stringify(jsonOutput, null, 2);
         const jsonPath = path.join(extractPath + '/', 'dicom_info.json');
         await fs.promises.writeFile(jsonPath, jsonData);
 

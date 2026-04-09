@@ -274,6 +274,7 @@
                     ${skippedHtml}
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">📄 JSON</a>
+                        <a href="/babylon-vr.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">🧊 Babylon VR</a>
                         <a href="/webvr-viewer.html?file=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">🥽 WebVR (VTI)</a>
                         <a href="/webvr-viewer.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">🥽 WebVR (NRRD)</a>
                         <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(result.vtiPaths[0])}" target="_blank" class="btn btn-secondary">🎮 VTI (old)</a>
@@ -350,6 +351,7 @@
                                 </div>
                                 <div class="folder-actions">
                                     <a href="/json-viewer.html?path=${encodeURIComponent(folder.path)}" target="_blank" class="action-btn">📄 JSON</a>
+                                    <a href="/babylon-vr.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🧊 Babylon VR</a>
                                     <a href="/webvr-viewer.html?file=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🥽 VR (VTI)</a>
                                     <a href="/webvr-viewer.html?file=${encodeURIComponent(folder.nrrdPath)}" target="_blank" class="action-btn">🥽 VR (NRRD)</a>
                                     <a href="/VolumeViewer.html?fileURL=${encodeURIComponent(folder.vtiPath)}" target="_blank" class="action-btn">🎮 VTI (old)</a>

@@ -1,0 +1,2067 @@
+{
+  "classes": [
+    {
+      "id": "shrek",
+      "name": "Shrek",
+      "emoji": "🟢",
+      "desc": "GET OUTTA MY SWAMP! Ogre with layers. Hits like a tree trunk full of bees.",
+      "stats": {
+        "str": 4,
+        "dex": 2,
+        "mag": 1,
+        "cha": 2
+      },
+      "hp": 12
+    },
+    {
+      "id": "fiona",
+      "name": "Princess Fiona",
+      "emoji": "👸",
+      "desc": "Princess by birth, warrior by choice. Sings to birds, then roundhouse-kicks bandits.",
+      "stats": {
+        "str": 3,
+        "dex": 3,
+        "mag": 1,
+        "cha": 2
+      },
+      "hp": 11
+    },
+    {
+      "id": "donkey",
+      "name": "Donkey",
+      "emoji": "🫏",
+      "desc": "Can't stop talking. Won't stop talking. Somehow talks his way out of EVERYTHING.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 2,
+        "cha": 4
+      },
+      "hp": 9
+    },
+    {
+      "id": "puss",
+      "name": "Puss in Boots",
+      "emoji": "🐱",
+      "desc": "Dashing, daring, and deadly with a blade. Fear me... if you dare. *big eyes*",
+      "stats": {
+        "str": 2,
+        "dex": 4,
+        "mag": 1,
+        "cha": 2
+      },
+      "hp": 10
+    },
+    {
+      "id": "dragon",
+      "name": "Dragon",
+      "emoji": "🐉",
+      "desc": "400 tons of fire-breathing fury. Surprisingly romantic. Donkey's wife.",
+      "stats": {
+        "str": 4,
+        "dex": 1,
+        "mag": 3,
+        "cha": 1
+      },
+      "hp": 14
+    },
+    {
+      "id": "fairy_godmother",
+      "name": "Fairy Godmother",
+      "emoji": "🧚",
+      "desc": "Bibbidi-bobbidi-DON'T cross me. Potions, hexes, and a killer singing voice.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 4,
+        "cha": 2
+      },
+      "hp": 8
+    },
+    {
+      "id": "farquaad",
+      "name": "Lord Farquaad",
+      "emoji": "🏰",
+      "desc": "Short king energy. Compensates with a VERY tall castle and ruthless ambition.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 1,
+        "cha": 4
+      },
+      "hp": 7
+    },
+    {
+      "id": "charming",
+      "name": "Prince Charming",
+      "emoji": "🤴",
+      "desc": "Mummy's boy on a redemption arc. Still checks his reflection every 30 seconds.",
+      "stats": {
+        "str": 2,
+        "dex": 3,
+        "mag": 1,
+        "cha": 3
+      },
+      "hp": 9
+    },
+    {
+      "id": "wolf",
+      "name": "Big Bad Wolf",
+      "emoji": "🐺",
+      "desc": "Huffs. Puffs. Tracks you through three kingdoms. Looks GREAT in Grandma's nightgown.",
+      "stats": {
+        "str": 3,
+        "dex": 3,
+        "mag": 1,
+        "cha": 2
+      },
+      "hp": 10
+    },
+    {
+      "id": "gingy",
+      "name": "Gingy",
+      "emoji": "🍪",
+      "desc": "NOT my gumdrop buttons! Tiny but fierce. Runs FAST. Do you know the Muffin Man?",
+      "stats": {
+        "str": 1,
+        "dex": 4,
+        "mag": 2,
+        "cha": 2
+      },
+      "hp": 7
+    },
+    {
+      "id": "pinocchio",
+      "name": "Pinocchio",
+      "emoji": "🤥",
+      "desc": "I'm a REAL boy! Master of disguise. Terrible liar. Nose gives everything away.",
+      "stats": {
+        "str": 1,
+        "dex": 3,
+        "mag": 1,
+        "cha": 4
+      },
+      "hp": 8
+    },
+    {
+      "id": "artie",
+      "name": "King Arthur",
+      "emoji": "👑",
+      "desc": "Didn't ASK to be king. Still figuring out which end of the sword to hold.",
+      "stats": {
+        "str": 2,
+        "dex": 2,
+        "mag": 2,
+        "cha": 3
+      },
+      "hp": 9
+    },
+    {
+      "id": "cookie",
+      "name": "Cookie",
+      "emoji": "🍳",
+      "desc": "Ogre resistance chef. Fights with a ladle. His swamp-rat stew is LEGENDARY.",
+      "stats": {
+        "str": 3,
+        "dex": 1,
+        "mag": 2,
+        "cha": 3
+      },
+      "hp": 11
+    },
+    {
+      "id": "rumple",
+      "name": "Rumpelstiltskin",
+      "emoji": "📜",
+      "desc": "Deal-maker gone rogue. Read the fine print. Actually, don't — that's how he wins.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 4,
+        "cha": 2
+      },
+      "hp": 7
+    },
+    {
+      "id": "piper",
+      "name": "Pied Piper",
+      "emoji": "🎵",
+      "desc": "Controls minds with music. Terrible at parties — everyone dances involuntarily.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 3,
+        "cha": 3
+      },
+      "hp": 8
+    },
+    {
+      "id": "witch",
+      "name": "Baba the Witch",
+      "emoji": "🧹",
+      "desc": "Quit Rumpelstiltskin's army. Kept the broom. Still hexes when annoyed.",
+      "stats": {
+        "str": 1,
+        "dex": 3,
+        "mag": 4,
+        "cha": 1
+      },
+      "hp": 7
+    },
+    {
+      "id": "mirror",
+      "name": "Magic Mirror",
+      "emoji": "🪞",
+      "desc": "Sees all. Knows all. Gives unsolicited life advice. Ask me who's the fairest.",
+      "stats": {
+        "str": 1,
+        "dex": 1,
+        "mag": 4,
+        "cha": 3
+      },
+      "hp": 7
+    },
+    {
+      "id": "pig",
+      "name": "Three Little Pigs",
+      "emoji": "🐷",
+      "desc": "Third time's the charm — BRICK HOUSE, baby. Not blowing THIS one down.",
+      "stats": {
+        "str": 4,
+        "dex": 1,
+        "mag": 1,
+        "cha": 3
+      },
+      "hp": 13
+    },
+    {
+      "id": "harold",
+      "name": "King Harold",
+      "emoji": "🐸",
+      "desc": "King of Far Far Away. Secretly a frog. Dad reflexes are OFF THE CHARTS.",
+      "stats": {
+        "str": 2,
+        "dex": 2,
+        "mag": 3,
+        "cha": 2
+      },
+      "hp": 9
+    },
+    {
+      "id": "lillian",
+      "name": "Queen Lillian",
+      "emoji": "👑",
+      "desc": "Don't let the crown fool you. Headbutts guards. Runs a spy network disguised as a book club.",
+      "stats": {
+        "str": 2,
+        "dex": 2,
+        "mag": 2,
+        "cha": 3
+      },
+      "hp": 10
+    },
+    {
+      "id": "snow_white",
+      "name": "Snow White",
+      "emoji": "🍎",
+      "desc": "Weaponized woodland creatures. Her bird army has a higher kill count than most knights.",
+      "stats": {
+        "str": 1,
+        "dex": 2,
+        "mag": 3,
+        "cha": 3
+      },
+      "hp": 8
+    },
+    {
+      "id": "sleeping_beauty",
+      "name": "Sleeping Beauty",
+      "emoji": "😴",
+      "desc": "Slept for 100 years. Woke up ANGRY. Has a century of pent-up rage and a sharp sword.",
+      "stats": {
+        "str": 3,
+        "dex": 2,
+        "mag": 2,
+        "cha": 2
+      },
+      "hp": 10
+    },
+    {
+      "id": "rapunzel",
+      "name": "Rapunzel",
+      "emoji": "💇",
+      "desc": "Hair doubles as rope, whip, lasso, and grappling hook. Conditioner budget: infinite.",
+      "stats": {
+        "str": 2,
+        "dex": 3,
+        "mag": 2,
+        "cha": 2
+      },
+      "hp": 9
+    },
+    {
+      "id": "cinderella",
+      "name": "Cinderella",
+      "emoji": "👠",
+      "desc": "Glass slippers make EXCELLENT throwing weapons. Trap-maker extraordinaire.",
+      "stats": {
+        "str": 1,
+        "dex": 4,
+        "mag": 2,
+        "cha": 2
+      },
+      "hp": 8
+    },
+    {
+      "id": "merlin",
+      "name": "Merlin",
+      "emoji": "🧙‍♂️",
+      "desc": "Powerful wizard. Mostly confused. Ordered a pizza, got a quest. Wears tie-dye.",
+      "stats": {
+        "str": 1,
+        "dex": 1,
+        "mag": 4,
+        "cha": 3
+      },
+      "hp": 7
+    },
+    {
+      "id": "hook",
+      "name": "Captain Hook",
+      "emoji": "🪝",
+      "desc": "Fairy-tale pirate king. Lost a hand, gained a HOOK. Surprisingly good at darts.",
+      "stats": {
+        "str": 3,
+        "dex": 3,
+        "mag": 1,
+        "cha": 2
+      },
+      "hp": 10
+    }
+  ],
+
+  "starts": [
+    "swamp_start",
+    "start_tavern",
+    "start_mirror",
+    "start_wanted",
+    "start_dragon"
+  ],
+
+  "art": {
+    "title": [
+      "╔══════════════════════════════════════════════╗",
+      "║                                              ║",
+      "║   ⚔️  SHREK: DUNGEONS  &  DONKEYS  ⚔️        ║",
+      "║       ~ A Far Far Away Adventure ~           ║",
+      "║                                              ║",
+      "╚══════════════════════════════════════════════╝"
+    ],
+    "swamp": [
+      "          🌙",
+      "   ~~~~~~~  ~~~~~~~~",
+      "  🌿  .-\"\"\"\"\"-.   🌿",
+      "     / o     o \\",
+      "     |  (  _  ) |  GET OUTTA MY SWAMP!",
+      "      \\_______/",
+      "  ~~~🌿~~~~~~~~🌿~~~"
+    ],
+    "forest": [
+      "  🌑",
+      "  🌲  🌲🌲   🌲🌲🌲",
+      "  🌲🌲🌲🌲🌲 🌲🌲🌲🌲",
+      "  ┃┃ ┃┃┃┃ ┃┃┃┃┃┃",
+      "  ╸╸╸╸╸╸╸╸╸╸╸╸╸╸╸",
+      "  ~ The Dark Forest ~"
+    ],
+    "castle": [
+      "       🏴          🏴",
+      "      [===]      [===]",
+      "      |   |      |   |",
+      "      |   |______|   |",
+      "      |   | GATE |   |",
+      "      |___|______|___|",
+      "     /  FAR FAR AWAY  \\",
+      "    /____________________\\"
+    ],
+    "dragon": [
+      "              __        __",
+      "             / \"\\      / \"\\",
+      "          ===\\  \\=====/  /===",
+      "           \\  \\_______/  /",
+      "            |  (o   o)  |",
+      "             \\  =___=  /",
+      "              \\_______/",
+      "          🔥🔥🔥🔥🔥🔥🔥🔥"
+    ],
+    "tavern": [
+      "     _______________",
+      "    |  THE POISONED |",
+      "    |    🍺 APPLE   |",
+      "    |_______________|",
+      "    |  |         |  |",
+      "    |  | ♠  ♦  ♣ |  |",
+      "    |__|_________|__|"
+    ],
+    "magic": [
+      "        ✨    ✨",
+      "     ✨    💫    ✨",
+      "   ✨   ⭐   ⭐   ✨",
+      "     ✨    💫    ✨",
+      "        ✨    ✨"
+    ],
+    "rumple": [
+      "      _____",
+      "     /     \\",
+      "    | 👁  👁 |",
+      "    |  <v>  |   Do we have a DEAL?",
+      "     \\_____/",
+      "    📜✍️📜✍️📜"
+    ],
+    "battle": [
+      "     ⚔️  ⚔️  ⚔️",
+      "    \\  |  /",
+      "     \\ | /",
+      "  ----XXX----",
+      "     / | \\",
+      "    /  |  \\",
+      "     ⚔️  ⚔️  ⚔️"
+    ],
+    "victory": [
+      "     🏆",
+      "    \\|||/",
+      "     |||",
+      "  ___|||___",
+      "  \\       /",
+      "   \\_____/",
+      "  🎉🎉🎉🎉🎉"
+    ],
+    "skull": [
+      "     _____",
+      "    /     \\",
+      "   | X   X |",
+      "   |  ___  |",
+      "    \\_/ \\_/",
+      "   💀💀💀💀💀"
+    ],
+    "crown": [
+      "    👑👑👑👑👑",
+      "   /  |  |  |  \\",
+      "  /   |  |  |   \\",
+      "  \\___________  /",
+      "   \\_________/"
+    ],
+    "peace": [
+      "       🌅",
+      "   ~~~~~~~~~~",
+      "  🌿🏠🌿  🌿🏠🌿",
+      "  ~~~~~~~~~~~~~~~~~~",
+      "   ~ Swamp Sweet Swamp ~"
+    ],
+    "dragon_friend": [
+      "    🐉 ❤️  🧑",
+      "   /|\\    /|\\",
+      "  ~~~~☁️~~~~☁️~~~~",
+      "  ~ Soaring Together ~"
+    ],
+    "trickster": [
+      "    🎭",
+      "   /  \\     😏",
+      "  | 🃏 |   /|\\",
+      "   \\  /    / \\",
+      "    \\/",
+      "  ~ Played them ALL ~"
+    ],
+    "hook": [
+      "    🏴‍☠️  ☠️  🏴‍☠️",
+      "   __|____|__",
+      "  |  PIRATES  |",
+      "  |  BEWARE!  |",
+      "  |___________|"
+    ],
+    "princesses": [
+      "  👸 👸 👸",
+      "  ❄️  🌹 ☀️",
+      "  Snow White",
+      "  Sleeping Beauty",
+      "  Cinderella"
+    ],
+    "resistance": [
+      "  ✊🟢 ✊🟢 ✊🟢",
+      "  OGRE RESISTANCE",
+      "  ═══════════════",
+      "  \"Better out than in!\""
+    ]
+  },
+  "scenes": {
+    "start_tavern": {
+      "title": "The Poisoned Apple",
+      "branch": "Prologue",
+      "art": "tavern",
+      "text": "You're three drinks deep at the Poisoned Apple tavern when the door EXPLODES off its hinges. Puss in Boots tumbles in, hat singed, sword drawn.\n\n\"AMIGOS! We have a PROBLEM!\" He leaps onto the bar, knocking over drinks. The ugly stepsister bartender is NOT pleased.\n\nPuss catches his breath. \"Dark magic spreads from the forest. Prince Charming plots a coup in Far Far Away. And a small man with a big contract is rewriting REALITY.\"\n\nThe tavern goes silent. The Big Bad Wolf lowers his drink. Pinocchio's nose twitches. Even the Three Blind Mice look concerned (somehow).\n\n\"Three threats. We need someone crazy enough to deal with one.\" Every villain in the bar looks at YOU.\n\nShrek's voice rumbles from a dark corner. \"...fine. But I'm NOT buying the next round.\"",
+      "choices": [
+        {
+          "text": "🌲 Head into the Dark Forest — stop the corruption at its source",
+          "stat": null,
+          "dc": 0,
+          "next": "forest_entrance",
+          "fail": null,
+          "ok": "You slam your drink down and head for the door. Puss follows. \"The forest, eh? Bold choice. Stupid, but bold. I like it.\" The Big Bad Wolf tosses you a lantern. \"You'll need this. It's DARK in there.\" He would know.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "🏰 Travel to Far Far Away — defend the kingdom",
+          "stat": null,
+          "dc": 0,
+          "next": "kingdom_gates",
+          "fail": null,
+          "ok": "\"The kingdom needs heroes!\" you announce. Pinocchio stands up. \"I'll come! I've always wanted to be a real hero!\" His nose grows. \"Okay, I've MOSTLY wanted to be a real hero.\" Close enough. You set off toward Far Far Away.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "📜 Track the deal-maker — someone's rewriting reality",
+          "stat": null,
+          "dc": 0,
+          "next": "rumple_appears",
+          "fail": null,
+          "ok": "\"The contract man is the most dangerous,\" the ugly stepsister warns from behind the bar. \"He offered ME a deal once. I almost took it.\" She shudders. You head out to find this deal-maker before he finds you.",
+          "nok": "",
+          "dmg": 0
+        }
+      ]
+    },
+
+    "start_mirror": {
+      "title": "The Magic Mirror's Warning",
+      "branch": "Prologue",
+      "art": "magic",
+      "text": "The Magic Mirror in Shrek's outhouse (long story) suddenly blazes to life, waking everyone at 3 AM.\n\n\"HEAR YE, HEAR YE!\" The Mirror's face appears, looking panicked. \"This is NOT a drill! Three catastrophic threats detected!\"\n\nShrek stomps out in his nightshirt. \"This better be good.\"\n\n\"Threat one: the Dark Forest is consuming everything in its path. Threat two: Prince Charming has seized Far Far Away. Threat three: Rumpelstiltskin is rewriting the contracts of REALITY ITSELF.\"\n\nThe Mirror pauses. \"On the bright side, tomorrow's weather looks lovely.\"\n\nFiona grabs her armor. Donkey is already wearing his. \"I sleep in it,\" he explains. Nobody asks why.\n\n\"Three threats, not enough heroes,\" the Mirror says. \"Choose your crisis.\"",
+      "choices": [
+        {
+          "text": "🌲 Head into the Dark Forest — stop the corruption at its source",
+          "stat": null,
+          "dc": 0,
+          "next": "forest_entrance",
+          "fail": null,
+          "ok": "The Mirror shows a map to the forest's heart. \"Follow the dead trees. When the birds stop singing, you're getting close. When YOUR teeth start chattering, you're THERE.\" Comforting. You set out at dawn with Shrek grumbling about lost sleep.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "🏰 Travel to Far Far Away — defend the kingdom",
+          "stat": null,
+          "dc": 0,
+          "next": "kingdom_gates",
+          "fail": null,
+          "ok": "\"Far Far Away needs you YESTERDAY!\" the Mirror urges. \"Charming has already locked up the royals. Take the express carriage — and tell the driver Mirror sent you. He owes me.\" You ride through the night toward the besieged kingdom.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "📜 Track the deal-maker — someone's rewriting reality",
+          "stat": null,
+          "dc": 0,
+          "next": "rumple_appears",
+          "fail": null,
+          "ok": "The Mirror's face goes pale (for glass). \"Be CAREFUL with that one. Rumpelstiltskin's contracts are binding across dimensions. I've seen what his deals do. The fine print alone could kill you.\" You follow the magical disturbance into the swamp.",
+          "nok": "",
+          "dmg": 0
+        }
+      ]
+    },
+
+    "start_wanted": {
+      "title": "Wanted: Dead or Alive",
+      "branch": "Prologue",
+      "art": "hook",
+      "text": "You wake up in a cage. A MOVING cage, on a cart, being pulled through mud by two witches on broomsticks.\n\nA wanted poster is nailed to the cage: YOUR FACE. \"WANTED: DANGEROUS HERO. REWARD: ONE WISH.\"\n\n\"Hey! HEY!\" A familiar voice. Gingy is in the cage next to you, missing one gumdrop button. \"They got me too! Something BIG is happening — Rumpelstiltskin's rounding up anyone who could stop him!\"\n\nThe cart hits a bump. Your cage door pops open. Shoddy craftsmanship.\n\n\"GO!\" Gingy yells. \"I'll be fine! I'm a COOKIE! They can't— actually, GO FAST, they have MILK.\"\n\nYou tumble free into a crossroads. Three paths. Witches are already turning around.\n\nRUN.",
+      "choices": [
+        {
+          "text": "🌲 Flee into the Dark Forest — lose them in the trees",
+          "stat": null,
+          "dc": 0,
+          "next": "forest_entrance",
+          "fail": null,
+          "ok": "You sprint into the twisted treeline. The witches screech but their broomsticks snag on the dense branches. \"We'll GET you, hero!\" one screams. You're free — for now. Deep in the Dark Forest with nothing but your wits.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "🏰 Run toward Far Far Away — find allies at the kingdom",
+          "stat": null,
+          "dc": 0,
+          "next": "kingdom_gates",
+          "fail": null,
+          "ok": "You bolt down the main road. The kingdom walls appear in the distance. Safety! Civilization! Guards who might also arrest you but at least they're not WITCHES! You arrive breathless at the gates of Far Far Away.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "📜 Double back — find out WHO ordered your capture",
+          "stat": null,
+          "dc": 0,
+          "next": "rumple_appears",
+          "fail": null,
+          "ok": "Instead of running, you circle back, following the witch cart's tracks. Whoever put a bounty on your head just made this PERSONAL. The trail leads deeper into the swamp, where the air shimmers with contract magic...",
+          "nok": "",
+          "dmg": 0
+        }
+      ]
+    },
+
+    "start_dragon": {
+      "title": "Dragon's Desperate Flight",
+      "branch": "Prologue",
+      "art": "dragon",
+      "text": "You're falling. Wind screams past your face. Below: trees. Above: Dragon, who just DROPPED you.\n\n\"SORRY!\" Donkey screams from Dragon's back. \"She sneezed! She's got ALLERGIES!\"\n\nDragon swoops down and catches you six feet from the ground. Your life flashes before your eyes. It needs better content.\n\nDragon lands hard in a clearing. She's exhausted — she's been flying all night. Donkey slides off, shaking.\n\n\"It's BAD out there,\" Donkey pants. \"The whole land is going CRAZY. Forest is cursed, kingdom's been taken over, and some little dude with contracts is messing with SPACE-TIME.\"\n\nDragon growls and gestures with her tail toward three directions. She can carry you ONE more flight before she needs rest.\n\nDonkey translates: \"She says pick a direction. And also she's sorry about the dropping thing.\"",
+      "choices": [
+        {
+          "text": "🌲 Fly to the Dark Forest — strike at the corruption from above",
+          "stat": null,
+          "dc": 0,
+          "next": "forest_entrance",
+          "fail": null,
+          "ok": "Dragon takes a running start and launches skyward. From above, the Dark Forest looks like a spreading bruise on the land. She drops you at the forest's edge — GENTLY this time — and flies off to rest. Donkey waves. \"Don't DIE! I hate funerals!\"",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "🏰 Fly to Far Far Away — the kingdom needs saving",
+          "stat": null,
+          "dc": 0,
+          "next": "kingdom_gates",
+          "fail": null,
+          "ok": "Dragon banks toward the gleaming towers of Far Far Away. Even from the air, you can see something's wrong — purple banners where gold should be. Dragon drops you outside the gates and nuzzles Donkey goodbye. \"Be SAFE baby!\" Donkey calls after her.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "📜 Fly toward the magical disturbance — find the source",
+          "stat": null,
+          "dc": 0,
+          "next": "rumple_appears",
+          "fail": null,
+          "ok": "Dragon follows the magical trail — even she can feel it, a wrongness in the air. She sets you down where the disturbance is strongest: deep in the swamp, where reality itself seems to shimmer. Donkey's teeth are chattering. \"I don't like this place, man...\"",
+          "nok": "",
+          "dmg": 0
+        }
+      ]
+    },
+
+    "swamp_start": {
+      "title": "Shrek's Swamp",
+      "branch": "Prologue",
+      "art": "swamp",
+      "text": "You wake up face-down in mud. The unmistakable smell of swamp onions fills the air. A large green hand pulls you to your feet.\n\n\"What are ye doin' in my SWAMP?!\" Shrek bellows.\n\nBefore you can answer, Donkey comes bounding over. \"SHREK! We got BIGGER problems! Fairy tale creatures are EVERYWHERE and they're sayin' dark magic is spreadin' across the land!\"\n\nFiona approaches, sword in hand. \"The Magic Mirror showed three threats converging. The Dark Forest is corrupted, Far Far Away is under political siege, and a deal-maker is rewriting reality itself.\"\n\nShrek sighs. \"It's never just one thing, is it? Fine. Where do we start?\"",
+      "choices": [
+        {
+          "text": "🌲 Head into the Dark Forest — stop the corruption at its source",
+          "stat": null,
+          "dc": 0,
+          "next": "forest_entrance",
+          "fail": null,
+          "ok": "You march toward the twisted treeline. Donkey follows reluctantly. \"I don't like forests, Shrek. Forests have TREES. And trees have BRANCHES. And branches have OWLS—\"\n\"DONKEY!\"",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "🏰 Travel to Far Far Away — defend the kingdom",
+          "stat": null,
+          "dc": 0,
+          "next": "kingdom_gates",
+          "fail": null,
+          "ok": "You set off down the road to Far Far Away. Donkey trots alongside singing \"On the road again—\" Shrek gives him The Look. Donkey stops. Temporarily.",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "📜 Track the source of the dark magic",
+          "stat": null,
+          "dc": 0,
+          "next": "rumple_appears",
+          "fail": null,
+          "ok": "You follow the magical disturbance deeper into the swamp. The air shimmers. Something ancient and cunning waits ahead. Donkey whimpers. \"I got a BAD feelin' about this...\"",
+          "nok": "",
+          "dmg": 0
+        }
+      ]
+    },
+    "forest_entrance": {
+      "title": "The Dark Forest",
+      "branch": "Dark Forest",
+      "art": "forest",
+      "text": "The Dark Forest looms ahead — trees twisted into impossible shapes, their bark blackened by corrupt magic. Strange whispers echo from every direction.\n\nDonkey hides behind Shrek. \"I'm not scared. I'm just... strategically positioned behind you.\"\n\nThree paths diverge ahead: a main road with scratch marks on the trees, a narrow shadow-trail barely visible, and a path lit by faintly glowing fairy lights.\n\nGingerbread Man pops out of your pocket. \"I've heard rumors, boss. Pirates on the main road, wolves in the shadows, and fairy folk deeper in. Pick your poison.\"",
+      "choices": [
+        {
+          "text": "⚔️ Charge down the main road — face whatever's there head-on",
+          "stat": "str",
+          "dc": 5,
+          "next": "hook_ambush",
+          "fail": "hook_ambush",
+          "ok": "You barrel through the underbrush like a green wrecking ball. Branches snap. Birds flee. Even Donkey is impressed. \"THAT'S what I'm talking about!\"",
+          "nok": "A root catches your foot and you tumble downhill, crashing through thorny bushes. You arrive at the clearing bruised and picking twigs out of uncomfortable places.",
+          "dmg": 2
+        },
+        {
+          "text": "🌑 Take the shadow-trail — stealth is survival",
+          "stat": "dex",
+          "dc": 5,
+          "next": "wolf_crossing",
+          "fail": "wolf_crossing",
+          "ok": "You slip through the shadows like a whisper. Even the enchanted trees don't notice you pass. Donkey tries to follow silently but steps on every possible twig.",
+          "nok": "You trip over Donkey, who trips over a root, who trips an alarm trap. Bells jingle. Somewhere, a wolf howls. \"Nice going, STEALTH master,\" Shrek mutters.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Follow the fairy lights — trust the magic",
+          "stat": "mag",
+          "dc": 4,
+          "next": "fairy_glade",
+          "fail": "fairy_glade",
+          "ok": "The lights respond to your magical sense, forming a clear trail. They dance and swirl, guiding you through the safest path. Even the dark trees seem to part slightly.",
+          "nok": "The lights flicker and scatter as you approach, confused by your magical fumbling. You wander in circles for an hour before stumbling into a clearing. At least nothing attacked you.",
+          "dmg": 1
+        }
+      ]
+    },
+    "hook_ambush": {
+      "title": "Captain Hook's Ambush",
+      "branch": "Dark Forest",
+      "art": "hook",
+      "text": "\"HALT, ye landlubbers!\" Captain Hook swings down from a tree, followed by a motley crew of fairy-tale pirates — including a peg-legged Pinocchio (\"I CHOSE this career!\") and the Three Blind Mice as lookouts (not great at their job).\n\n\"This forest belongs to ME now,\" Hook sneers, polishing his hook. \"The dark magic has given me POWER! Hand over your valuables... and that talking donkey. He'd make a fine ship's mascot.\"\n\n\"Oh HECK no!\" Donkey protests. \"I am NOBODY'S mascot!\"\n\nHook draws his sword. \"Then we do this the fun way.\"",
+      "choices": [
+        {
+          "text": "⚔️ Fight Hook in single combat",
+          "stat": "str",
+          "dc": 5,
+          "next": "merlin_cave",
+          "fail": "merlin_cave",
+          "ok": "You disarm Hook with a mighty swing. His hook goes flying and sticks in a tree. His crew scatters. \"RETREAT!\" Hook screams, running after his hook. \"This isn't over! I'll— OW! Who left that crocodile there?!\"",
+          "nok": "Hook is surprisingly good with that sword. He slashes your arm before Shrek body-slams him into a tree. The pirates flee, but you're wounded. \"Walk it off,\" Shrek says. Thanks, Shrek.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Convince the pirates to switch sides",
+          "stat": "cha",
+          "dc": 6,
+          "next": "merlin_cave",
+          "fail": "merlin_cave",
+          "ok": "\"Why work for Hook when you could be FREE? When's the last time he gave you a day off? Dental plan?\" The pirates look at each other. Then at Hook. Then they walk away. Hook sputters. \"B-but... CREW LOYALTY!\" Pinocchio's nose grows.",
+          "nok": "Your speech falls flat. The pirates look confused. Hook attacks anyway. Shrek handles it with a well-placed swamp gas blast. Effective but undignified.",
+          "dmg": 1
+        },
+        {
+          "text": "🎯 Dodge past Hook and run for it",
+          "stat": "dex",
+          "dc": 5,
+          "next": "merlin_cave",
+          "fail": "merlin_cave",
+          "ok": "You duck under Hook's swing, slide between two pirates, and sprint into the forest. Donkey gallops past everyone. \"LATER, LOSERS!\" Shrek follows, kicking Hook into a mud puddle on the way out.",
+          "nok": "You dodge left when you should've gone right. Hook's crew trips you up, and you tumble through thorns before escaping. At least you got away — with some new scratches.",
+          "dmg": 2
+        }
+      ]
+    },
+    "wolf_crossing": {
+      "title": "The Wolf's Bridge",
+      "branch": "Dark Forest",
+      "art": "forest",
+      "text": "A rickety bridge spans a deep ravine. Sitting in the middle, wearing Grandma's nightgown as always, is the Big Bad Wolf. He's playing cards with the Three Little Pigs.\n\n\"Well, well,\" Wolf growls, adjusting his bonnet. \"Nobody crosses MY bridge without answering a question — or paying the toll.\"\n\n\"What's the toll?\" you ask.\n\n\"One secret. One JUICY secret.\" He grins with far too many teeth. \"Or... you could try your luck another way.\"\n\nThe Three Little Pigs look nervous. \"He's been huffing and puffing all day,\" one whispers. \"Very bad mood.\"",
+      "choices": [
+        {
+          "text": "🗣️ Tell a secret — play Wolf's game",
+          "stat": "cha",
+          "dc": 4,
+          "next": "pinocchio_tollgate",
+          "fail": "pinocchio_tollgate",
+          "ok": "You lean in and whisper something. Wolf's eyes go wide, then he howls with laughter. \"Oh that's GOOD! Alright, pass! You're funny, I like you.\" He waves you across, still giggling. Donkey is dying to know what you said.",
+          "nok": "Your secret is boring. Wolf yawns. \"That's it? My grandmother has better gossip. Go on, cross — but you owe me a REAL secret later.\" He swipes your lunch as tax.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Intimidate Wolf — YOU huff and puff",
+          "stat": "str",
+          "dc": 6,
+          "next": "pinocchio_tollgate",
+          "fail": "pinocchio_tollgate",
+          "ok": "You take a deep breath and let out a roar that shakes the bridge. Wolf's bonnet flies off. The Three Little Pigs run squealing. \"Okay, okay! FINE!\" Wolf backs off, genuinely impressed. \"You might survive this forest after all.\"",
+          "nok": "You try to look tough but Wolf just stares you down. He IS the Big Bad Wolf, after all. Shrek steps in and growls. Wolf relents but \"accidentally\" trips you as you cross. Classic Wolf.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Detect if the bridge is magically trapped",
+          "stat": "mag",
+          "dc": 5,
+          "next": "pinocchio_tollgate",
+          "fail": "pinocchio_tollgate",
+          "ok": "Your magical senses tingle — the bridge IS enchanted. You dispel the trap, revealing it was set to dump crossers into the ravine. Wolf looks impressed. \"Smart. Very smart. You broke my trap AND my entertainment. Pass.\"",
+          "nok": "You sense something magical but can't identify it. Halfway across, a plank vanishes under your feet. You catch the rope just in time. Wolf laughs so hard his bonnet falls off.",
+          "dmg": 2
+        }
+      ]
+    },
+    "fairy_glade": {
+      "title": "The Fairy Glade",
+      "branch": "Dark Forest",
+      "art": "princesses",
+      "text": "The glowing lights lead to a hidden glade where a surprising war council is in session. Snow White commands a battalion of woodland creatures. Sleeping Beauty is wide awake and sharpening a sword. Cinderella is rigging traps with her glass slipper collection.\n\nRapunzel looks up from a map. \"Finally! Reinforcements! The dark magic is coming from deep in the forest — near the old dragon's nest. We've been holding this position for days.\"\n\nSnow White whistles and a squad of bluebirds lands on her arm. \"My scouts say there's a tower between here and the nest. Enchanted. Possibly trapped. Definitely creepy.\"\n\n\"We need someone to push through,\" Cinderella says. \"We'll cover your retreat if things go sideways.\"",
+      "choices": [
+        {
+          "text": "✨ Use magic to scout the tower from here",
+          "stat": "mag",
+          "dc": 4,
+          "next": "enchanted_tower",
+          "fail": "enchanted_tower",
+          "ok": "You project your senses toward the tower. It's guarded by enchantments but you find a gap in the wards — a back entrance, hidden behind ivy. \"Impressive,\" Snow White nods. \"Bluebird squadron, mark that route!\"",
+          "nok": "Your magical probe bounces off the tower's wards and briefly turns Donkey purple. \"THIS IS NOT OKAY!\" he screams. The princesses suppress laughter. At least you know the tower is heavily warded.",
+          "dmg": 1
+        },
+        {
+          "text": "🗡️ Lead a direct assault on the tower",
+          "stat": "str",
+          "dc": 5,
+          "next": "enchanted_tower",
+          "fail": "enchanted_tower",
+          "ok": "\"Formation!\" You charge with the princess battalion behind you. Snow White's birds provide air support. Sleeping Beauty fights like a woman who's had centuries of frustration to work out. The tower guards don't stand a chance.",
+          "nok": "The direct assault hits magical defenses. You get blasted back twice. Cinderella's slipper-traps help breach the outer wall, but you take a beating getting through. Sleeping Beauty yawns. \"Not your best work.\"",
+          "dmg": 2
+        },
+        {
+          "text": "🤝 Rally the princesses for a combined strike",
+          "stat": "cha",
+          "dc": 5,
+          "next": "enchanted_tower",
+          "fail": "enchanted_tower",
+          "ok": "You give a rousing speech. Snow White tears up. Sleeping Beauty slow-claps. Cinderella says \"Finally, someone with a PLAN.\" The combined force moves as one, each princess contributing their unique skills. The tower falls quickly.",
+          "nok": "Your speech starts strong but you accidentally call Sleeping Beauty \"Sleepy\" and she gives you a death glare that could wilt flowers. The assault works anyway, but she \"forgets\" to cover your left flank.",
+          "dmg": 2
+        }
+      ]
+    },
+    "merlin_cave": {
+      "title": "Merlin's Cave",
+      "branch": "Dark Forest",
+      "art": "magic",
+      "text": "Deep in the forest, you find a cave covered in glowing runes. Inside, an old wizard in a tie-dye robe is arguing with a crystal ball.\n\n\"No, I said PEPPERONI! Not— oh, visitors!\" Merlin spins around, beard tangling in his staff. \"I've been expecting you! Well, not YOU specifically. I was expecting a pizza. But this works!\"\n\nHe gestures grandly at a dusty map. \"The corruption comes from the old dragon's nest. Something has awakened it — dark magic, twisted into the dragon's lair. You'll need to face it.\"\n\nHe rummages through junk and pulls out a glowing stone. \"Take this — it might help. Or it might be a very old cheese. Hard to tell at my age.\"\n\n⚡ You receive: Merlin's Stone (might be cheese)",
+      "choices": [
+        {
+          "text": "🧙 Ask Merlin to enchant your weapon",
+          "stat": "mag",
+          "dc": 4,
+          "next": "dronkey_nest",
+          "fail": "dronkey_nest",
+          "ok": "Merlin waves his staff and your weapon glows with magical fire. \"That'll burn hot against dragon-scale! Or toast bread. Multi-purpose.\" You feel more powerful.",
+          "nok": "Merlin's spell misfires and turns your weapon briefly into a rubber chicken. He fixes it quickly. \"That happens sometimes. The enchantment is MOSTLY there. 60/40.\"",
+          "dmg": 0
+        },
+        {
+          "text": "📖 Study the map for the safest route to the dragon",
+          "stat": "dex",
+          "dc": 5,
+          "next": "dronkey_nest",
+          "fail": "dronkey_nest",
+          "ok": "You spot a hidden path that avoids the worst of the corruption. \"Clever eye!\" Merlin approves. \"That route will get you there without waking every cursed creature in the forest.\"",
+          "nok": "You misread the map and Merlin has to redirect you three times. \"No, the OTHER left! The dragon is that way!\" You get there eventually, but not quietly.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Just charge straight to the dragon's nest",
+          "stat": "str",
+          "dc": 5,
+          "next": "dronkey_nest",
+          "fail": "dronkey_nest",
+          "ok": "\"No time for subtlety!\" You blast through the forest like a battering ram. Merlin watches you go. \"Brave. Very brave. Also possibly stupid. But mostly brave!\"",
+          "nok": "You charge headfirst into a magical barrier and bounce off like a pinball. Merlin peels you off a tree. \"Maybe take the PATH next time?\" You arrive at the nest with a headache.",
+          "dmg": 2
+        }
+      ]
+    },
+    "witch_swamp": {
+      "title": "Rumpelstiltskin's Witch Patrol",
+      "branch": "Dark Forest",
+      "art": "battle",
+      "text": "The path leads through a foggy section of forest where Rumpelstiltskin's witches patrol on broomsticks. They're not the sharpest brooms in the closet, but there are a LOT of them.\n\nBroomsy swoops down. \"HALT! By order of Rumpelstiltskin, no one passes without a— wait, is that an ogre? I HATE ogres!\" More witches gather overhead.\n\nDonkey looks up nervously. \"That's a LOT of pointy hats.\"\n\nShrek cracks his knuckles. \"I've handled worse. Remember Lord Farquaad's guards?\"\n\n\"Shrek, there were like TWELVE of those guys. There are FIFTY witches up there!\"\n\n\"...okay, we might need a plan.\"",
+      "choices": [
+        {
+          "text": "💪 Fight through the witch patrol",
+          "stat": "str",
+          "dc": 6,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "Shrek starts swinging witches by their brooms like a green tornado. You join the fray, dodging hexes and swatting broomsticks. Donkey kicks one into a tree. \"DONKEY PUNCH!\" In minutes, the patrol is scattered.",
+          "nok": "There are just too many witches. You fight bravely but take several hex-blasts before breaking through. One turns your shoes into frogs. They're still hopping. This is your life now.",
+          "dmg": 3
+        },
+        {
+          "text": "🎵 Distract them — Donkey, start singing!",
+          "stat": "cha",
+          "dc": 5,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "Donkey belts out \"I'm a Believer\" at full volume. The witches are so horrified they cover their ears and crash into each other. Broomstick pileup. You slip through the chaos untouched. Donkey takes a bow.",
+          "nok": "Donkey's singing actually ATTRACTS more witches. Apparently some are fans? They want an encore. You use the confusion to sneak past, but Donkey has to sign autographs for twenty minutes.",
+          "dmg": 1
+        },
+        {
+          "text": "✨ Cast a fog spell for cover",
+          "stat": "mag",
+          "dc": 5,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "You summon a thick magical fog. The witches crash into each other, trees, and one unfortunate owl. You stroll through the chaos casually. \"Is it just me or do witches have terrible spatial awareness?\" Shrek nods.",
+          "nok": "Your fog spell works but it's pink and sparkly. Not exactly stealthy. The witches follow the sparkle trail and you have to run. You escape, but you're covered in glitter for the rest of the adventure.",
+          "dmg": 2
+        }
+      ]
+    },
+    "enchanted_tower": {
+      "title": "The Enchanted Tower",
+      "branch": "Dark Forest",
+      "art": "castle",
+      "text": "The tower rises from the forest floor, wrapped in thorny vines that pulse with dark energy. At its top, a strange light flickers.\n\nSleeping Beauty looks up. \"I've been in enough towers to know — that one's bad news.\"\n\nInside you find an old library of spells and a mirror showing the dragon's nest nearby. The corruption is flowing FROM the nest INTO the forest through underground channels.\n\n\"We need to stop it at the source,\" Rapunzel says, coiling her hair like a rope. \"The dragon's nest is just beyond those hills.\"\n\nA ghostly voice echoes: \"The dragon does not cause the corruption... the dragon GUARDS against it. Something WORSE lies beneath.\"",
+      "choices": [
+        {
+          "text": "📖 Search the library for information",
+          "stat": "mag",
+          "dc": 4,
+          "next": "sleeping_beauty_rage",
+          "fail": "sleeping_beauty_rage",
+          "ok": "You find an ancient tome: the corruption comes from a cursed artifact buried under the dragon's nest. The dragon was placed there as a guardian centuries ago! \"So the dragon is on OUR side?\" Donkey perks up. \"I LOVE dragons!\"",
+          "nok": "The books are in Old Fairy-Talese. You get the gist — something something dragon, something something curse — but the details are fuzzy. Better than nothing.",
+          "dmg": 0
+        },
+        {
+          "text": "🏃 Rush to the dragon's nest immediately",
+          "stat": "dex",
+          "dc": 5,
+          "next": "sleeping_beauty_rage",
+          "fail": "sleeping_beauty_rage",
+          "ok": "You rappel down the tower using Rapunzel's hair (with permission this time) and sprint toward the nest. The princess brigade covers your escape from the tower's guardian golems.",
+          "nok": "The tower's guardian golems wake up and chase you. You outrun most of them but one clips your shoulder. Sleeping Beauty puts it to sleep. \"Ironic,\" she smirks.",
+          "dmg": 2
+        },
+        {
+          "text": "🛡️ Fortify the tower as a fallback position",
+          "stat": "str",
+          "dc": 5,
+          "next": "sleeping_beauty_rage",
+          "fail": "sleeping_beauty_rage",
+          "ok": "You barricade the tower and set up the princess battalion as a rear guard. Snow White's birds will relay messages. If things go wrong at the nest, you have somewhere to retreat to.",
+          "nok": "While fortifying, a section of wall collapses on you. You dig yourself out, dusty and bruised. The tower is secure though. \"Very heroic,\" Cinderella says, not sounding sincere.",
+          "dmg": 2
+        }
+      ]
+    },
+    "dragon_nest": {
+      "title": "The Dragon's Nest",
+      "branch": "Dark Forest",
+      "art": "dragon",
+      "text": "The dragon's nest is massive — a crater of scorched earth surrounded by bones and treasure. In the center, a magnificent dragon coils protectively over a pulsing dark crystal embedded in the ground.\n\nThe dragon is Dragon — yes, THAT Dragon. Donkey's Dragon. She recognizes Donkey immediately and makes a sound somewhere between a roar and a purr.\n\n\"BABY!\" Donkey cries. \"I been LOOKING for you!\"\n\nDragon gestures toward the crystal with her tail. It's the source of the corruption — an ancient cursed artifact buried here long ago. Dragon has been guarding it for centuries, preventing it from spreading. But the curse is growing stronger.\n\n\"We have to destroy that crystal,\" Shrek says. \"But how?\"\n\nThe crystal pulses malevolently. Dark tendrils reach toward you.",
+      "choices": [
+        {
+          "text": "⚔️ SMASH the crystal with brute force!",
+          "stat": "str",
+          "dc": 6,
+          "next": "ending_hero",
+          "fail": "ending_dark",
+          "ok": "You raise your weapon and bring it down on the crystal with everything you've got. Dragon adds her fire breath. The crystal SHATTERS in an explosion of dark energy — but you stand firm. The corruption dissolves. The forest begins to heal. Dragon roars in triumph!",
+          "nok": "You strike the crystal but it fights back — dark energy surges through you, throwing you across the nest. The corruption overwhelms the clearing. Dragon shields Donkey and flies away. The darkness spreads...",
+          "dmg": 5
+        },
+        {
+          "text": "🐉 Bond with Dragon — combine your strength",
+          "stat": "cha",
+          "dc": 5,
+          "next": "ending_dragon",
+          "fail": "ending_dark",
+          "ok": "You reach out to Dragon, forming a bond of trust. She lowers her head, and you climb on. Together, your combined fire and willpower shatter the crystal from above. The corruption burns away in dragonfire!\n\nDonkey watches from below, tears streaming. \"That's my BABY up there!\"",
+          "nok": "Dragon doesn't trust you enough. She swipes you away protectively. The crystal's dark energy surges, and the corruption grows beyond containment. Dragon grabs Donkey and flees as darkness consumes the nest...",
+          "dmg": 4
+        },
+        {
+          "text": "✨ Use magic to purify the crystal",
+          "stat": "mag",
+          "dc": 6,
+          "next": "ending_trickster",
+          "fail": "ending_dark",
+          "ok": "You channel every ounce of magical energy into purifying the crystal. Instead of destroying it, you REVERSE the corruption — turning the cursed artifact into a blessing stone. The forest blooms instantly. Dragon nuzzles the now-glowing crystal, finally at peace.\n\nMerlin's stone WAS cheese, but it's the thought that counts.",
+          "nok": "The crystal's magic is too ancient, too powerful. Your spell rebounds and the corruption latches onto YOU. Dragon roars in anguish as darkness spreads from the nest across the forest...",
+          "dmg": 5
+        }
+      ]
+    },
+    "kingdom_gates": {
+      "title": "Gates of Far Far Away",
+      "branch": "Far Far Away",
+      "art": "castle",
+      "text": "Far Far Away gleams in the distance — all white towers and golden roofs. But as you approach the gates, something is wrong. Guards in unfamiliar purple armor block the entrance.\n\n\"Halt! No one enters without authorization from Prince Charming — the ACTING regent.\"\n\nShrek scowls. \"Acting regent? Where are Harold and Lillian?\"\n\nThe guard shifts nervously. \"The King and Queen are... indisposed. Prince Charming has taken temporary control. For the good of the kingdom, of course.\"\n\nDonkey whispers: \"This smells fishier than Shrek after a swamp bath.\" Shrek glares at him but can't argue.\n\nYou need to get inside. Three approaches present themselves.",
+      "choices": [
+        {
+          "text": "👑 Demand a royal audience — invoke Fiona's authority",
+          "stat": "cha",
+          "dc": 5,
+          "next": "royal_court",
+          "fail": "royal_court",
+          "ok": "\"I'm here on behalf of Princess Fiona, HEIR to the throne!\" The guards exchange nervous looks. They can't refuse royalty. The gates open reluctantly. You stride in like you own the place. Because technically, Fiona kind of does.",
+          "nok": "The guards aren't buying it. \"Prince Charming said to expect impostors.\" Shrek picks up both guards and moves them aside like furniture. Subtle? No. Effective? Always.",
+          "dmg": 1
+        },
+        {
+          "text": "🌙 Sneak in through the tavern district at night",
+          "stat": "dex",
+          "dc": 5,
+          "next": "tavern_meet",
+          "fail": "tavern_meet",
+          "ok": "You find a drainage tunnel near the tavern district. It smells exactly like you'd expect. \"This is nothing,\" Shrek says, wading through. \"My swamp has layers of this.\" You emerge unseen in the seedy underbelly of Far Far Away.",
+          "nok": "You slip on something in the tunnel and crash into Donkey, who brays loudly, alerting a patrol. You barely escape into the tavern district, soaked and smelly. But you're in.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Look for a magical back entrance",
+          "stat": "mag",
+          "dc": 5,
+          "next": "potion_shop",
+          "fail": "potion_shop",
+          "ok": "Your magical senses detect a ley line running under the walls. You trace it to a hidden entrance behind a waterfall — the Fairy Godmother's old secret passage. It leads right to the potion district.",
+          "nok": "You find the magical entrance but trigger an old ward. Sparkly alarm bells ring. You dive through just before the passage seals. You're in, but someone knows you used this entrance.",
+          "dmg": 1
+        }
+      ]
+    },
+    "royal_court": {
+      "title": "The Royal Court",
+      "branch": "Far Far Away",
+      "art": "crown",
+      "text": "The throne room is draped in purple — Charming's color. Prince Charming himself sits on the throne, legs crossed, hair impeccable as always.\n\n\"Ah, visitors! How WONDERFUL.\" His smile doesn't reach his eyes. \"I'm afraid the King and Queen are resting. Indefinitely. I'm handling things in their... absence.\"\n\nQueen Lillian's voice echoes from behind a locked door: \"WE'RE LOCKED IN THE TOWER, YOU POMPOUS—\" A guard slams the door shut.\n\nCharming adjusts his crown nervously. \"She's... resting LOUDLY.\"\n\nFairy Godmother's portrait on the wall seems to wink. Her son has clearly inherited her ambition, if not her competence.\n\nPuss in Boots drops from the chandelier. \"I have been waiting for backup, amigos. This prince is loco.\"",
+      "choices": [
+        {
+          "text": "⚔️ Challenge Charming right here, right now",
+          "stat": "str",
+          "dc": 6,
+          "next": "harold_secret_passage",
+          "fail": "harold_secret_passage",
+          "ok": "You draw your weapon. \"Your reign ends NOW, Charming.\" Charming squeals and hides behind his throne. His guards advance but Puss cuts the chandelier down, blocking them. \"Now we TALK, señor!\"",
+          "nok": "Charming's guards rush you before you can reach him. You fight valiantly but there are too many. Puss creates a diversion with a hairball distraction, and you retreat to regroup. The direct approach needs refinement.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Trick Charming into revealing his plan",
+          "stat": "cha",
+          "dc": 5,
+          "next": "harold_secret_passage",
+          "fail": "harold_secret_passage",
+          "ok": "\"Your Highness, what a MAGNIFICENT coup — I mean, transition of power. Tell me, how did you manage it?\" Charming, unable to resist flattery, monologues for ten minutes about his entire plan. Puss takes notes. \"He really just... told us everything,\" Puss whispers.",
+          "nok": "Charming is suspicious. \"Are you trying to TRICK me? I'm not stupid!\" Debatable, but he clams up. You learn nothing useful but at least you've seen the throne room layout.",
+          "dmg": 0
+        },
+        {
+          "text": "🐱 Follow Puss — he has a plan",
+          "stat": "dex",
+          "dc": 4,
+          "next": "harold_secret_passage",
+          "fail": "harold_secret_passage",
+          "ok": "Puss winks and leads you through a secret passage behind a tapestry. \"I have been mapping this castle for days, my friend. Come — I know where Charming keeps his secrets.\"",
+          "nok": "You follow Puss but his secret passage is cat-sized. You get stuck. Puss has to pull you through. Dignity: lost. Intelligence: gained, sort of.",
+          "dmg": 1
+        }
+      ]
+    },
+    "tavern_meet": {
+      "title": "The Poisoned Apple Tavern",
+      "branch": "Far Far Away",
+      "art": "tavern",
+      "text": "The Poisoned Apple is the roughest tavern in Far Far Away — a dimly lit den of fairy-tale villains, reformed and otherwise. The ugly stepsister tends bar. Captain Hook's cousin runs darts (badly, with one hand).\n\nIn the corner booth, Puss in Boots is already three milk saucers deep. He spots you and waves his tiny sword.\n\n\"Amigos! I have been gathering intelligence. Charming has the King and Queen locked away, and he's using the Fairy Godmother's old wand to keep everyone in line. But the wand is kept in a vault beneath the castle.\"\n\nHe leans in. \"I have a plan. A heist. We steal the wand, we break the spell, we save the kingdom. But I need a crew.\"\n\nGingerbread Man pops up. \"I know a guy who knows a guy who knows the vault layout.\"",
+      "choices": [
+        {
+          "text": "🗡️ Recruit the tavern villains for the heist",
+          "stat": "cha",
+          "dc": 5,
+          "next": "castle_heist",
+          "fail": "castle_heist",
+          "ok": "You stand on a table and make the pitch. \"Who here is tired of Charming's rules? Who wants to be the VILLAIN of their OWN story?\" The crowd roars. You've got a crew: Big Bad Wolf (distraction), Pinocchio (lock-picking), and the ugly stepsister (inside woman).",
+          "nok": "The villains aren't interested until Shrek arm-wrestles the bouncer and wins. \"FINE. We'll help. But we get first pick of any treasure.\" It's not the most loyal crew, but it'll do.",
+          "dmg": 0
+        },
+        {
+          "text": "🗺️ Study the castle blueprints with Puss",
+          "stat": "dex",
+          "dc": 5,
+          "next": "castle_heist",
+          "fail": "castle_heist",
+          "ok": "Puss spreads out stolen blueprints. You spot the ventilation shaft from the kitchen to the vault. \"That's our way in. I can fit, and... hmm.\" He looks at Shrek. \"You cannot fit.\" \"I'll make a distraction.\" \"THAT you can do.\"",
+          "nok": "The blueprints are outdated — Charming has remodeled. You'll be going in partially blind. Puss shrugs. \"We improvise! That is the best part, no?\" It's the most terrifying part, actually.",
+          "dmg": 0
+        },
+        {
+          "text": "✨ Seek magical help to bypass the vault",
+          "stat": "mag",
+          "dc": 6,
+          "next": "castle_heist",
+          "fail": "castle_heist",
+          "ok": "You find a retired fairy in the back of the tavern. She owes Gingy a favor. She enchants a key that can open ANY lock once. \"One shot,\" she warns. \"Make it count.\" Puss eyes the key greedily. \"This changes EVERYTHING.\"",
+          "nok": "The fairy's magic backfires and turns your key into a live fish. She's embarrassed. \"Retirement hasn't been kind to my skills.\" You'll have to do this the hard way.",
+          "dmg": 0
+        }
+      ]
+    },
+    "potion_shop": {
+      "title": "Fairy Godmother's Potion Emporium",
+      "branch": "Far Far Away",
+      "art": "magic",
+      "text": "The Fairy Godmother's old potion factory is supposedly shut down, but the door is unlocked and the machines are running. Vats of glowing liquid bubble. Labels read: \"Happily Ever After,\" \"Beauty Sleep,\" \"Prince Charming™ Hair Gel.\"\n\nA young apprentice witch is frantically bottling potions. She sees you and freezes.\n\n\"You're not supposed to be here! Charming has me brewing loyalty potions — he's putting them in the water supply! The whole kingdom will worship him by tomorrow!\"\n\nShe grabs your arm. \"There's a masquerade ball tonight at the castle. Charming will announce his permanent reign AND activate the potions. If you could get inside, you could swap the loyalty potions with something... less evil.\"\n\nShe holds up a pink potion. \"This one makes people tell the truth. VERY inconvenient for a liar like Charming.\"",
+      "choices": [
+        {
+          "text": "✨ Brew a counter-potion to neutralize the water supply",
+          "stat": "mag",
+          "dc": 5,
+          "next": "godmother_apparition",
+          "fail": "godmother_apparition",
+          "ok": "You study the loyalty potion and reverse-engineer it. The counter-potion glows a defiant gold. \"Mix this into the water tower before the ball. One drop neutralizes a gallon of loyalty juice.\" The apprentice is impressed. \"You're GOOD.\"",
+          "nok": "Your counter-potion is... unstable. It might neutralize the loyalty potions or it might turn everyone's hair purple. \"50/50 chance,\" the apprentice says. \"I'll take those odds,\" Shrek shrugs.",
+          "dmg": 0
+        },
+        {
+          "text": "🎭 Grab disguise potions for the masquerade",
+          "stat": "dex",
+          "dc": 4,
+          "next": "godmother_apparition",
+          "fail": "godmother_apparition",
+          "ok": "You find \"Handsome Hero\" potions — they'll disguise your party as nobility for a few hours. Even Shrek. ESPECIALLY Shrek. He drinks one and becomes a dashing human. \"I hate this,\" he says in a smooth baritone. \"I know,\" Donkey grins.",
+          "nok": "You grab the wrong potions. Shrek becomes a handsome human, Donkey becomes a stallion, and you become... three feet shorter. \"The label said NOBLE not GNOME!\" Too late — the ball awaits.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Smash the potion factory — no more loyalty juice",
+          "stat": "str",
+          "dc": 6,
+          "next": "godmother_apparition",
+          "fail": "godmother_apparition",
+          "ok": "You WRECK the factory. Shrek helps enthusiastically. Vats shatter, machines crumble, loyalty potions flood the floor and drain away. \"That felt REALLY good,\" Shrek admits. Now you just need to deal with Charming directly at the ball.",
+          "nok": "You smash a vat and get splashed with an unknown potion. You feel an overwhelming urge to compliment Charming's hair. It passes (mostly) but the factory guards heard the noise. You escape, but the factory still runs.",
+          "dmg": 2
+        }
+      ]
+    },
+    "charming_plot": {
+      "title": "Charming's Master Plan",
+      "branch": "Far Far Away",
+      "art": "battle",
+      "text": "In Charming's private chambers, you discover the full extent of his scheme. Maps, letters, a vision board with \"KING CHARMING\" written in glitter glue.\n\nThe plan: use the Fairy Godmother's wand to cast a kingdom-wide enchantment at tonight's \"Royal Celebration.\" Everyone who attends will be magically compelled to accept him as the one true king. Forever.\n\nPuss examines the documents. \"The wand is the key. Without it, he is just a man with good hair and bad intentions.\"\n\nCharming's voice echoes from the hallway. He's coming back.\n\n\"The celebration is in the throne room tonight,\" Puss whispers. \"We must get there first. The wand will be on his person.\"",
+      "choices": [
+        {
+          "text": "🗡️ Set an ambush for Charming right now",
+          "stat": "str",
+          "dc": 6,
+          "next": "farquaad_ghost",
+          "fail": "farquaad_ghost",
+          "ok": "You hide behind the door. When Charming walks in, you grab the wand from his belt in one smooth motion. He screams at a pitch previously only achieved by dolphins. Puss secures him. \"The throne room awaits, amigos!\"",
+          "nok": "Charming enters with guards. Your ambush turns into a brawl. You don't get the wand but you escape with Charming's plans. He knows you're coming now — the throne room confrontation will be harder.",
+          "dmg": 2
+        },
+        {
+          "text": "📜 Forge a royal decree to rally the guards",
+          "stat": "cha",
+          "dc": 5,
+          "next": "farquaad_ghost",
+          "fail": "farquaad_ghost",
+          "ok": "Using Charming's own stationery (how narcissistic — it has his FACE on it), you forge orders commanding the guards to stand down for \"routine magical maintenance.\" Half the castle guard leaves their posts. The throne room path is clear.",
+          "nok": "The forgery is spotted — apparently you misspelled \"magnificent\" on the signature line (Charming would NEVER). Guards are alerted. You'll face heavier resistance at the throne room.",
+          "dmg": 1
+        },
+        {
+          "text": "🐱 Let Puss create a diversion while you infiltrate",
+          "stat": "dex",
+          "dc": 5,
+          "next": "farquaad_ghost",
+          "fail": "farquaad_ghost",
+          "ok": "Puss does the big-eyes thing to a group of guards. They're ENTRANCED. While they coo over him, you slip through to the throne room entrance. \"Works every time,\" Puss purrs, catching up.",
+          "nok": "Puss tries the cute eyes but these guards are cat-haters. He has to resort to actual swordfighting. You get through, but Puss's hat has a new hole in it. He is NOT happy about it.",
+          "dmg": 1
+        }
+      ]
+    },
+    "castle_heist": {
+      "title": "The Castle Heist",
+      "branch": "Far Far Away",
+      "art": "castle",
+      "text": "Midnight. Your heist crew assembles outside the castle walls. Puss in Boots leads the briefing, standing on a crate to reach the map.\n\n\"Phase one: Big Bad Wolf blows down the side entrance — distraction. Phase two: Pinocchio picks the vault lock — he is very good with his... nose. Phase three: WE grab the wand and get out.\"\n\nShrek looks skeptical. \"What could go wrong?\"\n\nEveryone stares at him. Everything. Everything could go wrong.\n\nGingerbread Man adjusts his tiny grappling hook. \"Let's DO this.\"\n\nThe clock strikes midnight. GO.",
+      "choices": [
+        {
+          "text": "🌀 Lead the team through the ventilation shaft",
+          "stat": "dex",
+          "dc": 5,
+          "next": "mongo_rampage",
+          "fail": "mongo_rampage",
+          "ok": "You navigate the shafts like a maze. Puss scouts ahead, Gingy fits everywhere, and Shrek... gets stuck twice but powers through (literally). You drop into the vault room silently. The wand glows on its pedestal. \"Too easy,\" Puss whispers. It is too easy. But you grab it anyway.",
+          "nok": "The shaft collapses under Shrek's weight. You tumble into the kitchen. The head chef screams. \"RATS!\" (Rude, but technically you did come from the ceiling.) You fight through to the vault the hard way — alarms blaring.",
+          "dmg": 2
+        },
+        {
+          "text": "💪 Smash through the front — shock and awe",
+          "stat": "str",
+          "dc": 6,
+          "next": "mongo_rampage",
+          "fail": "mongo_rampage",
+          "ok": "Wolf blows. You CHARGE. The front gate splinters. Guards scatter. Shrek roars. It's beautiful chaos. You reach the vault before anyone can organize a defense. Puss grabs the wand mid-sprint. \"VIVA LA REVOLUCIÓN!\"",
+          "nok": "The front door is reinforced. Your charge bounces off embarrassingly. Wolf needs three huffs to bring it down, and by then every guard in the castle is ready. You get through, but it's a running battle to the vault.",
+          "dmg": 3
+        },
+        {
+          "text": "✨ Use magic to teleport past the defenses",
+          "stat": "mag",
+          "dc": 6,
+          "next": "mongo_rampage",
+          "fail": "mongo_rampage",
+          "ok": "You blink-teleport past the walls, guards, and locks, appearing directly in front of the wand. \"HOW?!\" the vault guardian sputters. You grab the wand before he can react. Puss teleports in behind you. \"I love having a mage on the team.\"",
+          "nok": "Your teleport misfires and you end up in the castle laundry. Charming's underwear collection is extensive and disturbing. You eventually find the vault, but the scenic route cost you time and dignity.",
+          "dmg": 1
+        }
+      ]
+    },
+    "masquerade_ball": {
+      "title": "The Masquerade Ball",
+      "branch": "Far Far Away",
+      "art": "crown",
+      "text": "The castle ballroom blazes with light. Masked nobles dance, oblivious to Charming's plot. The prince himself stands on a balcony above, wand in hand, waiting for midnight to cast his enchantment.\n\nYou're disguised (more or less) and inside. Donkey — currently a handsome stallion — keeps getting compliments. \"I could get USED to this.\"\n\nFiona spots King Harold and Queen Lillian locked in a glass cage on display. \"My PARENTS! That vain little—\"\n\nCharming taps the wand on the railing. \"Citizens! In moments, I will be your PERMANENT ruler! Any objections?\"\n\nSilence. The loyalty potions are already working on some. You need to act NOW.",
+      "choices": [
+        {
+          "text": "✨ Swap the wand with a fake using sleight of hand",
+          "stat": "dex",
+          "dc": 6,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "You work your way to the balcony during the toast. As Charming raises the wand dramatically, you swap it with a breadstick. He doesn't notice until he casts the spell and the ballroom fills with... toast crumbs. \"WHAT?!\" This is your moment.",
+          "nok": "Charming spots the switch. \"IMPOSTER!\" He fires the wand, blasting your disguise away. The ballroom gasps. Well, the subtle approach is over. Time for Plan B: the throne room, no more pretending.",
+          "dmg": 2
+        },
+        {
+          "text": "📣 Rally the crowd against Charming",
+          "stat": "cha",
+          "dc": 5,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "You rip off your mask. \"THAT WAND IS CONTROLLING YOU! He locked up your REAL king and queen!\" You point to the glass cage. The crowd murmurs. Lillian waves. The loyalty potion wasn't strong enough — people start booing Charming. His grip on power crumbles.",
+          "nok": "Your speech gets a lukewarm response. The loyalty potions are strong. But Fiona backs you up with a warrior princess battle cry, and THAT gets attention. Enough people snap out of it to cause chaos. Charming retreats to the throne room.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Charge the balcony and grab the wand",
+          "stat": "str",
+          "dc": 6,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "You LEAP from the dance floor to the balcony in one heroic bound. Charming shrieks. You wrench the wand away. The crowd cheers. Shrek gives a rare smile. \"Not bad. For a non-ogre.\"",
+          "nok": "You charge, but Charming fires the wand. It hits you with a burst of sparkles. You're turned into a frog momentarily. The potion apprentice's antidote kicks in just in time, but Charming flees to the throne room with the wand.",
+          "dmg": 2
+        }
+      ]
+    },
+    "throne_room": {
+      "title": "Throne Room Showdown",
+      "branch": "Far Far Away",
+      "art": "battle",
+      "text": "The throne room. Charming stands before the throne, wand crackling with stolen magic. His hair is finally messed up. He looks FURIOUS.\n\n\"You think you can just WALTZ in and take MY kingdom?! I AM Prince Charming! I was SUPPOSED to get the happily ever after! The princess! The THRONE!\"\n\nFiona steps forward. \"Nobody's OWED a happy ending, Charming. You EARN it.\"\n\nPuss draws his sword. Shrek cracks his knuckles. Donkey stands WAY in the back.\n\nCharming raises the wand one last time. \"Fine. Then I'll TAKE it.\"\n\nThis is it. How do you end this?",
+      "choices": [
+        {
+          "text": "⚔️ Duel Charming — blade against wand",
+          "stat": "str",
+          "dc": 6,
+          "next": "ending_hero",
+          "fail": "ending_dark",
+          "ok": "You clash with Charming in an epic duel. Wand-blasts scorch the walls. Your blade cuts through his magic. Finally, with one decisive strike, you shatter the wand. Charming falls to his knees. The enchantments dissolve. Harold and Lillian are freed!\n\nCharming whimpers, \"But... my hair...\" It's ruined. That might be the worst punishment of all.",
+          "nok": "Charming's wand is too powerful. A blast sends you crashing through the stained glass window. As you fall, you see the wand's light pulse across the kingdom. Charming has won. Far Far Away... bows to its new king.",
+          "dmg": 5
+        },
+        {
+          "text": "👑 Invoke the true royal bloodline — break the wand's power",
+          "stat": "cha",
+          "dc": 5,
+          "next": "ending_royal",
+          "fail": "ending_dark",
+          "ok": "\"The throne recognizes its TRUE heir!\" You help Fiona step forward. The ancient magic of Far Far Away surges — the throne REJECTS Charming. The wand crumbles. Harold's frog curse breaks. Lillian kicks the cage open herself.\n\nFiona is crowned Queen. She immediately pardons everyone except Charming, who gets community service. Cleaning the swamp. Shrek's swamp.",
+          "nok": "The bloodline invocation needs more magical support than you have. Charming laughs and overwhelms you with the wand's power. The throne accepts him by force. The rightful rulers are exiled...",
+          "dmg": 4
+        },
+        {
+          "text": "✨ Turn Charming's magic against himself",
+          "stat": "mag",
+          "dc": 6,
+          "next": "ending_trickster",
+          "fail": "ending_peace",
+          "ok": "You catch Charming's wand-blast and REDIRECT it right back at him. The enchantment hits its caster — and Charming is now magically compelled to tell the truth.\n\n\"I'm insecure! I use hair gel to cope! Mother never said she was PROUD of me!\" He sobs. The kingdom watches their \"king\" have a complete breakdown. Power? Gone.",
+          "nok": "Your magical redirect doesn't fully work — the spell hits EVERYONE, including Charming. Universal truth-telling breaks out. It's chaos, but honest chaos. Charming confesses his crimes. So does everyone else. The kingdom needs a fresh start...",
+          "dmg": 2
+        }
+      ]
+    },
+    "rumple_appears": {
+      "title": "The Deal-Maker",
+      "branch": "Rumpelstiltskin",
+      "art": "rumple",
+      "text": "Following the magical disturbance deep into the swamp, you find a small man in a ruffled collar standing on a stump, surrounded by floating contracts.\n\n\"Well, well, WELL!\" Rumpelstiltskin claps his tiny hands. \"A HERO! I've been waiting for one of those!\"\n\nHe snaps his fingers, and a golden contract appears. \"Here's the thing — I can make ALL the bad stuff go away. The corruption? Gone. The threats? Poof. All you have to do is sign this teeny tiny contract.\"\n\nThe fine print shimmers. Fifi, his goose, honks menacingly.\n\nShrek grabs your arm. \"Don't. Trust. Him. I've seen what his deals do. He takes more than he gives. ALWAYS.\"\n\nRumpelstiltskin's grin widens. \"Or... you could try to stop me WITHOUT a deal. Your choice, hero.\"",
+      "choices": [
+        {
+          "text": "📜 Sign the deal — it's the fastest solution",
+          "stat": null,
+          "dc": 0,
+          "next": "alternate_world",
+          "fail": null,
+          "ok": "You grab the pen. Shrek shouts \"NO!\" — too late. Your signature glows. Rumpelstiltskin CACKLES.\n\n\"The price? One day from your past. The day you were BORN a hero!\"\n\nReality TWISTS. The world goes dark. When you open your eyes, everything has changed...",
+          "nok": "",
+          "dmg": 0
+        },
+        {
+          "text": "✋ Refuse and rally the swamp — we fight!",
+          "stat": "cha",
+          "dc": 5,
+          "next": "swamp_defense",
+          "fail": "swamp_defense",
+          "ok": "\"We don't NEED your deals!\" You tear up the contract. Rumpelstiltskin's face turns red. \"FINE! Then I'll take this kingdom by FORCE!\" He summons his witch army. But you've already sent Gingy to rally the fairy tale creatures. The swamp will not fall today.",
+          "nok": "You refuse, but Rumpelstiltskin expected that. His witches were already flanking the swamp. You're caught off-guard. Shrek fights them back, but the swamp takes damage before you can mount a proper defense.",
+          "dmg": 2
+        },
+        {
+          "text": "🧠 Read the fine print — find a loophole",
+          "stat": "mag",
+          "dc": 5,
+          "next": "contract_trick",
+          "fail": "contract_trick",
+          "ok": "You take the contract and study it. Your magical knowledge reveals a hidden clause — Rumpelstiltskin's deals can be voided if the signer discovers the \"exit clause\" before sunset. He NEVER expects anyone to actually read. \"Interesting...\" you murmur. Rumple looks nervous.",
+          "nok": "The contract's magical text shifts and changes as you read it. You catch glimpses of loopholes but can't pin them down. \"Tick tock!\" Rumple grins. You'll need more resources to crack this contract.",
+          "dmg": 0
+        }
+      ]
+    },
+    "alternate_world": {
+      "title": "The World That Never Was",
+      "branch": "Rumpelstiltskin",
+      "art": "battle",
+      "text": "Reality reforms around you. Far Far Away is GONE — replaced by Rumpelstiltskin's fortress-kingdom. Ogres are hunted. Donkey doesn't recognize you. Shrek is a stranger.\n\nWanted posters show YOUR face. \"DANGEROUS HERO — CAPTURE ON SIGHT.\"\n\nThe Pied Piper's music echoes through empty streets, compelling anyone who hears it to dance toward the palace dungeons. Witches patrol on broomsticks.\n\nA hand grabs you and pulls you into an alley. It's Fiona — but different. Battle-scarred, fierce, leading an underground resistance.\n\n\"You're the one who signed the deal, aren't you?\" She doesn't look sympathetic. \"We've been fighting Rumpelstiltskin for YEARS in this timeline. If you want to fix this, you need to help US first.\"",
+      "choices": [
+        {
+          "text": "✊ Join the ogre resistance immediately",
+          "stat": "str",
+          "dc": 4,
+          "next": "donkey_dragon_reunion",
+          "fail": "donkey_dragon_reunion",
+          "ok": "\"I'll fight. It's my mess — I'll clean it up.\" Fiona nods approvingly. \"Good. We need soldiers. The resistance base is in the old swamp. Rumpelstiltskin hasn't found it... yet.\"",
+          "nok": "You try to prove your worth by arm-wrestling an ogre guard. You lose. Badly. But Fiona respects the attempt. \"Points for courage, minus points for strategy. Come on, newbie.\"",
+          "dmg": 1
+        },
+        {
+          "text": "🔍 Search for the contract's exit clause",
+          "stat": "mag",
+          "dc": 6,
+          "next": "donkey_dragon_reunion",
+          "fail": "donkey_dragon_reunion",
+          "ok": "You remember — the contract has a weakness! You search your memory for the exact clause. \"True love's kiss can break ANY deal...\" Fiona raises an eyebrow. \"That's... annoyingly fairy-tale, but it could work. We need to find Shrek first.\"",
+          "nok": "The contract's magic is too strong in this timeline — Rumpelstiltskin has reinforced it. You can feel the exit clause is there but can't reach it. You'll need to weaken Rumple's power first.",
+          "dmg": 1
+        },
+        {
+          "text": "🗣️ Rally the people of this timeline",
+          "stat": "cha",
+          "dc": 5,
+          "next": "donkey_dragon_reunion",
+          "fail": "donkey_dragon_reunion",
+          "ok": "You stand on a crate in the market square and tell everyone the TRUTH — that this reality is WRONG, that Rumpelstiltskin STOLE their lives. People start listening. \"A revolution needs more than soldiers,\" you tell Fiona. \"It needs hope.\"",
+          "nok": "The townspeople are too scared. The Pied Piper's influence runs deep. A few join you, but most hide. Fiona sighs. \"We'll build support the hard way. Come — the resistance awaits.\"",
+          "dmg": 0
+        }
+      ]
+    },
+    "swamp_defense": {
+      "title": "Defense of the Swamp",
+      "branch": "Rumpelstiltskin",
+      "art": "battle",
+      "text": "Rumpelstiltskin's witch army descends on the swamp like a storm of pointy hats. Broomsticks blot out the sun. The Pied Piper plays his cursed flute from the back lines.\n\nBut the swamp has defenders too. Shrek leads the ogres. Dragon circles overhead. The Three Pigs have fortified their positions (this time in BRICK). Gingerbread Man runs reconnaissance (he's very fast for a cookie).\n\n\"They're coming from three directions!\" Gingy shouts from a tree. \"North, east, and... actually all directions! We're surrounded!\"\n\nShrek grins. \"Good. That means we can attack in any direction.\"\n\nThe first wave of witches swoops in.",
+      "choices": [
+        {
+          "text": "💪 Lead the front line — hold the bridge",
+          "stat": "str",
+          "dc": 5,
+          "next": "piper_showdown",
+          "fail": "piper_showdown",
+          "ok": "You plant yourself on the swamp bridge like a immovable wall. Witches crash against you and bounce off. Shrek fights beside you, roaring. \"THIS IS MY SWAMP!\" Dragon provides air support, roasting broomsticks like marshmallows. The bridge holds!",
+          "nok": "The witches overwhelm the bridge. You're pushed back but Shrek body-blocks the gap long enough for you to regroup. The outer perimeter is lost, but the inner swamp holds. For now.",
+          "dmg": 2
+        },
+        {
+          "text": "🎵 Counter the Pied Piper's music",
+          "stat": "mag",
+          "dc": 6,
+          "next": "piper_showdown",
+          "fail": "piper_showdown",
+          "ok": "You create a counter-melody that nullifies the Pied Piper's compulsion magic. His dancing victims stop mid-step, confused. \"Where am I?\" \"Why am I in the swamp?\" The Pied Piper stomps his foot. \"That's CHEATING!\" Without his power, Rumple loses half his army.",
+          "nok": "Your counter-spell partially works but the Pied Piper adapts. His music is powerful. You reduce his influence but can't stop it completely. Some defenders start dancing involuntarily. Donkey enjoys it. \"I can't stop my hooves!\"",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Negotiate with the witches — turn them against Rumple",
+          "stat": "cha",
+          "dc": 5,
+          "next": "piper_showdown",
+          "fail": "piper_showdown",
+          "ok": "\"Is Rumpelstiltskin paying you? When's the last time you got a RAISE?\" Several witches pause mid-attack. \"Actually... he said he'd pay us in magic beans. That's not even legal tender!\" A group of witches switch sides. Rumple's army fractures.",
+          "nok": "The lead witch Baba isn't interested in negotiation. She hexes you mid-sentence. Your voice turns squeaky for an hour. The battle rages on without your diplomacy. Still, a few witches looked tempted.",
+          "dmg": 2
+        }
+      ]
+    },
+    "contract_trick": {
+      "title": "The Contract's Secret",
+      "branch": "Rumpelstiltskin",
+      "art": "magic",
+      "text": "You sit with the contract in Shrek's hut, studying every magical word. Fiona brings books on fairy-tale law. Donkey brings snacks (helpful for morale).\n\n\"Here!\" Fiona points to a clause written in invisible ink, revealed by your magical sight. \"Every Rumpelstiltskin contract has a fatal flaw — the deal-maker is bound by his own rules. If you can make HIM break a contract term, the ENTIRE deal network collapses.\"\n\nShrek leans in. \"So we need to trick the trickster.\"\n\n\"There's more,\" you say, reading deeper. \"His power is tied to a spinning wheel in his fortress. Destroy the wheel, and he can't enforce ANY deal.\"\n\nRumpelstiltskin is powerful, but he's arrogant. And arrogant people make mistakes. Especially when provoked.\n\nYou need more information before confronting him. Where to look?",
+      "choices": [
+        {
+          "text": "📚 Raid Rumpelstiltskin's old library",
+          "stat": "mag",
+          "dc": 5,
+          "next": "rumple_library",
+          "fail": "rumple_library",
+          "ok": "You find Rumple's hidden library in an abandoned mill. His journals reveal everything — the spinning wheel's location, its weaknesses, and his deepest fear: being forgotten. \"Nobody remembers my NAME!\" he wrote. Perfect leverage.",
+          "nok": "The library is trapped. You trigger a magical alarm and barely escape with a few singed pages. The pages are useful — they mention the spinning wheel — but Rumple now knows you're researching him.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Find people who've broken Rumple's deals before",
+          "stat": "cha",
+          "dc": 5,
+          "next": "rumple_library",
+          "fail": "rumple_library",
+          "ok": "You track down a miller's daughter who guessed Rumpelstiltskin's name decades ago. \"The key is his ego,\" she says. \"Make him brag. Make him slip. He ALWAYS says too much when he thinks he's winning.\" Invaluable intel.",
+          "nok": "Nobody wants to talk about their dealings with Rumpelstiltskin. Too scared. But an old fairy reluctantly slips you a note: \"The wheel. Break the wheel.\" Cryptic but useful.",
+          "dmg": 0
+        },
+        {
+          "text": "🗡️ Provoke Rumpelstiltskin into a direct confrontation",
+          "stat": "str",
+          "dc": 6,
+          "next": "rumple_library",
+          "fail": "rumple_library",
+          "ok": "You march to Rumple's territory and challenge him publicly. His ego can't resist. \"You think you can BEAT me?! I'm the most powerful deal-maker in the REALM!\" He rants, revealing the location of his fortress and his spinning wheel. Thanks for the info, shorty.",
+          "nok": "Rumpelstiltskin sends his witches instead of coming personally. \"I don't waste my time on AMATEURS.\" You fight off the witches but don't learn much. At least you know he considers you a threat.",
+          "dmg": 3
+        }
+      ]
+    },
+    "ogre_resistance": {
+      "title": "The Ogre Resistance",
+      "branch": "Rumpelstiltskin",
+      "art": "resistance",
+      "text": "The resistance hideout is in the ruins of Shrek's swamp — somehow it's even muddier than usual. Ogres, fairy-tale outcasts, and escaped prisoners huddle around a fire.\n\nFiona spreads a map of Rumpelstiltskin's fortress. \"The spinning wheel is in the highest tower. It's the source of ALL his contract magic. Destroy it, and every deal he's ever made unravels — including yours.\"\n\nCookie, the ogre chef, brings everyone swamp-rat stew. \"Eat up. We march at dawn.\"\n\nShrek — this timeline's Shrek, who never met Fiona — sharpens an axe. \"I don't know you,\" he says. \"But if you're fighting Rumpelstiltskin, you're alright with me.\"\n\nDonkey (wearing a tiny resistance bandana) bounces up. \"SHREK! Are we doing the THING? The storming-the-castle THING?!\"",
+      "choices": [
+        {
+          "text": "⚔️ Lead the assault — storm the fortress at dawn",
+          "stat": "str",
+          "dc": 5,
+          "next": "cookie_war_kitchen",
+          "fail": "cookie_war_kitchen",
+          "ok": "\"We hit fast and hard. No complicated plans.\" The ogres love it. Shrek nods. \"I like simple.\" At dawn, the resistance charges. You lead the front line, green and angry allies at your side.",
+          "nok": "The dawn assault is spotted early. Rumple's witches are ready. The charge bogs down at the fortress walls. You push through but the resistance takes losses. This will be a harder fight than planned.",
+          "dmg": 2
+        },
+        {
+          "text": "🌙 Plan a stealth infiltration under moonlight",
+          "stat": "dex",
+          "dc": 5,
+          "next": "cookie_war_kitchen",
+          "fail": "cookie_war_kitchen",
+          "ok": "Small team, moonless night. You, Puss (he's on the resistance's side in any timeline), and Shrek climb the fortress walls. No alarms, no detection. You're inside Rumpelstiltskin's fortress with a clear path to the tower.",
+          "nok": "Shrek sneezes on the wall. Guards everywhere. \"Sorry,\" he mutters. \"Allergies.\" You escape into the fortress corridors but stealth is blown. Time to improvise.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Challenge Rumpelstiltskin to a wager — his pride vs your freedom",
+          "stat": "cha",
+          "dc": 6,
+          "next": "cookie_war_kitchen",
+          "fail": "cookie_war_kitchen",
+          "ok": "\"I bet you can't guess my TRUE name by sunrise — or I get access to your tower!\" Rumpelstiltskin can't resist a deal. He LOVES deals. \"DONE!\" He'll spend all night guessing while you plan your real attack. His ego is his downfall.",
+          "nok": "Rumpelstiltskin sees through the bluff. \"Nice TRY!\" He doubles the fortress guard. But the attempt rattled him — he's making mistakes, getting paranoid. His witch commanders are confused by contradictory orders.",
+          "dmg": 1
+        }
+      ]
+    },
+    "fairy_rally": {
+      "title": "The Fairy Tale Rally",
+      "branch": "Rumpelstiltskin",
+      "art": "battle",
+      "text": "The swamp held, but barely. Rumpelstiltskin will be back with more forces. You need allies — ALL the allies.\n\nGingerbread Man returns from his scouting mission. \"I've sent word to EVERYONE. The princesses, the knights, the talking animals, even Lord Farquaad's ghost — wait, scratch that last one, he's still bitter.\"\n\nThey come in waves. Snow White with her animal army. The Three Little Pigs in their brick tank. Pinocchio leading a squad of toy soldiers come to life. Arthur — yes, KING Arthur (sort of, he's still a teenager) — arrives on a horse that's clearly just two cats in a horse costume.\n\n\"THAT'S your army?\" Shrek looks skeptical.\n\n\"It's a fairy tale army,\" Fiona smiles. \"Never underestimate a fairy tale army.\"\n\nRumpelstiltskin's fortress looms on the horizon. Time to march.",
+      "choices": [
+        {
+          "text": "👑 Give a heroic speech to unite the army",
+          "stat": "cha",
+          "dc": 5,
+          "next": "fiona_war_council",
+          "fail": "fiona_war_council",
+          "ok": "You stand on Shrek's shoulders (he complains) and address the army. \"Today we fight not for 'happily ever after' — we fight for 'EVER AFTER' being OURS to choose!\" The army ROARS. Even Arthur looks inspired. The march begins with purpose.",
+          "nok": "Your speech starts well but Donkey interrupts with his own speech that's mostly about waffles. The army is confused but strangely motivated. \"FOR WAFFLES!\" becomes the battle cry. You roll with it.",
+          "dmg": 0
+        },
+        {
+          "text": "🗺️ Plan the siege — assign each group a role",
+          "stat": "dex",
+          "dc": 5,
+          "next": "fiona_war_council",
+          "fail": "fiona_war_council",
+          "ok": "You create a brilliant battle plan. Princesses take the east wall. Pigs breach the gate. Arthur's forces flank from the south. Dragon provides air cover. Each group plays to their strengths. Textbook siege tactics. Even Shrek is impressed.",
+          "nok": "The plan is good but Arthur's forces get lost (the cat-horse has no sense of direction). You adjust on the fly, reassigning troops. The plan is messier than intended but workable.",
+          "dmg": 1
+        },
+        {
+          "text": "✨ Enchant the army with protective magic",
+          "stat": "mag",
+          "dc": 5,
+          "next": "fiona_war_council",
+          "fail": "fiona_war_council",
+          "ok": "You cast a ward over the entire army. Everyone glows faintly gold. \"This will protect against Rumple's weaker spells and the Pied Piper's music,\" you explain. Snow White's bluebirds glow like tiny golden stars. It's actually beautiful.",
+          "nok": "The ward is too large and comes out patchy. Half the army is protected, half is not. You prioritize shielding the front lines. \"Better than nothing,\" Fiona says. She's being generous.",
+          "dmg": 1
+        }
+      ]
+    },
+    "rumple_library": {
+      "title": "The Deal-Maker's Secrets",
+      "branch": "Rumpelstiltskin",
+      "art": "magic",
+      "text": "Armed with knowledge about Rumpelstiltskin's weakness, you prepare for the final confrontation. You now know three crucial facts:\n\n1. The spinning wheel in his tower powers ALL his deals\n2. His ego is his fatal flaw — he can be goaded into mistakes\n3. Every contract has an exit clause hidden in the fine print\n\nFiona reviews the plan. \"We breach the fortress, reach the tower, and destroy the wheel. Simple.\"\n\n\"Simple plans have a way of getting complicated,\" Shrek grumbles.\n\n\"That's why we have a backup,\" you say. \"If we can't destroy the wheel, we make Rumpelstiltskin break his OWN rules. Any violation nullifies his power.\"\n\nDonkey nods wisely. \"I understood about 30% of that. Let's GO!\"",
+      "choices": [
+        {
+          "text": "🗡️ Direct assault on the fortress",
+          "stat": "str",
+          "dc": 5,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "No more games. You assemble every ally and march on the fortress. Shrek and Dragon lead the charge. The fortress gates buckle under the assault. You're inside within the hour.",
+          "nok": "The fortress defenses are strong. The assault stalls at the outer wall. You breach it eventually but take hits. Shrek is limping. \"I'm fine,\" he insists, clearly not fine.",
+          "dmg": 2
+        },
+        {
+          "text": "🌑 Infiltrate alone while allies create a distraction",
+          "stat": "dex",
+          "dc": 6,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "Dragon creates a spectacular distraction — dive-bombing the fortress walls while Donkey commentates loudly. Every guard rushes to the walls. You slip in through the sewers. Elegant? No. Effective? Extremely.",
+          "nok": "The sewer entrance is guarded by a troll who wants a riddle. You fail the riddle (\"What has four legs in the morning—\" \"A TABLE!\" Wrong.) and have to fight your way past. Noisy but doable.",
+          "dmg": 2
+        },
+        {
+          "text": "📜 Arrive under flag of truce — then spring the trap",
+          "stat": "cha",
+          "dc": 5,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "You approach under a white flag. \"I wish to make a DEAL,\" you announce. Rumpelstiltskin CAN'T resist a deal. The gates open. You're escorted right to the tower room — exactly where you need to be. The trap is set... for HIM.",
+          "nok": "Rumpelstiltskin accepts the truce but keeps you under heavy guard. Getting to the tower will require breaking free at the right moment. But you're inside the fortress, which is half the battle.",
+          "dmg": 0
+        }
+      ]
+    },
+    "rumple_fortress": {
+      "title": "Rumpelstiltskin's Fortress",
+      "branch": "Rumpelstiltskin",
+      "art": "rumple",
+      "text": "You stand in the tower room of Rumpelstiltskin's fortress. The spinning wheel glows with the combined power of every deal he's ever made. Contracts orbit it like paper planets.\n\nRumpelstiltskin stands atop the wheel, cackling. \"You actually came! How DELIGHTFUL! Do you know how many heroes have tried to stop me? TWELVE. Do you know how many succeeded? ZERO!\"\n\nFifi the goose honks aggressively.\n\n\"This wheel holds the contracts of THOUSANDS,\" Rumple gloats. \"Kings, queens, peasants — they ALL made deals. And I ALWAYS collect.\"\n\nShrek steps forward. \"Then it's time to close your account.\"\n\nThe spinning wheel pulses. Rumpelstiltskin snaps his fingers. The final battle begins.",
+      "choices": [
+        {
+          "text": "💪 Smash the spinning wheel with pure force",
+          "stat": "str",
+          "dc": 6,
+          "next": "ending_hero",
+          "fail": "ending_dark",
+          "ok": "You CHARGE the wheel. Rumple throws everything at you — hexes, contracts, even Fifi. You dodge, tank, and power through. With one MASSIVE swing, the wheel SHATTERS. Contracts explode into confetti. Rumple SCREAMS as his power dissolves.\n\n\"MY DEALS! MY BEAUTIFUL DEALS!\" He shrinks — literally — until he's the size of a garden gnome. Fitting.",
+          "nok": "The wheel's magic is too strong. Your blow bounces off and Rumpelstiltskin's power surges. Contracts wrap around you like chains. \"Deal's a deal, hero,\" Rumple grins. The last thing you see is the wheel spinning faster...",
+          "dmg": 5
+        },
+        {
+          "text": "🧠 Trick Rumpelstiltskin into breaking his own rules",
+          "stat": "cha",
+          "dc": 6,
+          "next": "ending_trickster",
+          "fail": "ending_peace",
+          "ok": "\"I'll make you a deal, Rumple. I bet you can't say your own name three times fast!\"\n\"RUMPELSTILTSKIN-RUMPELSTILTSKIN-RUMPELSTILT—\" His tongue twists. The wheel sparks. In deal-magic, FAILING your own challenge breaks the deal-maker's power.\n\nThe contracts burn. The wheel cracks. Rumple stares at his hands as magic drains away. \"You... TRICKED me?! ME?!\"\n\n\"Takes one to know one.\" Shrek slow-claps.",
+          "nok": "Your trick doesn't fully work — Rumple is too savvy. But the attempt destabilizes the wheel. Both of you realize: neither can win outright. An uneasy truce forms. The wheel is damaged, Rumple's power limited. Not a victory, but not a defeat. Peace, of a sort.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Overload the wheel with its own magic",
+          "stat": "mag",
+          "dc": 6,
+          "next": "ending_hero",
+          "fail": "ending_dark",
+          "ok": "You channel raw magic INTO the wheel — feeding it more than it can handle. It spins faster, glows brighter, contracts swirling into a vortex.\n\n\"STOP! You'll overload it!\" Rumple panics.\n\n\"THAT'S THE IDEA!\"\n\nThe wheel EXPLODES in a burst of golden light. Every deal, every contract, every scheme — undone. Rumpelstiltskin is blasted into next Tuesday (literally; he'll show up on Tuesday, very confused).",
+          "nok": "The magical overload works — but it's too powerful. The explosion catches you too. The wheel is destroyed, the deals are broken, but the blast sends you and Rumpelstiltskin hurtling through dimensions. The kingdom is saved... but you're lost in the magical aftermath.",
+          "dmg": 5
+        }
+      ]
+    },
+    "dronkey_nest": {
+      "title": "The Dronkey Nest",
+      "branch": "Dark Forest",
+      "art": "dragon",
+      "text": "The path to the dragon's nest winds through a hidden valley — and you stumble into a VERY unexpected nursery. Six small creatures tumble through the air: part donkey, part dragon. The Dronkeys.\n\n\"Oh no,\" Shrek mutters. \"THOSE things.\"\n\nThe Dronkeys swarm Donkey instantly. \"DADDY! DADDY'S HOME!\" They breathe tiny fireballs of excitement. One singes your eyebrows.\n\n\"Kids! KIDS! Daddy's on a MISSION!\" Donkey beams with pride. \"Aren't they BEAUTIFUL, Shrek?\"\n\n\"They're... something.\" Shrek dodges a fireball.\n\nThe Dronkeys block the path ahead, playing in a tangle of wings and hooves. Dragon's nest is just beyond — but you'll need to get past the world's most chaotic daycare first.",
+      "choices": [
+        {
+          "text": "🗣️ Ask Donkey to wrangle his kids",
+          "stat": "cha",
+          "dc": 4,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "Donkey puts on his Dad Voice. \"CHILDREN! Line up! Daddy's friends need to get through!\" The Dronkeys line up perfectly. Shrek's jaw drops. \"How did you—\" \"Parenting, Shrek. It's all about CONFIDENCE.\"",
+          "nok": "Donkey tries his Dad Voice but the Dronkeys just tackle him. You wade through a sea of tiny wings and fireballs. One steals your hat. Another licks your sword. You emerge singed but alive.",
+          "dmg": 1
+        },
+        {
+          "text": "✨ Enchant some toys to distract them",
+          "stat": "mag",
+          "dc": 4,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "You conjure glowing butterfly illusions. The Dronkeys chase them gleefully, clearing the path. \"Ooh, pretty!\" Donkey chases them too. You pull him back by the tail.",
+          "nok": "Your illusion turns into a giant spider. The Dronkeys PANIC. Fire EVERYWHERE. You run through the chaos while Donkey screams \"IT'S NOT REAL! IT'S NOT— okay it LOOKS real!\"",
+          "dmg": 2
+        },
+        {
+          "text": "💪 Just barrel through — they're BABIES",
+          "stat": "str",
+          "dc": 5,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "You charge through and the Dronkeys think it's a GAME. They follow you like a tiny fire-breathing parade. \"AGAIN! AGAIN!\" You arrive at Dragon's nest with six new fans. And minor burns.",
+          "nok": "Never underestimate a Dronkey. They dogpile you with surprisingly strong wings. One sits on your head. Another tries to eat your boot. You drag yourself free, covered in tiny bite marks and soot.",
+          "dmg": 2
+        }
+      ]
+    },
+    "pinocchio_tollgate": {
+      "title": "Pinocchio's Truth Toll",
+      "branch": "Dark Forest",
+      "art": "forest",
+      "text": "The path narrows to a single bridge over a bottomless chasm. Standing in the middle is Pinocchio, wearing a tiny toll-collector's hat and holding a clipboard.\n\n\"HALT! Nobody passes without answering my TRUTH CHALLENGE!\" His nose is currently normal-sized, so he's being honest about this much.\n\n\"One question. Answer TRUTHFULLY and you pass. Lie... and my nose grows, the bridge shakes, and you fall. Simple!\"\n\nShrek groans. \"Pinocchio, we don't have TIME for—\"\n\n\"RULES ARE RULES, Shrek!\"\n\nThe Three Blind Mice sit nearby as \"judges.\" They can't see anything but they're very enthusiastic about their role.\n\nPinocchio clears his throat. \"The question is: What are you MOST afraid of?\"",
+      "choices": [
+        {
+          "text": "🗣️ Tell the honest truth — vulnerability is strength",
+          "stat": "cha",
+          "dc": 4,
+          "next": "witch_swamp",
+          "fail": "witch_swamp",
+          "ok": "You answer honestly. Pinocchio's nose stays perfectly still. \"TRUTH! They speak TRUTH!\" The Blind Mice cheer. The bridge glows gold. \"See?\" Pinocchio beams. \"Honesty is the BEST policy! I would know — I'm TERRIBLE at it.\" His nose grows slightly.",
+          "nok": "You TRY to be honest but accidentally exaggerate. Pinocchio's nose twitches sympathetically. \"Close enough. Everyone embellishes. Trust me.\" His nose grows a full inch. He waves you through anyway.",
+          "dmg": 1
+        },
+        {
+          "text": "🎯 Out-lie the liar — say something SO absurd it loops back to truth",
+          "stat": "dex",
+          "dc": 6,
+          "next": "witch_swamp",
+          "fail": "witch_swamp",
+          "ok": "\"I'm afraid of NOTHING.\" Pinocchio's nose twitches — lie! But then you add: \"Because nothing means the VOID, and the void is TERRIFYING.\" His nose retracts. The Blind Mice are confused. Pinocchio looks existentially shaken. \"That's... technically true? Pass.\"",
+          "nok": "Your lie is transparent. Pinocchio's nose LAUNCHES forward and bonks you off the bridge. You grab the edge and climb back up. \"Nice try,\" Pinocchio says. \"I'm the EXPERT at lying. You're an amateur.\" Fair point.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Detect if Pinocchio himself is lying about the rules",
+          "stat": "mag",
+          "dc": 5,
+          "next": "witch_swamp",
+          "fail": "witch_swamp",
+          "ok": "Your magic reveals the truth — the bridge doesn't actually shake! Pinocchio made that up! His nose shoots out three inches. \"OKAY FINE! I just like being important! Nobody ever lets me guard ANYTHING!\" You pass while he has his crisis. Shrek pats his wooden head.",
+          "nok": "Your magic fizzles. Pinocchio grins. \"No cheating! Answer the question!\" You give a half-honest answer and he debates it for ten minutes with the Blind Mice before letting you through.",
+          "dmg": 1
+        }
+      ]
+    },
+    "sleeping_beauty_rage": {
+      "title": "Sleeping Beauty Unleashed",
+      "branch": "Dark Forest",
+      "art": "battle",
+      "text": "As you leave the enchanted tower, Sleeping Beauty SNAPS. A century of trapped dreams, forced sleep, and being called \"Sleepy\" has built up into a VOLCANIC rage.\n\n\"ONE HUNDRED YEARS!\" She rips a sword from a stone guardian. \"I missed ONE HUNDRED YEARS of my LIFE because some fairy had a GRUDGE!\"\n\nShe's cutting through corrupted trees like butter. Dark creatures flee. The ground shakes.\n\nSnow White backs away slowly. \"She gets like this. The naps help, but when she's UP, she's UP.\"\n\nCinderella throws you a look. \"Either ride the wave or get out of the way. There's no calming her down until something is DESTROYED.\"\n\nSleeping Beauty turns to you, eyes blazing. \"ARE YOU COMING OR NOT?!\"",
+      "choices": [
+        {
+          "text": "⚔️ Fight alongside her — channel the rage!",
+          "stat": "str",
+          "dc": 4,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "You match her fury step for step. Together you carve a PATH through the corrupted forest. Trees fall. Monsters scatter. It's terrifying and GLORIOUS. \"FINALLY!\" she laughs mid-swing. \"Someone who can KEEP UP!\"",
+          "nok": "You try to match her pace but she's a hurricane. She accidentally elbows you into a bush while destroying a shadow beast. \"Sorry! NOT sorry! KEEP MOVING!\" You follow at a safer distance, picking thorns from your face.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Direct her rage toward the dragon's nest — she's a WEAPON",
+          "stat": "cha",
+          "dc": 5,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "\"The corruption's SOURCE is that way! Everything that kept you asleep — it's ALL connected!\" Her eyes narrow. \"Then it ALL. BURNS.\" She charges toward the dragon's nest with renewed purpose. You've just aimed a princess-shaped missile at the enemy. Brilliant.",
+          "nok": "She's too angry to listen to directions. She veers off course and destroys a perfectly innocent ancient oak. \"That tree LOOKED evil!\" It takes ten minutes to redirect her. She apologizes to the tree. Sort of.",
+          "dmg": 1
+        },
+        {
+          "text": "✨ Enchant her sword to amplify the destruction",
+          "stat": "mag",
+          "dc": 5,
+          "next": "dragon_nest",
+          "fail": "dragon_nest",
+          "ok": "You channel magic into her blade. It erupts with golden fire. \"YES!\" She cleaves a corrupted oak in ONE swing. The path to dragon's nest opens wide. Cinderella mutters, \"Great. Now she's POWERED UP.\" Snow White starts taking notes.",
+          "nok": "The enchantment misfires and her sword turns into flowers. Sleeping Beauty stares at the bouquet. Then SCREAMS. Then uses the flowers to BEAT a shadow creature into submission. Flowers are surprisingly effective when swung with century-old rage.",
+          "dmg": 1
+        }
+      ]
+    },
+    "harold_secret_passage": {
+      "title": "Harold's Secret",
+      "branch": "Far Far Away",
+      "art": "castle",
+      "text": "A wet \"ribbit\" echoes from a drainpipe. King Harold — in full frog form — hops out, wearing a tiny crown that keeps sliding off his head.\n\n\"Psst! Down here!\" He adjusts his crown with a webbed hand. \"I escaped my cell through the plumbing. Don't ask. It was DISGUSTING.\"\n\nHe unfolds a soggy map. \"There's a secret passage. I built it when the castle was renovated — a king needs an escape route. It leads directly past Charming's private chambers.\"\n\n\"But there's a catch.\" He gulps. \"The passage goes through the old Fairy Godmother's sealed laboratory. Her magic still lingers. Traps, wards, the works.\"\n\nPuss examines the map. \"This is a VERY small passage, Your Majesty.\"\n\n\"I'm a VERY small king right now,\" Harold says with surprising dignity. \"Let's move.\"",
+      "choices": [
+        {
+          "text": "🐸 Follow Harold — he knows every stone",
+          "stat": "dex",
+          "dc": 4,
+          "next": "charming_plot",
+          "fail": "charming_plot",
+          "ok": "Harold hops ahead, guiding you through twisting tunnels. His frog reflexes spot every tripwire and pressure plate. \"Thirty years of secret passages,\" he says proudly. \"A king's REAL education.\" You emerge right behind Charming's chambers. Perfect.",
+          "nok": "Harold's frog memory isn't perfect — he takes a wrong turn into the wine cellar. You drink nothing (this is serious) but lose twenty minutes backtracking. \"It all looks different from three inches tall!\" Harold protests. Fair point.",
+          "dmg": 1
+        },
+        {
+          "text": "✨ Disarm the Fairy Godmother's magical traps",
+          "stat": "mag",
+          "dc": 5,
+          "next": "charming_plot",
+          "fail": "charming_plot",
+          "ok": "The lab still crackles with residual magic. You methodically disarm hex-traps, sleeping-gas vials, and one enchanted mirror that tries to give you a makeover. \"She was THOROUGH,\" Harold admits. \"I always said she was the most dangerous person in Far Far Away.\"",
+          "nok": "A trap catches you — briefly turned into a frog alongside Harold. \"Welcome to the club,\" he says drily. The potion wears off in minutes, but your boots don't fit right afterward. Something about residual amphibian energy.",
+          "dmg": 2
+        },
+        {
+          "text": "💪 Bash through the sealed sections",
+          "stat": "str",
+          "dc": 5,
+          "next": "charming_plot",
+          "fail": "charming_plot",
+          "ok": "You smash through old walls and sealed doors while Harold rides on your shoulder directing traffic. \"Left! No, YOUR left! Smash THAT wall!\" It's the noisiest secret passage infiltration in history, but you reach Charming's wing before anyone investigates.",
+          "nok": "You punch through a wall and a cascade of old potions rains down. Harold gets splashed and temporarily turns human again — then back to frog. \"THAT was a tease,\" he croaks. The noise alerts a patrol, and you have to hide in a closet for ten minutes.",
+          "dmg": 2
+        }
+      ]
+    },
+    "farquaad_ghost": {
+      "title": "The Ghost of Lord Farquaad",
+      "branch": "Far Far Away",
+      "art": "magic",
+      "text": "The dungeon beneath the throne room is haunted — and not subtly. Lord Farquaad's ghost floats three feet off the ground, which finally makes him average height.\n\n\"WELCOME to MY dungeon!\" Ghost Farquaad adjusts his spectral collar. \"I've been TRAPPED here since that dragon ate me. Do you know how BORING being dead is? No one to oppress! No mirrors to admire myself in!\"\n\nHe notices your weapons. \"Ah. You're here to stop Charming. HA! That mummy's boy couldn't lead a PARADE, let alone a kingdom.\"\n\nHe floats closer. \"I know every secret in this castle. Every hidden door, every weakness in the throne room's defenses. I'll TELL you — for a price.\"\n\n\"What price?\" you ask.\n\n\"A proper PORTRAIT in the throne room. Life-sized. Well... LARGER than life-sized. MUCH larger.\"",
+      "choices": [
+        {
+          "text": "🗣️ Accept the deal — a portrait is a small price",
+          "stat": "cha",
+          "dc": 4,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "\"DEAL!\" Farquaad claps his ghostly hands. He spills EVERYTHING — secret doors, guard rotations, even that Charming's wand has a five-minute recharge time. \"Make the portrait FLATTERING! I want to look TALL!\" You can work with that. Ghosts have useful intel.",
+          "nok": "Farquaad demands you sign a ghostly contract first. The negotiations take forever. \"The portrait must be OIL PAINTING! No watercolor! And I want a HORSE in it!\" You get some useful info between his demands, but mostly you've lost patience.",
+          "dmg": 0
+        },
+        {
+          "text": "✨ Exorcise this pompous phantom",
+          "stat": "mag",
+          "dc": 6,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "\"Begone, tiny tyrant!\" Your exorcism spell catches Farquaad mid-monologue. \"Wait! I can HELP—\" POOF. He's gone. But his energy releases a map of the castle's weaknesses, burned into the dungeon wall. Even better than a deal — no portrait required.",
+          "nok": "Farquaad DODGES your exorcism. \"HA! You think death made me WEAKER?\" He throws ghostly objects at you. You fend them off but he's now hostile. He slams a dungeon gate shut and you have to find another way up. Annoying little ghost.",
+          "dmg": 2
+        },
+        {
+          "text": "🗡️ Threaten to tell everyone he's short — even as a ghost",
+          "stat": "str",
+          "dc": 5,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "\"I'll tell EVERY ghost in the afterlife that Lord Farquaad was three feet tall AND got eaten by a dragon.\" Farquaad PANICS. \"FINE! Take the information! The throne room has a weak spot behind the fourth pillar! Just DON'T tell anyone about my height!\" Leverage: acquired.",
+          "nok": "Farquaad is insulted but he's also a GHOST and you can't actually threaten a ghost. He sulks and refuses to help. You push through the dungeon the hard way while he follows, making snide comments about YOUR height. At least you know the layout now.",
+          "dmg": 1
+        }
+      ]
+    },
+    "mongo_rampage": {
+      "title": "Mongo's Rampage",
+      "branch": "Far Far Away",
+      "art": "battle",
+      "text": "Just as you breach the castle's inner courtyard, the ground SHAKES. A shadow falls over everything.\n\nGingerbread Man looks up and SCREAMS with joy. \"MONGO! MY BOY!\"\n\nMongo — a GIANT gingerbread man the size of a building — smashes through the castle wall. He was baked by the resistance as a siege weapon, fueled by the world's largest oven and approximately nine thousand eggs.\n\n\"MONGO HELP!\" he bellows in a voice like a cookie avalanche.\n\nCharming's guards scatter. Catapults fire, but they just embed gumdrop buttons deeper into Mongo's chest. He doesn't care.\n\n\"MONGO SMASH PRETTY-HAIR MAN'S CASTLE!\"\n\nGingy wipes a tear. \"I'm so PROUD.\"\n\nMongo is heading for the throne room — with or without a plan.",
+      "choices": [
+        {
+          "text": "💪 Ride Mongo straight to the throne room!",
+          "stat": "str",
+          "dc": 4,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "You climb Mongo's frosting-covered arm and ride on his shoulder. \"FORWARD, MONGO!\" He PUNCHES through three walls and you're IN the throne room. Charming looks up at a building-sized cookie and screams. Best. Entrance. Ever.",
+          "nok": "You climb up but Mongo shakes too much. You slide down his icing and land in the courtyard fountain. Mongo continues without you, smashing a wall that wasn't load-bearing. Half the courtyard collapses. You scramble to the throne room through the rubble.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Direct Mongo strategically — aim for the defenses",
+          "stat": "cha",
+          "dc": 5,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "\"Mongo! Break the TOWERS! The guard towers!\" Mongo follows orders surprisingly well. CRUNCH. CRUNCH. Two towers fall. The castle's defenses crumble. Guards retreat. The path to the throne room is wide open. \"MONGO DID GOOD?\" \"Mongo did GREAT.\"",
+          "nok": "\"Mongo! The towers!\" Mongo breaks the CLOCK tower instead. \"NOT THAT ONE!\" Then the water tower. The courtyard floods with water and cookie crumbs. You wade to the throne room, soggy but determined. Gingy is floating on a gumdrop.",
+          "dmg": 1
+        },
+        {
+          "text": "🎯 Use Mongo as a distraction — sneak in during the chaos",
+          "stat": "dex",
+          "dc": 5,
+          "next": "throne_room",
+          "fail": "throne_room",
+          "ok": "While EVERY guard in the castle focuses on the giant cookie monster, you slip through a servant's entrance. The throne room is unguarded. Everyone is outside screaming. You're inside, alone with the throne, waiting for Charming to retreat to his last stronghold.",
+          "nok": "You sneak perfectly until a chunk of wall Mongo broke falls in front of you. You dive aside — right into a guard who was running FROM Mongo. You both look at each other, scream, and run in opposite directions. You reach the throne room, but not elegantly.",
+          "dmg": 2
+        }
+      ]
+    },
+    "godmother_apparition": {
+      "title": "The Fairy Godmother's Echo",
+      "branch": "Far Far Away",
+      "art": "magic",
+      "text": "Deep in the potion factory, a cauldron you didn't touch begins to GLOW. Sparkles spiral upward, forming a shimmering apparition — the Fairy Godmother herself, or rather, her magical echo, imprinted on the lab.\n\n\"Oh my, oh my!\" The echo adjusts her spectral glasses. \"Visitors in my lab! And you've been touching my THINGS!\"\n\nShe flutters around the equipment. \"I see what my SON has been up to. Loyalty potions in the WATER SUPPLY? That's MY recipe but it's all WRONG. He added too much vanity extract — amateur!\"\n\nShe turns to you. \"I may be an echo of my former self, but I still have POWER in this lab. I can help you stop him. A mother's love doesn't mean a mother's BLINDNESS.\"\n\nHer wand-echo sparks. \"What do you need, dearie?\"",
+      "choices": [
+        {
+          "text": "✨ Ask her to brew the ULTIMATE counter-potion",
+          "stat": "mag",
+          "dc": 5,
+          "next": "masquerade_ball",
+          "fail": "masquerade_ball",
+          "ok": "Together you brew a potion that doesn't just counter loyalty — it reveals the TRUE feelings of everyone who drinks it. \"When this hits the water supply, everyone will see Charming for who he REALLY is.\" She adds a sparkle for flair. \"Presentation matters, dearie.\"",
+          "nok": "The potion is ALMOST right but the Fairy Godmother's echo flickers at the crucial moment. It'll work... probably. \"70/30 chance,\" she says. \"Those were MY odds when I started this business!\" Not the most reassuring quality control.",
+          "dmg": 0
+        },
+        {
+          "text": "🗣️ Convince her to haunt Charming at the ball",
+          "stat": "cha",
+          "dc": 5,
+          "next": "masquerade_ball",
+          "fail": "masquerade_ball",
+          "ok": "\"Appear at the ball? In front of EVERYONE?\" She considers. \"Well... I DO love a dramatic entrance. And that boy needs a TALKING TO.\" She agrees to manifest at the critical moment. Having a ghostly Fairy Godmother as backup? That's an ace up your sleeve.",
+          "nok": "\"I can't maintain my form outside this lab for long, dearie. Too much magic required.\" She'll try, but no guarantees. She gives you a charm that might summon her for thirty seconds. Better than nothing. Probably.",
+          "dmg": 0
+        },
+        {
+          "text": "🗡️ Take her most powerful wand from the vault",
+          "stat": "dex",
+          "dc": 6,
+          "next": "masquerade_ball",
+          "fail": "masquerade_ball",
+          "ok": "She opens her personal vault — behind a shelf of \"Happily Ever After\" potions. Inside: her REAL wand. \"The one Charming has is a COPY. This is the original.\" It hums with power. \"Use it wisely, dearie. And tell my son... he's GROUNDED.\"",
+          "nok": "The vault is booby-trapped even for the Fairy Godmother's echo. A sleeping spell knocks you out for five minutes. You wake up with perfect hair. \"Side effect,\" she shrugs. You take a lesser wand — powerful, but not THE wand.",
+          "dmg": 1
+        }
+      ]
+    },
+    "piper_showdown": {
+      "title": "The Pied Piper's Duel",
+      "branch": "Rumpelstiltskin",
+      "art": "battle",
+      "text": "Between the swamp and the rally point, the Pied Piper blocks your path. He stands on a hill, silhouetted against the sky, flute raised.\n\n\"Going somewhere?\" He plays a single haunting note. Your feet twitch.\n\n\"Rumpelstiltskin sends his regards. You've been causing TROUBLE.\" Another note. Donkey starts tap-dancing involuntarily. \"I CAN'T STOP MY HOOVES!\"\n\nThe Piper's music is a weapon — it compels anyone who hears it to dance, march, or freeze. His army doesn't need swords. Just rhythm.\n\n\"Dance for me,\" he croons, launching into a melody. Your legs want to MOVE.\n\nShrek jams swamp mud in his ears. \"Can't hear what I can't hear!\" Smart ogre.",
+      "choices": [
+        {
+          "text": "💪 Plug ears and CHARGE — brute force beats melody",
+          "stat": "str",
+          "dc": 5,
+          "next": "fairy_rally",
+          "fail": "fairy_rally",
+          "ok": "Mud in ears, fury in heart. You charge uphill while the Piper plays frantically. His music can't grip you if you can't HEAR it. One solid hit sends his flute flying. \"MY FLUTE!\" Without it, he's just a weird guy in colorful pants. \"I SURRENDER!\" Smart choice.",
+          "nok": "The mud falls out halfway up the hill. The music hits and you break into an involuntary jig. You're tap-dancing TOWARD him, which is technically still charging. You headbutt him mid-pirouette. Not graceful, but effective. The flute cracks.",
+          "dmg": 2
+        },
+        {
+          "text": "🎵 Counter his music with Donkey's singing",
+          "stat": "cha",
+          "dc": 5,
+          "next": "fairy_rally",
+          "fail": "fairy_rally",
+          "ok": "\"DONKEY! SING! AS LOUD AS YOU CAN!\" Donkey belts out \"I'm a Believer\" at maximum volume. It's AWFUL. It's BEAUTIFUL. It completely drowns out the Piper's flute. His spell breaks. Everyone stops dancing.\n\nThe Piper covers his ears. \"MAKE IT STOP!\" Now HE knows how it feels. Donkey takes a bow.",
+          "nok": "Donkey sings but the Piper adapts, harmonizing. Now they're in a DUET. Everyone is dancing even HARDER. \"This isn't what I meant!\" You tackle the Piper mid-verse and the music stops. Donkey keeps singing for another three minutes because he's having fun.",
+          "dmg": 2
+        },
+        {
+          "text": "✨ Cast silence — no sound, no power",
+          "stat": "mag",
+          "dc": 5,
+          "next": "fairy_rally",
+          "fail": "fairy_rally",
+          "ok": "You cast a zone of magical silence. The Piper plays and plays — but NO SOUND comes out. His face goes from confident to confused to PANICKED. Without music, he's powerless. You walk up calmly, take his flute, and snap it. Silence is golden.",
+          "nok": "Your silence spell is patchy — works in spots, fails in others. The Piper plays a game of cat-and-mouse, darting between zones. You chase him through patches of sound and silence like the world's most annoying game of tag. Eventually Shrek clotheslines him.",
+          "dmg": 1
+        }
+      ]
+    },
+    "donkey_dragon_reunion": {
+      "title": "Donkey Finds Dragon",
+      "branch": "Rumpelstiltskin",
+      "art": "dragon",
+      "text": "In this twisted timeline, Dragon is Rumpelstiltskin's prisoner — chained in a volcanic pit, forced to power his fortress furnaces with her fire breath.\n\nDonkey sees her and FREEZES. Then his eyes fill with tears.\n\n\"Baby? BABY! What did they DO to you?!\"\n\nDragon lifts her head. She doesn't recognize this timeline's Donkey — they never met here. She SNARLS, chains rattling.\n\n\"She doesn't know me,\" Donkey whispers, heartbroken. \"In this world... we never...\"\n\nFiona puts a hand on his shoulder. \"Love transcends timelines, Donkey. If your bond is real, she'll feel it.\"\n\nDonkey walks toward the snarling dragon. No fear. Just love. \"Hey girl. I know you don't remember me. But I remember YOU.\"",
+      "choices": [
+        {
+          "text": "🗣️ Help Donkey reach Dragon with words of love",
+          "stat": "cha",
+          "dc": 5,
+          "next": "ogre_resistance",
+          "fail": "ogre_resistance",
+          "ok": "Donkey talks to Dragon. Not his usual chatter — real, quiet words. About their kids. About flying together. About the first time she didn't eat him. Dragon's eyes soften. A rumble — not a growl. A PURR. She lowers her head to Donkey. The chains glow and SHATTER.\n\n\"Love is the most powerful magic,\" Fiona says, wiping her eyes. Shrek pretends he's not crying. He is.",
+          "nok": "Dragon snaps at Donkey but he doesn't flinch. \"I ain't scared of you, baby. I never was.\" She hesitates. The bond isn't fully there, but she stops attacking. Not quite a reunion — but a truce. Donkey sits beside her, talking softly, while you work on the chains.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Break Dragon's chains by force",
+          "stat": "str",
+          "dc": 6,
+          "next": "ogre_resistance",
+          "fail": "ogre_resistance",
+          "ok": "While Donkey distracts Dragon with his heartfelt speech, you attack the chains. Enchanted iron — it takes everything you've got. CLANG. CLANG. CRACK! The chains shatter. Dragon ROARS in freedom. She looks at Donkey — really LOOKS — and something clicks. She remembers. Somehow, she REMEMBERS.",
+          "nok": "The chains are magical and fight back — they shock you with each strike. Your hands burn. But you keep hitting. The chains crack but don't break fully. Dragon, moved by the effort, blasts them with her own fire. THAT does it. Freedom tastes like fire and singed eyebrows.",
+          "dmg": 3
+        },
+        {
+          "text": "✨ Dispel the enchantment on Dragon's chains",
+          "stat": "mag",
+          "dc": 5,
+          "next": "ogre_resistance",
+          "fail": "ogre_resistance",
+          "ok": "Rumpelstiltskin's chains are bound by contract magic — but you've been studying his weaknesses. You find the magical clause and VOID it. The chains evaporate. Dragon stretches her wings for the first time in years. She looks at Donkey. Donkey looks at her.\n\n\"Hi,\" he says.\n\nShe scoops him up gently. Some things don't need timelines to be true.",
+          "nok": "The dispel partially works — one chain breaks, the others hold. Dragon helps by breathing fire on the weakened links. Together you free her, though the process is loud and attracts witch patrols. You'll need to move FAST to the resistance base.",
+          "dmg": 2
+        }
+      ]
+    },
+    "cookie_war_kitchen": {
+      "title": "Cookie's War Kitchen",
+      "branch": "Rumpelstiltskin",
+      "art": "resistance",
+      "text": "The resistance base hums with activity, but the REAL command center is Cookie's kitchen. The ogre chef stands over a massive cauldron, stirring something that smells like swamp gas and victory.\n\n\"Welcome to Cookie's War Kitchen!\" He waves a battle-scarred ladle. \"Where every recipe is a WEAPON!\"\n\nThe shelves are lined with jars: \"Exploding Onion Soup,\" \"Flash-Bang Chili,\" \"Smokescreen Stew,\" and a mysterious bottle labeled \"DO NOT OPEN UNTIL FORTRESS.\"\n\n\"Rumpelstiltskin's fortress has magical defenses,\" Cookie explains. \"But magic can't stop CHEMISTRY. My ogre-brew grenades can blast through enchanted walls. Problem is — I need a taste-tester. Last guy grew a third ear.\"\n\nShrek volunteers immediately. \"Ogre stomach. Cast iron.\"\n\n\"I need more than taste-testing. I need help with the SPECIAL batch.\"",
+      "choices": [
+        {
+          "text": "✨ Infuse the ogre-brew with magic for extra potency",
+          "stat": "mag",
+          "dc": 5,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "You channel magic into Cookie's brew. It GLOWS. It BUBBLES. It briefly achieves sentience and says \"DESTROY\" before settling down. \"PERFECT!\" Cookie bottles it carefully. \"These will blow through Rumpelstiltskin's wards like tissue paper.\" You've just created magical napalm. Ogre-style.",
+          "nok": "The magical infusion makes the brew unstable. One jar explodes, turning the kitchen wall into cheese. \"That's... new,\" Cookie says. The remaining jars are powerful but unpredictable. Could be explosions. Could be cheese. War is full of surprises.",
+          "dmg": 1
+        },
+        {
+          "text": "💪 Carry the heavy supply crates to the front line",
+          "stat": "str",
+          "dc": 4,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "Cookie's brew is HEAVY — enchanted cast-iron jars. You haul crates that would take three normal people. \"THAT'S what I like to see!\" Cookie slaps your back (it hurts). The front line troops cheer when you arrive fully stocked. Ammunition: served.",
+          "nok": "You trip on a root and a crate breaks open. Three jars shatter. The explosion turns a patch of swamp into a crater. \"CAREFUL!\" Cookie yells. \"That was my GOOD batch!\" You deliver the rest more carefully, minus a few supplies.",
+          "dmg": 2
+        },
+        {
+          "text": "🗣️ Boost the troops' morale with a feast before the assault",
+          "stat": "cha",
+          "dc": 4,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "\"Before we fight — we EAT!\" Cookie's feast is legendary. Swamp-rat stew, onion bread, mud pie (actual pie, not actual mud — mostly). The resistance eats, laughs, shares stories. By the time you march on the fortress, the army's spirit is UNBREAKABLE. Full stomachs, full hearts.",
+          "nok": "The feast is great until Donkey eats something that disagrees with him. Loudly. The resulting... atmosphere... clears three tents. Cookie is offended. \"My stew is PERFECT! His stomach is WEAK!\" Morale is mixed. But at least everyone bonded over the experience.",
+          "dmg": 0
+        }
+      ]
+    },
+    "fiona_war_council": {
+      "title": "Fiona's War Council",
+      "branch": "Rumpelstiltskin",
+      "art": "battle",
+      "text": "In a torchlit cave, Fiona stands over a sand-table map of Rumpelstiltskin's fortress. She's in full warrior mode — armor, war paint, and an expression that could curdle milk.\n\n\"Listen up. We get ONE shot at this.\" She moves sand figures across the map. \"Rumple's fortress has three layers: outer wall, inner keep, and the tower where the spinning wheel sits. Each layer has magical defenses.\"\n\nShrek stands beside her, arms crossed. Donkey is surprisingly focused. Puss in Boots sharpens his sword. Dragon circles overhead.\n\n\"We need to decide our approach. The full army can assault the walls while a strike team breaches the tower. Or we can be surgical about it.\"\n\nShe looks at you. \"You've gotten us this far. What's the plan, General?\"",
+      "choices": [
+        {
+          "text": "⚔️ Full army assault — break through all three layers",
+          "stat": "str",
+          "dc": 5,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "\"We hit them with EVERYTHING.\" Fiona grins. \"I was hoping you'd say that.\" She assigns roles: Dragon breaks the outer wall, the ogres storm the keep, and the strike team races for the tower. \"This is what we've been fighting for. Let's END this.\" The army roars.",
+          "nok": "The full assault plan has gaps — Fiona spots a weakness in the left flank. \"If Rumple's witches hit here, we crumble.\" She adjusts the plan on the fly, but the delay costs you the element of surprise. Scouts report Rumple is reinforcing his walls.",
+          "dmg": 1
+        },
+        {
+          "text": "🌙 Surgical strike — small team, maximum stealth",
+          "stat": "dex",
+          "dc": 6,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "\"Five of us. You, me, Shrek, Puss, and Donkey.\" Fiona nods. \"Small, fast, deadly. The army distracts while we slip in.\" She traces a path through the sewers. \"Nobody expects heroes to crawl through sewage.\" Shrek shrugs. \"I live in a swamp. This is Tuesday.\"",
+          "nok": "The stealth plan is solid but Dragon can't be stealthy. She's the size of a house. Fiona adapts: Dragon joins the distraction force while you infiltrate. Less firepower, but more flexibility. \"Plan B is still a plan,\" Fiona says.",
+          "dmg": 1
+        },
+        {
+          "text": "🗣️ Diplomacy first — send terms, then attack when Rumple refuses",
+          "stat": "cha",
+          "dc": 5,
+          "next": "rumple_fortress",
+          "fail": "rumple_fortress",
+          "ok": "\"Offer terms. He refuses. Then we attack while he's laughing at our 'weakness.'\" Fiona raises an eyebrow. \"Using his arrogance as a weapon. I like it.\" You send a surrender demand. Rumple laughs for TEN MINUTES. Meanwhile, your forces move into perfect position. His laughter dies when he sees the army at his gates.",
+          "nok": "Rumpelstiltskin responds to your terms with a counter-offer: \"Surrender and I'll let you keep your SHOES.\" The insult fires up the troops better than any speech. \"Well THAT backfired on him,\" Fiona smirks. Not the plan you intended, but the result works.",
+          "dmg": 0
+        }
+      ]
+    },
+    "game_over": {
+      "title": "Game Over",
+      "art": "skull",
+      "text": "Your adventure ends here. The swamp grows quiet. The fairy tale goes untold.\n\nBut every story deserves another chance...\n\n\"Get up!\" Donkey's voice echoes. \"You can't quit NOW! We haven't even gotten to the good part!\"\n\nShrek sighs. \"...he's right. Annoyingly. Try again?\"",
+      "ending": true,
+      "emoji": "☠️"
+    }
+  },
+  "endings": {
+    "ending_hero": {
+      "title": "Hero's Triumph",
+      "art": "victory",
+      "emoji": "🏆",
+      "text": "The villain falls. The day is saved. Far Far Away celebrates with the biggest party the realm has ever seen.\n\nShrek tries to sneak away but Fiona catches him. \"You're dancing. ONE dance.\" He grumbles but secretly smiles.\n\nDonkey gives a toast that goes on for forty-five minutes. Nobody has the heart to stop him.\n\nPuss in Boots writes a ballad about the adventure. It's mostly about himself, but he dedicates it to you.\n\nThe Magic Mirror shows the kingdom at peace. \"And they all lived happily ever after,\" it says. Then adds: \"Except Prince Charming. He's doing community service. In the swamp.\"\n\n🏆 TRUE HERO ENDING 🏆\nYou faced evil head-on and WON through courage and strength.\nThe bards will sing of this day. Donkey will sing louder."
+    },
+    "ending_dark": {
+      "title": "The Dark Ending",
+      "art": "skull",
+      "emoji": "💀",
+      "text": "Darkness falls across the land. The villain's power is absolute.\n\nShrek retreats to his swamp, which is all that remains uncorrupted — a tiny green refuge in a world gone wrong. Donkey won't stop pacing. Fiona sharpens her sword, planning the next attempt.\n\n\"We lost the battle,\" Fiona says quietly. \"Not the war.\"\n\nShrek puts a hand on your shoulder. \"Get some rest. We try again tomorrow. And the day after that. And the day after that.\"\n\nDonkey adds: \"Yeah! Because that's what heroes DO! They fail and then they try AGAIN! Like my singing career!\"\n\nEveryone winces. But he's right.\n\n💀 DARK ENDING 💀\nThe villain won this round. But fairy tales don't end in darkness forever.\nSomewhere, a new hero is waking up in a swamp..."
+    },
+    "ending_royal": {
+      "title": "Royal Ascension",
+      "art": "crown",
+      "emoji": "👑",
+      "text": "The rightful rulers are restored — and they've added a new title to the royal court: YOU.\n\nQueen Fiona rules with wisdom and the occasional ogre roar. King Harold, finally un-frogged, learns to play golf. Queen Lillian starts a book club that's actually a secret intelligence network.\n\nYou serve as Royal Champion, which mostly means attending banquets and preventing Donkey from eating the decorations.\n\nPrince Charming is sentenced to being the kingdom's hairdresser. He's actually excellent at it. Finds his true calling.\n\nPuss in Boots becomes Captain of the Royal Guard. His first decree: mandatory nap time.\n\n👑 ROYAL ENDING 👑\nYou didn't just save the kingdom — you became part of it.\nFar Far Away has never been more far far fabulous."
+    },
+    "ending_dragon": {
+      "title": "Dragon Rider",
+      "art": "dragon_friend",
+      "emoji": "🐉",
+      "text": "You and Dragon soar above the clouds, the corruption destroyed, the forest healing below. The bond between you is unbreakable — forged in fire and trust.\n\nDonkey watches from below, tears streaming. \"That's my BABY! And my FRIEND! Up there TOGETHER!\" He sobs happy tears into Shrek's vest. Shrek pretends to be annoyed but pats his head.\n\nDragon takes you to her secret nest where the Dronkeys — her and Donkey's children — play among gems. They're equal parts adorable and terrifying.\n\nYou become the first Dragon Rider of Far Far Away, protecting the realm from the sky. The fairy tale creatures sleep soundly knowing a dragon watches over them.\n\n🐉 DRAGON RIDER ENDING 🐉\nSome heroes fight with swords. Some fight with magic.\nYou chose friendship — and got wings."
+    },
+    "ending_trickster": {
+      "title": "Master of Tricks",
+      "art": "trickster",
+      "emoji": "🎭",
+      "text": "You out-tricked the trickster, out-charmed the charmer, and out-smarted everyone in the room. The villain didn't just lose — they lost to their OWN game.\n\nWord spreads across the land: there's someone cleverer than Rumpelstiltskin, wittier than Puss in Boots, and sneakier than the Big Bad Wolf.\n\nGingerbread Man offers you a job. \"I'm starting a consulting firm. 'Fairy Tale Solutions Inc.' You'd be PERFECT.\"\n\nYou decline. There are more adventures out there. More tricks to play. More villains who think they're the smartest in the room.\n\nShrek watches you leave. \"That one's trouble,\" he tells Fiona.\n\"The BEST kind of trouble,\" she replies.\n\n🎭 TRICKSTER ENDING 🎭\nBrains beat brawn. Wit beats wands.\nYou played the game and rewrote the rules."
+    },
+    "ending_peace": {
+      "title": "Swamp Sweet Swamp",
+      "art": "peace",
+      "emoji": "💚",
+      "text": "The conflict ends not with a bang, but with a handshake. An uneasy peace — but peace nonetheless. The villain's power is broken enough to prevent tyranny, and the realm settles into a new normal.\n\nYou return to the swamp. Shrek makes onion soup. Fiona sets up a defensive perimeter (old habits). Donkey talks about his feelings for two hours straight.\n\nIt's not a grand victory. There's no parade. No crown. No dragon ride.\n\nBut Shrek hands you a bowl of soup and says, \"You're alright. For a non-ogre.\"\n\nFrom Shrek, that's basically a medal.\n\nThe sun sets over the swamp. It smells terrible. It's perfect.\n\n💚 PEACE ENDING 💚\nNot every hero needs glory. Sometimes the bravest thing\nis choosing peace — and a really good bowl of onion soup."
+    }
+  }
+}

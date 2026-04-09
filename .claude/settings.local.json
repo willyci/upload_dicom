@@ -17,7 +17,20 @@
       "Bash(echo \"$PATH\" | tr ':' '\\\\n' | grep -i node)",
       "Bash(node -e \"const https = require\\('https'\\); const fs = require\\('fs'\\); https.get\\('https://registry.npmjs.org/npm/latest', r => { let d=''; r.on\\('data',c=>d+=c\\); r.on\\('end',\\(\\)=>console.log\\(JSON.parse\\(d\\).version\\)\\); }\\);\" 2>/dev/null)",
       "Bash(git pull:*)",
-      "WebFetch(domain:www.medseg.ai)"
+      "WebFetch(domain:www.medseg.ai)",
+      "Bash(node -e ':*)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/mlc-ai/web-llm/main/src/config.ts\")",
+      "Bash(npm view:*)",
+      "Bash(node:*)",
+      "Bash(grep '//')",
+      "mcp__claude_ai_Hugging_Face__hub_repo_search",
+      "WebFetch(domain:console.cloud.google.com)",
+      "mcp__claude_ai_Hugging_Face__hf_doc_fetch",
+      "WebFetch(domain:developers.google.com)",
+      "WebFetch(domain:hf.co)",
+      "WebFetch(domain:doc.babylonjs.com)",
+      "WebFetch(domain:forum.babylonjs.com)",
+      "WebFetch(domain:babylonjs.medium.com)"
     ]
   }
 }

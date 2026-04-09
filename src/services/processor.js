@@ -13,6 +13,7 @@ import { buildVolumeData } from '../utils/volumeBuilder.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
 import { DicomMetaDictionary, DicomMessage } from '../utils/dicomHelpers.js';
 import { yieldToEventLoop } from '../utils/pixelData.js';
+import { analyzeDicom } from './medgemma.js';
 import { setProcessingStatus } from '../utils/progress.js';
 
 const gc = typeof global.gc === 'function' ? global.gc : null;
@@ -188,5 +189,16 @@ export async function processDirectory(dirPath) {
         }
     }
 
-    return { processedFiles, errors };
+    // Run MedGemma AI analysis on the middle slice (most representative)
+    let aiAnalysis = null;
+    if (processedFiles.length > 0) {
+        setProcessingStatus('Running MedGemma AI analysis...');
+        const midIdx = Math.floor(processedFiles.length / 2);
+        const representative = processedFiles[midIdx];
+        // Resolve the absolute path for the JPG
+        const jpgAbsPath = path.resolve('public', representative.jpgPath);
+        aiAnalysis = await analyzeDicom(jpgAbsPath, representative.dicomInfo);
+    }
+
+    return { processedFiles, errors, aiAnalysis };
 }

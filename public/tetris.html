@@ -5,22 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Tetris</title>
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Play 3D Tetris for free. A modern, engaging 3D block puzzle experience with dynamic camera controls, beautiful visuals, and escalating difficulty.">
-    <meta name="keywords" content="3D Tetris, WebGL puzzle, Tetris game, browser games, free online games, Three.js, logic puzzle">
+    <meta name="description"
+        content="Play 3D Tetris for free. A modern, engaging 3D block puzzle experience with dynamic camera controls, beautiful visuals, and escalating difficulty.">
+    <meta name="keywords"
+        content="3D Tetris, WebGL puzzle, Tetris game, browser games, free online games, Three.js, logic puzzle">
     <meta name="author" content="Willyci">
     <meta name="robots" content="index, follow">
-    
+
     <!-- Open Graph for Social Sharing -->
     <meta property="og:title" content="3D Tetris">
-    <meta property="og:description" content="A visually stunning 3D version of the classic block puzzle game built with Three.js. Play directly in your browser without any downloads.">
+    <meta property="og:description"
+        content="A visually stunning 3D version of the classic block puzzle game built with Three.js. Play directly in your browser without any downloads.">
     <meta property="og:type" content="website">
-    
+
     <!-- Twitter Card Data -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="3D Tetris Web Game">
-    <meta name="twitter:description" content="Play the modern 3D version of Tetris directly in your browser. Complete with smooth orbital controls and stunning visuals.">
+    <meta name="twitter:description"
+        content="Play the modern 3D version of Tetris directly in your browser. Complete with smooth orbital controls and stunning visuals.">
     <style>
         * {
             margin: 0;
@@ -122,7 +126,7 @@
 
         #controls-panel {
             position: absolute;
-            bottom: 20px;
+            bottom: 160px;
             left: 20px;
             background: rgba(0, 0, 0, 0.7);
             padding: 18px 24px;
@@ -303,6 +307,27 @@
             color: #000;
         }
 
+        #vr-link {
+            display: none;
+            margin-top: 12px;
+            font-size: 15px;
+            padding: 10px 36px;
+            cursor: pointer;
+            background: transparent;
+            color: #f4a;
+            border: 2px solid #f4a;
+            border-radius: 10px;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-decoration: none;
+        }
+
+        #vr-link:hover {
+            background: #f4a;
+            color: #000;
+        }
+
         /* ── Game over overlay ── */
         #overlay {
             display: none;
@@ -433,6 +458,161 @@
             background: #556;
             color: #fff;
         }
+
+        /* ── Mobile touch controls ── */
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #mobile-controls.active {
+            display: block;
+        }
+
+        .touch-pad {
+            position: absolute;
+            pointer-events: auto;
+        }
+
+        /* WASD rotate pad — bottom left */
+        #pad-rotate {
+            left: 12px;
+            bottom: 0px;
+        }
+
+        /* Arrow move pad — bottom right */
+        #pad-move {
+            right: 12px;
+            bottom: 0px;
+        }
+
+        /* Space drop — bottom center */
+        #pad-drop {
+            left: 50%;
+            bottom: 90px;
+            transform: translateX(-50%);
+        }
+
+        /* Pause — top center, outside mobile-controls */
+        #mobile-pause {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+        }
+
+        #mobile-pause.active {
+            display: block;
+        }
+
+        .tbtn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            color: #ccd;
+            font-size: 20px;
+            font-family: monospace;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: auto;
+        }
+
+        .tbtn:active {
+            background: rgba(100, 170, 255, 0.35);
+        }
+
+        .tbtn.wide {
+            width: 110px;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        .tbtn.menu-btn {
+            width: auto;
+            padding: 8px 18px;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-columns: 52px 52px 52px;
+            grid-template-rows: 52px 52px;
+            gap: 4px;
+        }
+
+        .dpad .blank {
+            visibility: hidden;
+        }
+
+        .dpad-label {
+            text-align: center;
+            font-size: 10px;
+            color: #667;
+            letter-spacing: 2px;
+            margin-top: 2px;
+        }
+
+        /* Mobile layout overrides */
+        @media (max-width: 768px),
+        (pointer: coarse) {
+            #controls-panel {
+                display: none !important;
+            }
+
+            #ui {
+                top: 10px;
+                left: 10px;
+                padding: 8px 12px;
+            }
+
+            #ui h1 {
+                font-size: 14px;
+                margin-bottom: 4px;
+            }
+
+            .stat {
+                font-size: 12px;
+                margin: 2px 0;
+            }
+
+            .stat span {
+                font-size: 14px;
+            }
+
+            #next-panel {
+                top: 10px;
+                right: 10px;
+                padding: 8px 10px;
+            }
+
+            #next-panel h2 {
+                font-size: 10px;
+            }
+
+            #next-panel canvas {
+                width: 80px !important;
+                height: 80px !important;
+            }
+
+            #next-panel-2 {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -517,6 +697,7 @@
             </div>
         </div>
         <button id="start-btn">START</button>
+        <a id="vr-link" href="tetrisVR.html">🥽 PLAY IN VR</a>
     </div>
 
     <!-- Pause menu -->
@@ -539,6 +720,32 @@
         </div>
     </div>
 
+    <!-- Mobile touch controls -->
+    <div id="mobile-pause"><button class="tbtn menu-btn" data-action="pause">⏸ MENU</button></div>
+    <div id="mobile-controls">
+        <div class="touch-pad" id="pad-rotate">
+            <div class="dpad">
+                <div class="blank"></div><button class="tbtn" data-action="KeyW">W</button>
+                <div class="blank"></div>
+                <button class="tbtn" data-action="KeyA">A</button><button class="tbtn"
+                    data-action="KeyS">S</button><button class="tbtn" data-action="KeyD">D</button>
+            </div>
+            <div class="dpad-label">ROTATE</div>
+        </div>
+        <div class="touch-pad" id="pad-drop">
+            <button class="tbtn wide" data-action="Space">DROP</button>
+        </div>
+        <div class="touch-pad" id="pad-move">
+            <div class="dpad">
+                <div class="blank"></div><button class="tbtn" data-action="ArrowUp">↑</button>
+                <div class="blank"></div>
+                <button class="tbtn" data-action="ArrowLeft">←</button><button class="tbtn"
+                    data-action="ArrowDown">↓</button><button class="tbtn" data-action="ArrowRight">→</button>
+            </div>
+            <div class="dpad-label">MOVE</div>
+        </div>
+    </div>
+
     <script type="importmap">
     {
         "imports": {
@@ -550,6 +757,92 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ── Sound FX (Web Audio API — no files) ──
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function sfx(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const g = audioCtx.createGain();
+            g.connect(audioCtx.destination);
+
+            if (type === 'move') {
+                const o = audioCtx.createOscillator();
+                o.type = 'square';
+                o.frequency.setValueAtTime(220, now);
+                o.frequency.exponentialRampToValueAtTime(280, now + 0.04);
+                g.gain.setValueAtTime(0.08, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                o.connect(g); o.start(now); o.stop(now + 0.05);
+            }
+            else if (type === 'rotate') {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(400, now);
+                o.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+                g.gain.setValueAtTime(0.12, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                o.connect(g); o.start(now); o.stop(now + 0.1);
+            }
+            else if (type === 'drop') {
+                // Heavy thud
+                const o = audioCtx.createOscillator();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(150, now);
+                o.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                g.gain.setValueAtTime(0.25, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                o.connect(g); o.start(now); o.stop(now + 0.2);
+                // Impact noise
+                const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.4;
+                const ns = audioCtx.createBufferSource();
+                ns.buffer = buf;
+                const gn = audioCtx.createGain();
+                gn.gain.setValueAtTime(0.12, now);
+                gn.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                ns.connect(gn); gn.connect(audioCtx.destination); ns.start(now);
+            }
+            else if (type === 'clear') {
+                // Ascending sparkle sweep
+                [523, 659, 784, 1047].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(freq, now + i * 0.06);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.14, now + i * 0.06);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.06); o.stop(now + i * 0.06 + 0.2);
+                });
+            }
+            else if (type === 'tetris') {
+                // Multi-line clear — bigger fanfare
+                [523, 659, 784, 1047, 1319].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'square';
+                    o.frequency.setValueAtTime(freq, now + i * 0.08);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.12, now + i * 0.08);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.3);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.3);
+                });
+            }
+            else if (type === 'gameover') {
+                [400, 350, 280, 200, 150].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sawtooth';
+                    o.frequency.setValueAtTime(freq, now + i * 0.18);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.1, now + i * 0.18);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.3);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.18); o.stop(now + i * 0.18 + 0.3);
+                });
+            }
+        }
 
         // ── Settings (changed via start menu) ──
         let GX = 4, GZ = 4, GY = 12;
@@ -915,9 +1208,9 @@
 
         // O piece rotation state machine (avoids Math.round drift with half-integer pivot)
         const O_STATES = {
-            xz: { blocks: [[0,0,0],[1,0,0],[0,0,1],[1,0,1]], pivot: [0.5, 0, 0.5] },
-            xy: { blocks: [[0,0,0],[1,0,0],[0,1,0],[1,1,0]], pivot: [0.5, 0.5, 0] },
-            yz: { blocks: [[0,0,0],[0,1,0],[0,0,1],[0,1,1]], pivot: [0, 0.5, 0.5] },
+            xz: { blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]], pivot: [0.5, 0, 0.5] },
+            xy: { blocks: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]], pivot: [0.5, 0.5, 0] },
+            yz: { blocks: [[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]], pivot: [0, 0.5, 0.5] },
         };
         const O_NEXT = {
             xz: { x: 'xy', y: 'xz', z: 'yz' },
@@ -932,9 +1225,9 @@
                 const next = O_NEXT[cur.oState][axis];
                 if (next === cur.oState) return true; // symmetric, no-op
                 const st = O_STATES[next];
-                const kicks = [[0,0,0], [-1,0,0], [1,0,0], [0,0,-1], [0,0,1], [0,1,0], [0,-1,0]];
+                const kicks = [[0, 0, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1], [0, 1, 0], [0, -1, 0]];
                 for (const [kx, ky, kz] of kicks) {
-                    const t = { blocks: st.blocks, pos: { x: cur.pos.x+kx, y: cur.pos.y+ky, z: cur.pos.z+kz }, color: cur.color };
+                    const t = { blocks: st.blocks, pos: { x: cur.pos.x + kx, y: cur.pos.y + ky, z: cur.pos.z + kz }, color: cur.color };
                     if (valid(t)) {
                         cur.blocks = st.blocks.map(b => [...b]);
                         cur.pivot = [...st.pivot];
@@ -993,6 +1286,7 @@
             let d = 0;
             while (tryMove(0, -1, 0)) d++;
             score += d * 2;
+            sfx('drop');
             lock();
         }
 
@@ -1043,6 +1337,7 @@
             }
 
             if (fullLayers.length > 0) {
+                sfx(fullLayers.length >= 3 ? 'tetris' : 'clear');
                 startClearAnim(fullLayers);
             } else {
                 spawnNext();
@@ -1065,6 +1360,7 @@
             if (!valid(cur)) {
                 gameOver = true;
                 playing = false;
+                sfx('gameover');
                 document.getElementById('overlay').classList.add('show');
                 document.getElementById('final-score').textContent = score;
             }
@@ -1430,6 +1726,7 @@
             document.getElementById('ui').style.display = d;
             document.getElementById('next-panel').style.display = d;
             document.getElementById('controls-panel').style.display = d;
+            showMobileControls(show);
             if (!show) {
                 document.getElementById('next-panel-2').style.display = 'none';
             } else if (nextPieces.length > 1) {
@@ -1459,6 +1756,7 @@
             if (!playing || gameOver) return;
             paused = true;
             document.getElementById('pause-menu').classList.add('show');
+            showMobileControls(false);
         }
 
         function resumeGame() {
@@ -1466,6 +1764,7 @@
             lastDrop = performance.now();
             if (locking) lockTime = performance.now();
             document.getElementById('pause-menu').classList.remove('show');
+            showMobileControls(true);
         }
 
         document.getElementById('resume-btn').addEventListener('click', resumeGame);
@@ -1543,14 +1842,14 @@
             held.add(e.code);
             let ok = true;
             switch (e.code) {
-                case 'ArrowLeft': viewMove(-1, 0); break;
-                case 'ArrowRight': viewMove(1, 0); break;
-                case 'ArrowUp': viewMove(0, -1); break;
-                case 'ArrowDown': viewMove(0, 1); break;
-                case 'KeyA': tryRotate('y', 1); break;
-                case 'KeyD': tryRotate('y', -1); break;
-                case 'KeyW': tryRotate('x', 1); break;
-                case 'KeyS': tryRotate('x', -1); break;
+                case 'ArrowLeft': viewMove(-1, 0); sfx('move'); break;
+                case 'ArrowRight': viewMove(1, 0); sfx('move'); break;
+                case 'ArrowUp': viewMove(0, -1); sfx('move'); break;
+                case 'ArrowDown': viewMove(0, 1); sfx('move'); break;
+                case 'KeyA': tryRotate('y', 1); sfx('rotate'); break;
+                case 'KeyD': tryRotate('y', -1); sfx('rotate'); break;
+                case 'KeyW': tryRotate('x', 1); sfx('rotate'); break;
+                case 'KeyS': tryRotate('x', -1); sfx('rotate'); break;
                 case 'Space': hardDrop(); break;
                 case 'ShiftLeft': case 'ShiftRight': softDrop = true; break;
                 default: ok = false;
@@ -1561,6 +1860,45 @@
             held.delete(e.code);
             if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') softDrop = false;
         });
+
+        // ── Mobile touch controls ──
+        const isMobile = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches;
+
+        function showMobileControls(show) {
+            if (!isMobile) return;
+            document.getElementById('mobile-controls').classList.toggle('active', show);
+            document.getElementById('mobile-pause').classList.toggle('active', show);
+        }
+
+        if (isMobile) {
+            // Touch button handlers — simulate keydown events
+            document.querySelectorAll('#mobile-controls .tbtn, #mobile-pause .tbtn').forEach(btn => {
+                const action = btn.dataset.action;
+
+                btn.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    if (action === 'pause') {
+                        if (playing && !gameOver) {
+                            if (paused) resumeGame(); else pauseGame();
+                        }
+                        return;
+                    }
+                    if (!playing || gameOver || paused) return;
+                    switch (action) {
+                        case 'ArrowLeft': viewMove(-1, 0); sfx('move'); break;
+                        case 'ArrowRight': viewMove(1, 0); sfx('move'); break;
+                        case 'ArrowUp': viewMove(0, -1); sfx('move'); break;
+                        case 'ArrowDown': viewMove(0, 1); sfx('move'); break;
+                        case 'KeyA': tryRotate('y', 1); sfx('rotate'); break;
+                        case 'KeyD': tryRotate('y', -1); sfx('rotate'); break;
+                        case 'KeyW': tryRotate('x', 1); sfx('rotate'); break;
+                        case 'KeyS': tryRotate('x', -1); sfx('rotate'); break;
+                        case 'Space': hardDrop(); break;
+                    }
+                    refreshPiece(); updateUI();
+                }, { passive: false });
+            });
+        }
 
         // ── Game loop ──
         function startGame() {
@@ -1611,6 +1949,7 @@
                         if (!tryMove(0, -1, 0)) {
                             if (!locking) { locking = true; lockTime = now; }
                         } else {
+                            sfx('move');
                             locking = false;
                         }
                         refreshPiece();
@@ -1676,6 +2015,13 @@
             camera.updateProjectionMatrix();
             renderer.setSize(innerWidth, innerHeight);
         });
+
+        // ── WebXR VR detection ──
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+                if (supported) document.getElementById('vr-link').style.display = 'inline-block';
+            });
+        }
 
         // ── Initial state: show start menu, render empty scene ──
         buildStaticScene();

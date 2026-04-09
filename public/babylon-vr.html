@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Babylon.js VR Volume Viewer</title>
+<meta name="description" content="Immersive WebXR volume rendering of DICOM medical images using Babylon.js. Ray marching with 3D textures in VR.">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+    #renderCanvas { width: 100vw; height: 100vh; touch-action: none; }
+
+    /* Loading overlay */
+    #loading {
+        position: fixed; inset: 0; z-index: 100;
+        background: #0a0a1a;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        transition: opacity 0.5s;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    #loading h1 { font-size: 24px; color: #6cf; margin-bottom: 12px; letter-spacing: 3px; }
+    #loading .sub { color: #668; font-size: 14px; margin-bottom: 24px; }
+    #load-status { color: #aac; font-size: 13px; }
+    .loader-bar { width: 260px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
+    .loader-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #6cf, #c6f); transition: width 0.3s; }
+
+    /* HUD */
+    #hud {
+        position: fixed; top: 16px; left: 16px; z-index: 50;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+        border: 1px solid rgba(100,150,255,0.15);
+        border-radius: 12px; padding: 16px 20px;
+        max-width: 320px;
+    }
+    #hud h2 { font-size: 14px; color: #6cf; letter-spacing: 2px; margin-bottom: 8px; }
+    #hud .info { font-size: 12px; color: #889; margin-bottom: 4px; }
+    #hud .info span { color: #ccd; }
+
+    /* Controls panel */
+    #controls {
+        position: fixed; bottom: 16px; left: 16px; z-index: 50;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+        border: 1px solid rgba(100,150,255,0.15);
+        border-radius: 12px; padding: 16px 20px;
+        max-width: 340px;
+    }
+    #controls label {
+        display: block; font-size: 11px; color: #668;
+        letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;
+    }
+    #controls label:first-child { margin-top: 0; }
+    #controls input[type="range"] {
+        width: 100%; margin-top: 4px; accent-color: #6cf;
+    }
+    #controls .row { display: flex; gap: 8px; margin-top: 8px; }
+    .ctrl-btn {
+        flex: 1; padding: 8px; font-size: 12px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 6px; color: #ccd; cursor: pointer;
+        font-family: inherit; letter-spacing: 1px; transition: background 0.2s;
+    }
+    .ctrl-btn:hover { background: rgba(100,170,255,0.2); }
+    .ctrl-btn.active { background: rgba(100,170,255,0.3); border-color: #6cf; }
+
+    /* Error */
+    #error {
+        position: fixed; inset: 0; z-index: 200;
+        background: #0a0a1a;
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+    }
+    #error.show { display: flex; }
+    #error h1 { color: #f66; font-size: 20px; margin-bottom: 10px; }
+    #error p { color: #889; font-size: 14px; max-width: 400px; text-align: center; line-height: 1.6; }
+    #error a { color: #6cf; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<div id="loading">
+    <h1>BABYLON VR VIEWER</h1>
+    <div class="sub">Volume Rendering with WebXR</div>
+    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+    <div id="load-status">Initializing...</div>
+</div>
+
+<div id="hud">
+    <h2>VOLUME INFO</h2>
+    <div class="info">File: <span id="info-file">—</span></div>
+    <div class="info">Dimensions: <span id="info-dims">—</span></div>
+    <div class="info">Voxels: <span id="info-voxels">—</span></div>
+    <div class="info">Range: <span id="info-range">—</span></div>
+</div>
+
+<div id="controls">
+    <label>Opacity (Density Threshold)</label>
+    <input type="range" id="ctrl-opacity" min="0" max="1" step="0.01" value="0.4">
+
+    <label>Brightness</label>
+    <input type="range" id="ctrl-brightness" min="0.2" max="3" step="0.05" value="1.2">
+
+    <label>Step Size (Quality)</label>
+    <input type="range" id="ctrl-steps" min="32" max="512" step="16" value="128">
+
+    <label>Window Level</label>
+    <input type="range" id="ctrl-window-low" min="0" max="1" step="0.01" value="0.0">
+    <input type="range" id="ctrl-window-high" min="0" max="1" step="0.01" value="1.0">
+
+    <label>Color Preset</label>
+    <div class="row">
+        <button class="ctrl-btn active" data-preset="grayscale">Grayscale</button>
+        <button class="ctrl-btn" data-preset="thermal">Thermal</button>
+        <button class="ctrl-btn" data-preset="cool">Cool</button>
+    </div>
+    <div class="row">
+        <button class="ctrl-btn" data-preset="bone">Bone</button>
+        <button class="ctrl-btn" data-preset="muscle">Muscle</button>
+        <button class="ctrl-btn" data-preset="xray">X-Ray</button>
+    </div>
+</div>
+
+<div id="error">
+    <h1>Failed to Load</h1>
+    <p id="error-msg">Unable to load volume data.</p>
+    <a href="/">← Back to Home</a>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+<script>
+// ── Get file URL from query params ──
+const params = new URLSearchParams(location.search);
+const fileURL = params.get('file') || params.get('fileURL');
+
+if (!fileURL) {
+    document.getElementById('error-msg').textContent = 'No file specified. Use ?file=path/to/volume.nrrd';
+    document.getElementById('error').classList.add('show');
+}
+
+const statusEl = document.getElementById('load-status');
+const fillEl = document.getElementById('loader-fill');
+function setProgress(pct, msg) {
+    fillEl.style.width = pct + '%';
+    if (msg) statusEl.textContent = msg;
+}
+
+// ── NRRD Parser ──
+function parseNRRD(buffer) {
+    const bytes = new Uint8Array(buffer);
+    // Find header/data boundary (double newline)
+    let headerEnd = -1;
+    for (let i = 0; i < Math.min(bytes.length, 4096); i++) {
+        if (bytes[i] === 10 && bytes[i + 1] === 10) { headerEnd = i + 2; break; }
+        if (bytes[i] === 13 && bytes[i + 1] === 10 && bytes[i + 2] === 13 && bytes[i + 3] === 10) { headerEnd = i + 4; break; }
+    }
+    if (headerEnd < 0) throw new Error('Invalid NRRD: no header boundary');
+
+    const headerStr = new TextDecoder().decode(bytes.slice(0, headerEnd));
+    const header = {};
+    for (const line of headerStr.split('\n')) {
+        const m = line.match(/^(\w[\w\s]*?):\s*(.+)/);
+        if (m) header[m[1].trim().toLowerCase()] = m[2].trim();
+    }
+
+    const sizes = header.sizes.split(/\s+/).map(Number);
+    const [sx, sy, sz] = sizes;
+
+    // Parse spacing from space directions
+    let spacing = [1, 1, 1];
+    if (header['space directions']) {
+        const dirs = header['space directions'].match(/\(([^)]+)\)/g);
+        if (dirs) {
+            spacing = dirs.map(d => {
+                const vals = d.replace(/[()]/g, '').split(',').map(Number);
+                return Math.sqrt(vals.reduce((s, v) => s + v * v, 0));
+            });
+        }
+    }
+
+    // Read raw float32 data
+    const dataBytes = buffer.slice(headerEnd);
+    let data;
+    const type = header.type || 'float';
+    if (type === 'float' || type === 'float32') {
+        data = new Float32Array(dataBytes);
+    } else if (type === 'double' || type === 'float64') {
+        data = new Float64Array(dataBytes);
+        data = Float32Array.from(data); // convert to f32
+    } else if (type === 'short' || type === 'int16') {
+        const raw = new Int16Array(dataBytes);
+        data = Float32Array.from(raw);
+    } else if (type === 'unsigned short' || type === 'uint16') {
+        const raw = new Uint16Array(dataBytes);
+        data = Float32Array.from(raw);
+    } else {
+        throw new Error('Unsupported NRRD type: ' + type);
+    }
+
+    return { data, dims: [sx, sy, sz], spacing };
+}
+
+// ── Normalize volume to 0-1 and build RGBA 3D texture data ──
+function buildTextureData(volData, dims, windowLow, windowHigh) {
+    const [sx, sy, sz] = dims;
+    const len = sx * sy * sz;
+
+    // Find data range
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < len; i++) {
+        const v = volData[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+    const range = max - min || 1;
+
+    // Normalize and apply window
+    const rgba = new Uint8Array(len * 4);
+    const wLow = min + windowLow * range;
+    const wHigh = min + windowHigh * range;
+    const wRange = wHigh - wLow || 1;
+
+    for (let i = 0; i < len; i++) {
+        const raw = volData[i];
+        const norm = Math.max(0, Math.min(1, (raw - wLow) / wRange));
+        const byte = (norm * 255) | 0;
+        const idx = i * 4;
+        rgba[idx] = byte;
+        rgba[idx + 1] = byte;
+        rgba[idx + 2] = byte;
+        rgba[idx + 3] = byte; // alpha = density
+    }
+
+    return { rgba, min, max };
+}
+
+// ── Ray marching shader ──
+const volumeVertexShader = `
+    precision highp float;
+    attribute vec3 position;
+    uniform mat4 worldViewProjection;
+    uniform mat4 world;
+    varying vec3 vPosition;
+    varying vec3 vWorldPos;
+    void main() {
+        vPosition = position + 0.5; // map from [-0.5,0.5] to [0,1]
+        vWorldPos = (world * vec4(position, 1.0)).xyz;
+        gl_Position = worldViewProjection * vec4(position, 1.0);
+    }
+`;
+
+const volumeFragmentShader = `
+    precision highp float;
+    precision highp sampler3D;
+    varying vec3 vPosition;
+    varying vec3 vWorldPos;
+    uniform sampler3D volumeTex;
+    uniform vec3 cameraPosition;
+    uniform mat4 world;
+    uniform float opacity;
+    uniform float brightness;
+    uniform float numSteps;
+    uniform int colorPreset;  // 0=gray, 1=thermal, 2=cool, 3=bone, 4=muscle, 5=xray
+
+    vec3 applyColorMap(float v, int preset) {
+        if (preset == 1) { // thermal
+            return vec3(
+                clamp(v * 3.0, 0.0, 1.0),
+                clamp(v * 3.0 - 1.0, 0.0, 1.0),
+                clamp(v * 3.0 - 2.0, 0.0, 1.0)
+            );
+        } else if (preset == 2) { // cool
+            return vec3(v * 0.3, v * 0.6, v);
+        } else if (preset == 3) { // bone
+            return vec3(v, v * 0.95, v * 0.8);
+        } else if (preset == 4) { // muscle
+            return vec3(v, v * 0.4, v * 0.35);
+        } else if (preset == 5) { // xray - inverted
+            float inv = 1.0 - v;
+            return vec3(inv, inv, inv * 1.1);
+        }
+        return vec3(v); // grayscale
+    }
+
+    void main() {
+        // Ray direction in world space
+        vec3 rayOrigin = vPosition;
+        // Camera pos in local box space [0,1]
+        mat4 invWorld = inverse(world);
+        vec3 camLocal = (invWorld * vec4(cameraPosition, 1.0)).xyz + 0.5;
+        vec3 rayDir = normalize(rayOrigin - camLocal);
+
+        float stepSize = 1.732 / numSteps; // sqrt(3) = diagonal of unit cube
+        vec4 accum = vec4(0.0);
+
+        for (float i = 0.0; i < 512.0; i++) {
+            if (i >= numSteps) break;
+            vec3 pos = rayOrigin + rayDir * i * stepSize;
+
+            // Exit if outside volume
+            if (any(lessThan(pos, vec3(0.0))) || any(greaterThan(pos, vec3(1.0)))) {
+                if (i > 0.0) break; // already inside, now exited
+                continue; // haven't entered yet
+            }
+
+            vec4 voxel = texture(volumeTex, pos);
+            float density = voxel.a;
+
+            if (density > opacity) {
+                float alpha = (density - opacity) * brightness * stepSize * 8.0;
+                alpha = clamp(alpha, 0.0, 1.0);
+                vec3 color = applyColorMap(density, colorPreset);
+                accum.rgb += color * alpha * (1.0 - accum.a);
+                accum.a += alpha * (1.0 - accum.a);
+
+                if (accum.a > 0.95) break; // early termination
+            }
+        }
+
+        if (accum.a < 0.01) discard;
+        gl_FragColor = vec4(accum.rgb, accum.a);
+    }
+`;
+
+// ── Main ──
+async function main() {
+    if (!fileURL) return;
+
+    const canvas = document.getElementById('renderCanvas');
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.03, 0.03, 0.08, 1);
+
+    // Camera
+    const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 4, Math.PI / 3, 3, BABYLON.Vector3.Zero(), scene);
+    camera.minZ = 0.01;
+    camera.maxZ = 100;
+    camera.wheelPrecision = 40;
+    camera.lowerRadiusLimit = 0.5;
+    camera.upperRadiusLimit = 10;
+    camera.attachControl(canvas, true);
+
+    // Ambient light
+    const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.5;
+
+    // ── Load NRRD ──
+    setProgress(10, 'Fetching volume data...');
+    document.getElementById('info-file').textContent = fileURL.split('/').pop();
+
+    let volData, dims, spacing, dataMin, dataMax;
+    try {
+        const resp = await fetch(fileURL);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const buffer = await resp.arrayBuffer();
+        setProgress(40, 'Parsing NRRD...');
+
+        const parsed = parseNRRD(buffer);
+        volData = parsed.data;
+        dims = parsed.dims;
+        spacing = parsed.spacing;
+
+        document.getElementById('info-dims').textContent = `${dims[0]} × ${dims[1]} × ${dims[2]}`;
+        document.getElementById('info-voxels').textContent = (dims[0] * dims[1] * dims[2]).toLocaleString();
+    } catch (e) {
+        document.getElementById('error-msg').textContent = `Failed to load NRRD: ${e.message}`;
+        document.getElementById('error').classList.add('show');
+        document.getElementById('loading').classList.add('hidden');
+        return;
+    }
+
+    // ── Build 3D texture ──
+    setProgress(60, 'Building 3D texture...');
+    const { rgba, min, max } = buildTextureData(volData, dims, 0, 1);
+    dataMin = min; dataMax = max;
+    document.getElementById('info-range').textContent = `${min.toFixed(1)} — ${max.toFixed(1)}`;
+
+    const [sx, sy, sz] = dims;
+    const tex3d = new BABYLON.RawTexture3D(
+        rgba, sx, sy, sz,
+        BABYLON.Engine.TEXTUREFORMAT_RGBA,
+        scene,
+        false,  // generateMipMaps
+        false,  // invertY
+        BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+        BABYLON.Engine.TEXTURETYPE_UNSIGNED_BYTE
+    );
+
+    // ── Volume box mesh ──
+    setProgress(75, 'Creating volume mesh...');
+    // Scale box to match voxel aspect ratio
+    const maxDim = Math.max(sx * spacing[0], sy * spacing[1], sz * spacing[2]);
+    const scaleX = (sx * spacing[0]) / maxDim;
+    const scaleY = (sy * spacing[1]) / maxDim;
+    const scaleZ = (sz * spacing[2]) / maxDim;
+
+    const box = BABYLON.MeshBuilder.CreateBox('volume', { size: 1 }, scene);
+    box.scaling = new BABYLON.Vector3(scaleX, scaleY, scaleZ);
+
+    // ── Ray marching material ──
+    const shaderMat = new BABYLON.ShaderMaterial('volumeShader', scene, {
+        vertexSource: volumeVertexShader,
+        fragmentSource: volumeFragmentShader
+    }, {
+        attributes: ['position'],
+        uniforms: ['worldViewProjection', 'world', 'cameraPosition', 'opacity', 'brightness', 'numSteps', 'colorPreset'],
+        samplers: ['volumeTex'],
+        needAlphaBlending: true
+    });
+
+    shaderMat.setTexture('volumeTex', tex3d);
+    shaderMat.setFloat('opacity', 0.4);
+    shaderMat.setFloat('brightness', 1.2);
+    shaderMat.setFloat('numSteps', 128);
+    shaderMat.setInt('colorPreset', 0);
+    shaderMat.backFaceCulling = false;
+    shaderMat.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+
+    box.material = shaderMat;
+
+    // Keep camera position uniform updated
+    scene.registerBeforeRender(() => {
+        shaderMat.setVector3('cameraPosition', scene.activeCamera.position);
+    });
+
+    // ── Bounding wireframe ──
+    const wire = BABYLON.MeshBuilder.CreateBox('wireframe', { size: 1 }, scene);
+    wire.scaling = box.scaling.clone();
+    const wireMat = new BABYLON.StandardMaterial('wireMat', scene);
+    wireMat.wireframe = true;
+    wireMat.emissiveColor = new BABYLON.Color3(0.2, 0.3, 0.5);
+    wireMat.disableLighting = true;
+    wireMat.alpha = 0.3;
+    wire.material = wireMat;
+
+    // ── Axis indicators ──
+    const axLen = 0.7;
+    const makeAxis = (dir, color) => {
+        const points = [BABYLON.Vector3.Zero(), dir.scale(axLen)];
+        const line = BABYLON.MeshBuilder.CreateLines('ax', { points }, scene);
+        line.color = color;
+        return line;
+    };
+    makeAxis(new BABYLON.Vector3(1, 0, 0), new BABYLON.Color3(1, 0.3, 0.3));
+    makeAxis(new BABYLON.Vector3(0, 1, 0), new BABYLON.Color3(0.3, 1, 0.3));
+    makeAxis(new BABYLON.Vector3(0, 0, 1), new BABYLON.Color3(0.3, 0.3, 1));
+
+    // ── UI Controls ──
+    document.getElementById('ctrl-opacity').oninput = e => shaderMat.setFloat('opacity', parseFloat(e.target.value));
+    document.getElementById('ctrl-brightness').oninput = e => shaderMat.setFloat('brightness', parseFloat(e.target.value));
+    document.getElementById('ctrl-steps').oninput = e => shaderMat.setFloat('numSteps', parseFloat(e.target.value));
+
+    // Window level controls — rebuild texture
+    let windowTimer = null;
+    function onWindowChange() {
+        clearTimeout(windowTimer);
+        windowTimer = setTimeout(() => {
+            const lo = parseFloat(document.getElementById('ctrl-window-low').value);
+            const hi = parseFloat(document.getElementById('ctrl-window-high').value);
+            const { rgba: newRGBA } = buildTextureData(volData, dims, lo, hi);
+            tex3d.update(newRGBA);
+        }, 100);
+    }
+    document.getElementById('ctrl-window-low').oninput = onWindowChange;
+    document.getElementById('ctrl-window-high').oninput = onWindowChange;
+
+    // Color presets
+    const presetMap = { grayscale: 0, thermal: 1, cool: 2, bone: 3, muscle: 4, xray: 5 };
+    document.querySelectorAll('[data-preset]').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('[data-preset]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            shaderMat.setInt('colorPreset', presetMap[btn.dataset.preset] || 0);
+        };
+    });
+
+    // ── WebXR ──
+    setProgress(90, 'Setting up WebXR...');
+    try {
+        const xr = await scene.createDefaultXRExperienceAsync({
+            floorMeshes: [],
+            uiOptions: {
+                sessionMode: 'immersive-vr',
+                referenceSpaceType: 'local-floor'
+            }
+        });
+
+        if (xr.baseExperience) {
+            // Position volume at comfortable VR viewing distance
+            xr.baseExperience.onInitialXRPoseSetObservable.add((xrCamera) => {
+                box.position.y = 1.4;     // chest height
+                box.position.z = 1.0;     // 1m in front
+                wire.position = box.position.clone();
+            });
+
+            // Controller interaction: grip to grab & rotate volume
+            let grabbedController = null;
+            let grabStartRot = null;
+            let boxStartRot = null;
+
+            if (xr.input) {
+                xr.input.onControllerAddedObservable.add(controller => {
+                    controller.onMotionControllerInitObservable.add(mc => {
+                        const grip = mc.getComponent('xr-standard-squeeze');
+                        if (grip) {
+                            grip.onButtonStateChangedObservable.add(() => {
+                                if (grip.pressed) {
+                                    grabbedController = controller;
+                                    grabStartRot = controller.pointer.rotationQuaternion
+                                        ? controller.pointer.rotationQuaternion.clone()
+                                        : BABYLON.Quaternion.Identity();
+                                    boxStartRot = box.rotationQuaternion
+                                        ? box.rotationQuaternion.clone()
+                                        : BABYLON.Quaternion.Identity();
+                                } else if (grabbedController === controller) {
+                                    grabbedController = null;
+                                }
+                            });
+                        }
+
+                        // Thumbstick to scale
+                        const thumbstick = mc.getComponent('xr-standard-thumbstick');
+                        if (thumbstick) {
+                            thumbstick.onAxisValueChangedObservable.add(axes => {
+                                const scaleSpeed = 0.02;
+                                const factor = 1 + axes.y * scaleSpeed;
+                                box.scaling.scaleInPlace(factor);
+                                wire.scaling = box.scaling.clone();
+                            });
+                        }
+                    });
+                });
+
+                // Update grab rotation each frame
+                scene.registerBeforeRender(() => {
+                    if (grabbedController && grabbedController.pointer.rotationQuaternion) {
+                        const currentRot = grabbedController.pointer.rotationQuaternion;
+                        const delta = currentRot.multiply(BABYLON.Quaternion.Inverse(grabStartRot));
+                        box.rotationQuaternion = delta.multiply(boxStartRot);
+                        wire.rotationQuaternion = box.rotationQuaternion.clone();
+                    }
+                });
+            }
+
+            console.log('WebXR VR ready');
+        }
+    } catch (e) {
+        console.warn('WebXR not available:', e.message);
+    }
+
+    // ── Done ──
+    setProgress(100, 'Ready!');
+    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
+
+    // Render loop
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
+}
+
+main();
+</script>
+</body>
+</html>

@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shrek: Dungeons & Donkeys</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #33ff33;
+    --green-dim: #1a8c1a;
+    --amber: #ffb000;
+    --red: #ff3333;
+    --cyan: #33ffff;
+    --magenta: #ff33ff;
+    --bg: #0a0a0a;
+    --panel: #111;
+    --border: #2a2a2a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    line-height: 1.6;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* CRT scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* CRT flicker */
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.8; }
+    94% { opacity: 1; }
+  }
+
+  #crt { animation: flicker 5s infinite; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header / HUD */
+  #hud {
+    display: none;
+    padding: 8px 16px;
+    background: var(--panel);
+    border-bottom: 2px solid var(--border);
+    font-size: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  #hud.active { display: flex; }
+  #hud .label { color: var(--green-dim); }
+  #hud .value { color: var(--amber); }
+  #hp-bar {
+    display: inline-block;
+    width: 120px;
+    height: 14px;
+    background: #222;
+    border: 1px solid var(--green-dim);
+    vertical-align: middle;
+    position: relative;
+  }
+  #hp-fill {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    transition: width 0.5s, background 0.3s;
+  }
+  #hp-fill.low { background: var(--red); }
+  #hp-fill.mid { background: var(--amber); }
+
+  /* Main terminal area */
+  #terminal {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    scroll-behavior: smooth;
+  }
+  #terminal::-webkit-scrollbar { width: 8px; }
+  #terminal::-webkit-scrollbar-track { background: var(--bg); }
+  #terminal::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 4px; }
+
+  /* ASCII art */
+  .art {
+    color: var(--cyan);
+    white-space: pre;
+    margin: 12px 0;
+    font-size: 22px;
+    line-height: 1.3;
+  }
+
+  /* Scene title */
+  .scene-title {
+    color: var(--amber);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    margin: 16px 0 4px;
+    text-transform: uppercase;
+  }
+
+  .branch-tag {
+    color: var(--magenta);
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  /* Narrative text */
+  .narrative {
+    margin: 12px 0;
+    max-width: 800px;
+  }
+
+  .narrative p { margin-bottom: 10px; }
+
+  /* Dice roll display */
+  .dice-result {
+    background: var(--panel);
+    border: 1px solid var(--amber);
+    padding: 10px 16px;
+    margin: 12px 0;
+    display: inline-block;
+    font-size: 30px;
+  }
+  .dice-result.success { border-color: var(--green); color: var(--green); }
+  .dice-result.fail { border-color: var(--red); color: var(--red); }
+
+  .roll-text { color: var(--amber); margin: 8px 0; font-size: 26px; }
+
+  /* Choices */
+  #choices {
+    padding: 0 20px 20px;
+    flex-shrink: 0;
+  }
+  .choice-list { list-style: none; }
+  .choice-btn {
+    display: block;
+    width: 100%;
+    max-width: 800px;
+    text-align: left;
+    background: var(--panel);
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .choice-btn:hover, .choice-btn:focus {
+    background: #1a2a1a;
+    border-color: var(--green);
+    outline: none;
+  }
+  .choice-btn .key {
+    color: var(--amber);
+    margin-right: 8px;
+  }
+  .choice-btn .stat-tag {
+    color: var(--cyan);
+    font-size: 22px;
+    float: right;
+    margin-top: 2px;
+  }
+
+  /* Title screen */
+  .title-screen {
+    text-align: center;
+    padding-top: 10vh;
+  }
+  .title-screen .art { display: inline-block; text-align: left; }
+  .blink {
+    animation: blink-anim 1s step-end infinite;
+    color: var(--amber);
+    margin-top: 24px;
+  }
+  @keyframes blink-anim {
+    50% { opacity: 0; }
+  }
+
+  /* Class select */
+  .class-card {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--green-dim);
+    padding: 14px 18px;
+    margin: 10px auto;
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    color: var(--green);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .class-card:hover, .class-card:focus {
+    background: #1a2a1a;
+    border-color: var(--amber);
+    outline: none;
+  }
+  .class-card .class-name { color: var(--amber); font-size: 30px; }
+  .class-card .class-desc { color: var(--green-dim); font-size: 24px; }
+  .class-card .class-stats { color: var(--cyan); font-size: 22px; margin-top: 4px; }
+
+  /* Ending screen */
+  .ending-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: var(--amber);
+    text-align: center;
+    margin: 20px 0;
+  }
+  .ending-text {
+    max-width: 700px;
+    margin: 16px auto;
+    text-align: center;
+  }
+  .ending-text p { margin-bottom: 10px; }
+
+  .restart-btn {
+    display: block;
+    margin: 24px auto;
+    background: var(--panel);
+    color: var(--amber);
+    border: 2px solid var(--amber);
+    padding: 12px 32px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .restart-btn:hover { background: #2a2a1a; }
+
+  /* Damage flash */
+  @keyframes damage-flash {
+    0%, 100% { background: var(--bg); }
+    25% { background: #3a0000; }
+    50% { background: var(--bg); }
+    75% { background: #2a0000; }
+  }
+  .damaged { animation: damage-flash 0.6s; }
+
+  /* Typewriter cursor */
+  .cursor::after {
+    content: '█';
+    animation: blink-anim 0.7s step-end infinite;
+  }
+
+  /* Adventure log */
+  .log-entry {
+    color: var(--green-dim);
+    font-size: 22px;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+    margin: 4px 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    body { font-size: 22px; }
+    .scene-title { font-size: 16px; }
+    #hud { font-size: 18px; }
+    .choice-btn { font-size: 22px; }
+    .class-card { font-size: 22px; }
+    .class-card .class-name { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div id="crt">
+  <div id="hud">
+    <span><span class="label">CLASS:</span> <span class="value" id="hud-class">—</span></span>
+    <span><span class="label">HP:</span> <span id="hp-bar"><span id="hp-fill"></span></span> <span class="value" id="hud-hp">—</span></span>
+    <span><span class="label">STR:</span><span class="value" id="hud-str">0</span></span>
+    <span><span class="label">DEX:</span><span class="value" id="hud-dex">0</span></span>
+    <span><span class="label">MAG:</span><span class="value" id="hud-mag">0</span></span>
+    <span><span class="label">CHA:</span><span class="value" id="hud-cha">0</span></span>
+    <span><span class="label">SCENE:</span> <span class="value" id="hud-scene">—</span></span>
+  </div>
+  <div id="terminal"></div>
+  <div id="choices"></div>
+</div>
+
+<script>
+const terminal = document.getElementById('terminal');
+const choicesEl = document.getElementById('choices');
+const hud = document.getElementById('hud');
+const STAT_NAMES = { str: 'STR', dex: 'DEX', mag: 'MAG', cha: 'CHA' };
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+// ── Sound FX (Web Audio API — no files) ──
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function sfx(type) {
+  // Ensure context is resumed (browsers block autoplay)
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  const g = audioCtx.createGain();
+  g.connect(audioCtx.destination);
+
+  if (type === 'click') {
+    // Short blip for choice selection
+    const o = audioCtx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(800, now);
+    o.frequency.exponentialRampToValueAtTime(1200, now + 0.06);
+    g.gain.setValueAtTime(0.15, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + 0.08);
+  }
+
+  else if (type === 'dice') {
+    // Rattle: rapid short ticks
+    for (let i = 0; i < 6; i++) {
+      const o = audioCtx.createOscillator();
+      const gn = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(300 + Math.random() * 400, now + i * 0.07);
+      gn.gain.setValueAtTime(0.12, now + i * 0.07);
+      gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.04);
+      o.connect(gn);
+      gn.connect(audioCtx.destination);
+      o.start(now + i * 0.07);
+      o.stop(now + i * 0.07 + 0.05);
+    }
+  }
+
+  else if (type === 'success') {
+    // Rising two-tone chime
+    [600, 900].forEach((freq, i) => {
+      const o = audioCtx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now + i * 0.12);
+      const gn = audioCtx.createGain();
+      gn.gain.setValueAtTime(0.18, now + i * 0.12);
+      gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+      o.connect(gn);
+      gn.connect(audioCtx.destination);
+      o.start(now + i * 0.12);
+      o.stop(now + i * 0.12 + 0.25);
+    });
+  }
+
+  else if (type === 'fail') {
+    // Descending buzz
+    const o = audioCtx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(400, now);
+    o.frequency.exponentialRampToValueAtTime(120, now + 0.3);
+    g.gain.setValueAtTime(0.12, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + 0.35);
+  }
+
+  else if (type === 'damage') {
+    // Low thud + noise burst
+    const o = audioCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(80, now);
+    o.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+    g.gain.setValueAtTime(0.25, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + 0.25);
+    // Noise crunch
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.3;
+    const ns = audioCtx.createBufferSource();
+    ns.buffer = buf;
+    const gn = audioCtx.createGain();
+    gn.gain.setValueAtTime(0.15, now);
+    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    ns.connect(gn);
+    gn.connect(audioCtx.destination);
+    ns.start(now);
+  }
+
+  else if (type === 'scene') {
+    // Soft transition whoosh
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+    const ns = audioCtx.createBufferSource();
+    ns.buffer = buf;
+    const flt = audioCtx.createBiquadFilter();
+    flt.type = 'bandpass';
+    flt.frequency.setValueAtTime(2000, now);
+    flt.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+    g.gain.setValueAtTime(0.08, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    ns.connect(flt);
+    flt.connect(g);
+    ns.start(now);
+  }
+
+  else if (type === 'ending') {
+    // Fanfare: ascending arpeggio
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const o = audioCtx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now + i * 0.15);
+      const gn = audioCtx.createGain();
+      gn.gain.setValueAtTime(0.15, now + i * 0.15);
+      gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+      o.connect(gn);
+      gn.connect(audioCtx.destination);
+      o.start(now + i * 0.15);
+      o.stop(now + i * 0.15 + 0.4);
+    });
+  }
+
+  else if (type === 'gameover') {
+    // Sad descending tones
+    [400, 350, 280, 200].forEach((freq, i) => {
+      const o = audioCtx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now + i * 0.2);
+      const gn = audioCtx.createGain();
+      gn.gain.setValueAtTime(0.15, now + i * 0.2);
+      gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.35);
+      o.connect(gn);
+      gn.connect(audioCtx.destination);
+      o.start(now + i * 0.2);
+      o.stop(now + i * 0.2 + 0.35);
+    });
+  }
+
+  else if (type === 'type') {
+    // Tiny keystroke tick
+    const o = audioCtx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(1000 + Math.random() * 200, now);
+    g.gain.setValueAtTime(0.03, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + 0.02);
+  }
+}
+
+let DATA = null;
+let state = {
+  playerClass: null,
+  hp: 0,
+  maxHp: 0,
+  stats: {},
+  history: [],
+  scene: null
+};
+
+// ── Load Data ──────────────────────────
+async function loadData() {
+  const r = await fetch('shrek-dnd-data.json');
+  DATA = await r.json();
+  showTitleScreen();
+}
+
+// ── Rendering Helpers ──────────────────
+function clearTerminal() { terminal.innerHTML = ''; }
+function clearChoices() { choicesEl.innerHTML = ''; }
+
+function scrollBottom() {
+  requestAnimationFrame(() => terminal.scrollTop = terminal.scrollHeight);
+}
+
+function appendHTML(html) {
+  terminal.insertAdjacentHTML('beforeend', html);
+  scrollBottom();
+}
+
+function showArt(key) {
+  const lines = DATA.art[key];
+  if (!lines) return;
+  appendHTML(`<div class="art">${lines.join('\n')}</div>`);
+}
+
+async function typeText(container, text, speed = 12) {
+  return new Promise(resolve => {
+    let i = 0;
+    container.classList.add('cursor');
+    sfx('type');
+    const iv = setInterval(() => {
+      if (i < text.length) {
+        // handle html tags — dump them instantly
+        if (text[i] === '<') {
+          const end = text.indexOf('>', i);
+          container.innerHTML += text.slice(i, end + 1);
+          i = end + 1;
+        } else {
+          container.innerHTML += text[i] === '\n' ? '<br>' : text[i];
+          i++;
+        }
+        scrollBottom();
+      } else {
+        clearInterval(iv);
+        container.classList.remove('cursor');
+        sfx('type');
+        resolve();
+      }
+    }, speed);
+    // Click to skip
+    const skip = () => {
+      clearInterval(iv);
+      container.classList.remove('cursor');
+      const remaining = text.slice(i).replace(/\n/g, '<br>');
+      container.innerHTML += remaining;
+      scrollBottom();
+      resolve();
+      terminal.removeEventListener('click', skip);
+    };
+    terminal.addEventListener('click', skip, { once: false });
+    // Clean up listener when done
+    const origResolve = resolve;
+    resolve = () => {
+      terminal.removeEventListener('click', skip);
+      origResolve();
+    };
+  });
+}
+
+async function typeNarrative(text) {
+  const div = document.createElement('div');
+  div.className = 'narrative';
+  terminal.appendChild(div);
+  const paragraphs = text.split('\n\n');
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = document.createElement('p');
+    div.appendChild(p);
+    await typeText(p, paragraphs[i], 10);
+  }
+}
+
+function updateHUD() {
+  if (!state.playerClass) return;
+  hud.classList.add('active');
+  document.getElementById('hud-class').textContent = state.playerClass.emoji + ' ' + state.playerClass.name;
+  document.getElementById('hud-hp').textContent = state.hp + '/' + state.maxHp;
+  const pct = (state.hp / state.maxHp) * 100;
+  const fill = document.getElementById('hp-fill');
+  fill.style.width = pct + '%';
+  fill.className = pct <= 25 ? 'low' : pct <= 50 ? 'mid' : '';
+  document.getElementById('hud-str').textContent = state.stats.str;
+  document.getElementById('hud-dex').textContent = state.stats.dex;
+  document.getElementById('hud-mag').textContent = state.stats.mag;
+  document.getElementById('hud-cha').textContent = state.stats.cha;
+  if (state.scene) {
+    const s = DATA.scenes[state.scene] || DATA.endings[state.scene];
+    document.getElementById('hud-scene').textContent = s ? s.title : '';
+  }
+}
+
+// ── Dice Roll ──────────────────────────
+function rollD6() { return Math.floor(Math.random() * 6) + 1; }
+
+async function animateDiceRoll(stat, dc) {
+  const bonus = state.stats[stat] || 0;
+  const result = rollD6();
+  const total = result + bonus;
+  const success = total >= dc;
+
+  // Animate
+  const diceDiv = document.createElement('div');
+  diceDiv.className = 'dice-result';
+  diceDiv.textContent = '🎲 Rolling...';
+  terminal.appendChild(diceDiv);
+  sfx('dice');
+  scrollBottom();
+
+  await new Promise(r => {
+    let ticks = 0;
+    const iv = setInterval(() => {
+      diceDiv.textContent = '🎲 ' + DICE_FACES[Math.floor(Math.random() * 6)];
+      ticks++;
+      if (ticks >= 12) {
+        clearInterval(iv);
+        r();
+      }
+    }, 80);
+  });
+
+  diceDiv.textContent = `🎲 ${DICE_FACES[result - 1]}  ${result}`;
+  diceDiv.className = 'dice-result ' + (success ? 'success' : 'fail');
+  sfx(success ? 'success' : 'fail');
+
+  await new Promise(r => setTimeout(r, 300));
+
+  const detail = document.createElement('div');
+  detail.className = 'roll-text';
+  detail.innerHTML = `Rolled <b>${result}</b> + ${STAT_NAMES[stat]}(<b>${bonus}</b>) = <b>${total}</b> vs DC <b>${dc}</b> → ${success ? '<span style="color:var(--green)">✓ SUCCESS</span>' : '<span style="color:var(--red)">✗ FAILURE</span>'}`;
+  terminal.appendChild(detail);
+  scrollBottom();
+
+  await new Promise(r => setTimeout(r, 500));
+  return success;
+}
+
+// ── Title Screen ───────────────────────
+function showTitleScreen() {
+  clearTerminal();
+  clearChoices();
+  hud.classList.remove('active');
+
+  const div = document.createElement('div');
+  div.className = 'title-screen';
+  div.innerHTML = `
+    <div class="art">${DATA.art.title.join('\n')}</div>
+    <br>
+    <div style="color:var(--green-dim)">A text adventure through the lands of Far Far Away</div>
+    <div style="color:var(--green-dim)">Featuring ALL your favorite Shrek characters</div>
+    <br>
+    <div style="color:var(--green-dim)">🎲 Roll dice  ⚔️ Make choices  📜 Shape the story</div>
+    <div style="color:var(--green-dim)">5 story branches • 6 unique endings</div>
+    <br>
+    <div class="blink">[ Press any key or click to begin ]</div>
+  `;
+  terminal.appendChild(div);
+
+  const start = () => {
+    document.removeEventListener('keydown', start);
+    terminal.removeEventListener('click', start);
+    showClassSelect();
+  };
+  document.addEventListener('keydown', start, { once: true });
+  terminal.addEventListener('click', start, { once: true });
+}
+
+// ── Class Select ───────────────────────
+function pickRandomClasses(n) {
+  const pool = [...DATA.classes];
+  const picked = [];
+  while (picked.length < n && pool.length > 0) {
+    const i = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(i, 1)[0]);
+  }
+  return picked;
+}
+
+function showClassSelect() {
+  clearTerminal();
+  clearChoices();
+
+  const offered = pickRandomClasses(3);
+
+  appendHTML(`<div class="scene-title">Choose Your Class</div>`);
+  appendHTML(`<div class="branch-tag">~ The fates offer you three destinies ~</div>`);
+  appendHTML(`<div class="narrative"><p>Three heroes step forward from the crowd. Pick one to embody.<br>Each has different strengths. Choose wisely — the dice will test you.</p></div>`);
+  appendHTML(`<div style="color:var(--green-dim);margin-bottom:12px">(${DATA.classes.length} classes in the pool — 3 drawn at random each game)</div>`);
+
+  const list = document.createElement('div');
+  offered.forEach((cls, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'class-card';
+    const statLine = Object.entries(cls.stats).map(([k,v]) => `${STAT_NAMES[k]}:${v}`).join(' | ');
+    btn.innerHTML = `
+      <span class="key">[${i+1}]</span>
+      <span class="class-name">${cls.emoji} ${cls.name}</span><br>
+      <span class="class-desc">"${cls.desc}"</span><br>
+      <span class="class-stats">HP: ${cls.hp} | ${statLine}</span>
+    `;
+    btn.onclick = () => selectClass(cls);
+    list.appendChild(btn);
+  });
+  terminal.appendChild(list);
+  scrollBottom();
+
+  // Keyboard shortcuts
+  const handler = (e) => {
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= 3) {
+      document.removeEventListener('keydown', handler);
+      selectClass(offered[n - 1]);
+    }
+  };
+  document.addEventListener('keydown', handler);
+}
+
+function selectClass(cls) {
+  state.playerClass = cls;
+  state.stats = { ...cls.stats };
+  state.hp = cls.hp;
+  state.maxHp = cls.hp;
+  state.history = [];
+  updateHUD();
+  const starts = (DATA.starts && DATA.starts.length) ? DATA.starts : ['swamp_start'];
+  const startScene = starts[Math.floor(Math.random() * starts.length)];
+  loadScene(startScene);
+}
+
+// ── Scene Loading ──────────────────────
+async function loadScene(sceneId) {
+  state.scene = sceneId;
+  clearTerminal();
+  clearChoices();
+  updateHUD();
+
+  // Check for ending
+  const ending = DATA.endings[sceneId];
+  if (ending) {
+    showEnding(ending);
+    return;
+  }
+
+  // Check game over from HP
+  if (state.hp <= 0) {
+    showEnding(DATA.scenes.game_over);
+    return;
+  }
+
+  const scene = DATA.scenes[sceneId];
+  if (!scene) {
+    appendHTML(`<div style="color:var(--red)">ERROR: Scene "${sceneId}" not found!</div>`);
+    return;
+  }
+
+  state.history.push(sceneId);
+
+  // Render scene
+  if (scene.art) showArt(scene.art);
+  appendHTML(`<div class="scene-title">${scene.title}</div>`);
+  if (scene.branch) appendHTML(`<div class="branch-tag">[ ${scene.branch} ]</div>`);
+
+  await typeNarrative(scene.text);
+
+  // Show choices
+  showChoices(scene.choices);
+}
+
+function showChoices(choices) {
+  clearChoices();
+  const ul = document.createElement('ul');
+  ul.className = 'choice-list';
+
+  choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    const statTag = choice.stat ? `[${STAT_NAMES[choice.stat]} DC${choice.dc}]` : '[FREE]';
+    btn.innerHTML = `<span class="key">[${i+1}]</span> ${choice.text} <span class="stat-tag">${statTag}</span>`;
+    btn.onclick = () => makeChoice(choice);
+    ul.appendChild(btn);
+  });
+
+  choicesEl.appendChild(ul);
+
+  // Keyboard shortcuts
+  const handler = (e) => {
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= choices.length) {
+      document.removeEventListener('keydown', handler);
+      makeChoice(choices[n - 1]);
+    }
+  };
+  document.addEventListener('keydown', handler);
+  // Store handler to clean up
+  choicesEl._keyHandler = handler;
+}
+
+async function makeChoice(choice) {
+  // Remove choice UI and keyboard handler
+  if (choicesEl._keyHandler) {
+    document.removeEventListener('keydown', choicesEl._keyHandler);
+  }
+  clearChoices();
+  sfx('click');
+
+  let success = true;
+
+  // Dice roll if needed
+  if (choice.stat && choice.dc > 0) {
+    appendHTML(`<br>`);
+    success = await animateDiceRoll(choice.stat, choice.dc);
+  }
+
+  // Show result text
+  const resultText = success ? choice.ok : (choice.nok || choice.ok);
+  if (resultText) {
+    appendHTML(`<br>`);
+    await typeNarrative(resultText);
+  }
+
+  // Apply damage
+  if (!success && choice.dmg > 0) {
+    state.hp = Math.max(0, state.hp - choice.dmg);
+    updateHUD();
+    document.getElementById('crt').classList.add('damaged');
+    sfx('damage');
+    appendHTML(`<div style="color:var(--red)">💔 You take ${choice.dmg} damage! (HP: ${state.hp}/${state.maxHp})</div>`);
+    setTimeout(() => document.getElementById('crt').classList.remove('damaged'), 600);
+    await new Promise(r => setTimeout(r, 800));
+
+    // Check death
+    if (state.hp <= 0) {
+      appendHTML(`<div style="color:var(--red);font-size:24px">☠️ Your HP has reached zero...</div>`);
+      await new Promise(r => setTimeout(r, 1500));
+      sfx('gameover');
+      loadScene('game_over');
+      return;
+    }
+  }
+
+  // Determine next scene
+  const nextScene = success ? choice.next : (choice.fail || choice.next);
+
+  // Transition
+  appendHTML(`<br><div style="color:var(--green-dim)">─────────────────────────────</div><br>`);
+  sfx('scene');
+  await new Promise(r => setTimeout(r, 600));
+
+  loadScene(nextScene);
+}
+
+// ── Ending Screen ──────────────────────
+async function showEnding(ending) {
+  clearTerminal();
+  clearChoices();
+
+  if (ending.art) showArt(ending.art);
+  sfx(ending.emoji === '💀' || ending.emoji === '☠️' ? 'gameover' : 'ending');
+
+  const emoji = ending.emoji || '🏁';
+  appendHTML(`<div class="ending-title">${emoji} ${ending.title} ${emoji}</div>`);
+
+  const div = document.createElement('div');
+  div.className = 'ending-text';
+  terminal.appendChild(div);
+
+  const paragraphs = ending.text.split('\n\n');
+  for (const p of paragraphs) {
+    const pe = document.createElement('p');
+    div.appendChild(pe);
+    await typeText(pe, p, 14);
+  }
+
+  // Adventure log
+  appendHTML(`<br><div style="color:var(--amber);text-align:center">═══ YOUR ADVENTURE ═══</div>`);
+  const logDiv = document.createElement('div');
+  logDiv.style.textAlign = 'center';
+  logDiv.style.margin = '8px 0';
+  state.history.forEach(sid => {
+    const s = DATA.scenes[sid];
+    if (s) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.style.display = 'inline-block';
+      entry.style.textAlign = 'left';
+      entry.textContent = `▸ ${s.title}`;
+      logDiv.appendChild(entry);
+    }
+  });
+  terminal.appendChild(logDiv);
+
+  appendHTML(`<div style="text-align:center;color:var(--green-dim);margin-top:8px">Scenes visited: ${state.history.length} | Final HP: ${state.hp}/${state.maxHp} | Class: ${state.playerClass.name}</div>`);
+
+  // Restart button
+  const btn = document.createElement('button');
+  btn.className = 'restart-btn';
+  btn.textContent = '[ PLAY AGAIN ]';
+  btn.onclick = () => showTitleScreen();
+  terminal.appendChild(btn);
+
+  // Also allow 'R' key
+  const handler = (e) => {
+    if (e.key.toLowerCase() === 'r') {
+      document.removeEventListener('keydown', handler);
+      showTitleScreen();
+    }
+  };
+  document.addEventListener('keydown', handler);
+
+  scrollBottom();
+}
+
+// ── Init ───────────────────────────────
+loadData().catch(err => {
+  terminal.innerHTML = `<div style="color:var(--red)">Failed to load game data: ${err.message}<br>Make sure shrek-dnd-data.json is in the same directory.</div>`;
+});
+</script>
+</body>
+</html>

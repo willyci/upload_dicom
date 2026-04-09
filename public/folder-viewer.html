@@ -192,6 +192,89 @@
             border-radius: var(--radius-lg);
             border: 1px solid var(--glass-border);
         }
+        /* AI Report Panel */
+        .ai-report {
+            background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08));
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            margin-bottom: var(--spacing-xl);
+        }
+        .ai-report-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+        .ai-report-header h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--text-primary);
+        }
+        .ai-badge {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .ai-report-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+        }
+        @media (max-width: 768px) {
+            .ai-report-grid { grid-template-columns: 1fr; }
+        }
+        .ai-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+        }
+        .ai-section.full-width {
+            grid-column: 1 / -1;
+        }
+        .ai-section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8b5cf6;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ai-section p, .ai-section pre {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        .ai-section pre {
+            white-space: pre-wrap;
+            font-family: inherit;
+        }
+        .ai-disclaimer {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            color: #f87171;
+            text-align: center;
+        }
+        .ai-meta {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 
@@ -217,6 +300,36 @@
             <div class="flex gap-md mt-md">
                 <a id="jsonLink" href="#" target="_blank" class="btn btn-secondary">📄 View JSON</a>
                 <a id="vtiLink" href="#" target="_blank" class="btn btn-secondary">🎮 View 3D Volume</a>
+            </div>
+        </section>
+
+        <!-- AI Analysis Report (hidden until data loads) -->
+        <section id="ai-report-section" style="display:none;">
+            <div class="ai-report">
+                <div class="ai-report-header">
+                    <h2>🧠 MedGemma AI Analysis</h2>
+                    <span class="ai-badge">MedGemma 4B</span>
+                </div>
+                <div class="ai-report-grid">
+                    <div class="ai-section">
+                        <h3>🔍 Interpretation</h3>
+                        <p id="ai-interpretation"></p>
+                    </div>
+                    <div class="ai-section">
+                        <h3>📊 Technical Analysis</h3>
+                        <p id="ai-analysis"></p>
+                    </div>
+                    <div class="ai-section full-width">
+                        <h3>📋 Radiology Report</h3>
+                        <pre id="ai-report"></pre>
+                    </div>
+                </div>
+                <div class="ai-meta">
+                    <span id="ai-model"></span>
+                    <span id="ai-context"></span>
+                    <span id="ai-timestamp"></span>
+                </div>
+                <div class="ai-disclaimer" id="ai-disclaimer"></div>
             </div>
         </section>
 
@@ -278,7 +391,16 @@
 
             try {
                 const response = await fetch(jsonPath);
-                folderData = await response.json();
+                const raw = await response.json();
+
+                // Support both old format (array) and new format ({ files, aiAnalysis })
+                let aiAnalysis = null;
+                if (Array.isArray(raw)) {
+                    folderData = raw;
+                } else {
+                    folderData = raw.files || [];
+                    aiAnalysis = raw.aiAnalysis || null;
+                }
 
                 // Update page title and links
                 const folderName = jsonPath.split('/').pop().replace('.json', '').split('_')[1] || 'DICOM Folder';
@@ -289,6 +411,9 @@
                 if (folderData.length > 0 && folderData[0].vtiPath) {
                     document.getElementById('vtiLink').href = `/VolumeViewer.html?fileURL=${encodeURIComponent(folderData[0].vtiPath)}`;
                 }
+
+                // Render AI analysis if available
+                if (aiAnalysis) renderAiReport(aiAnalysis);
 
                 renderAllImages();
                 renderComparison();
@@ -382,6 +507,17 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function renderAiReport(ai) {
+            document.getElementById('ai-interpretation').textContent = ai.interpretation || 'N/A';
+            document.getElementById('ai-analysis').textContent = ai.analysis || 'N/A';
+            document.getElementById('ai-report').textContent = ai.report || 'N/A';
+            document.getElementById('ai-model').textContent = `Model: ${ai.model || 'MedGemma 4B'}`;
+            document.getElementById('ai-context').textContent = ai.context ? `Context: ${ai.context}` : '';
+            document.getElementById('ai-timestamp').textContent = ai.timestamp ? `Generated: ${new Date(ai.timestamp).toLocaleString()}` : '';
+            document.getElementById('ai-disclaimer').textContent = ai.disclaimer || '';
+            document.getElementById('ai-report-section').style.display = 'block';
         }
 
         function switchTab(tabName) {

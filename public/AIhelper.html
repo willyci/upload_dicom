@@ -507,8 +507,27 @@
             </div>
         </div>
         <select id="model-select" aria-label="Select AI model">
-            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 · 1B (fast)</option>
-            <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 · 3B (better)</option>
+            <optgroup label="Small &amp; Fast">
+                <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen 2.5 · 0.5B — 398 MB</option>
+                <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 · 1B — 880 MB</option>
+                <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 · 1.7B — 990 MB</option>
+                <option value="gemma-2b-it-q4f16_1-MLC">Gemma 1.1 · 2B — 1.5 GB</option>
+            </optgroup>
+            <optgroup label="Balanced">
+                <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma 2 · 2B — 1.5 GB</option>
+                <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC" selected>Llama 3.2 · 3B — 2.0 GB (default)</option>
+                <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen 2.5 · 3B — 2.1 GB</option>
+                <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini · 3.8B — 2.2 GB</option>
+            </optgroup>
+            <optgroup label="Large (needs good GPU)">
+                <option value="Qwen2.5-7B-Instruct-q4f16_1-MLC">Qwen 2.5 · 7B — 4.6 GB</option>
+                <option value="Llama-3.1-8B-Instruct-q4f16_1-MLC">Llama 3.1 · 8B — 4.9 GB</option>
+                <option value="DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC">DeepSeek R1 · 7B — 4.4 GB</option>
+                <option value="gemma-2-9b-it-q4f16_1-MLC">Gemma 2 · 9B — 5.7 GB</option>
+            </optgroup>
+            <optgroup label="Massive (16GB+ VRAM required)">
+                <option value="gemma-2-27b-it-q4f16_1-MLC">Gemma 2 · 27B — 16.5 GB</option>
+            </optgroup>
         </select>
         <div id="status-pill" class="loading">
             <span class="dot"></span>
@@ -624,6 +643,7 @@
         let voiceActive      = false;
         let altHeld          = false;
         let accumulatedFinal = '';
+        let userStoppedVoice = false;
         let currentMode      = 'improve'; // 'improve' | 'write'
 
         // ── Mode toggle ───────────────────────────────────── //
@@ -719,6 +739,7 @@
             if (voiceActive) return;
 
             voiceActive = true;
+            userStoppedVoice = false;
             accumulatedFinal = emailInput.value; // snapshot existing text for this session
 
             recognition = new SpeechRecognitionAPI();
@@ -750,9 +771,11 @@
 
             recognition.onerror = (e) => {
                 console.error('SpeechRecognition error:', e.error);
+                const fatal = ['not-allowed', 'audio-capture', 'service-not-allowed'];
+                if (fatal.includes(e.error)) userStoppedVoice = true; // don't auto-restart
                 const msgs = {
                     'not-allowed':   'Microphone access denied — allow mic in browser settings',
-                    'no-speech':     'No speech detected — try speaking louder',
+                    'no-speech':     null, // silent — will auto-restart
                     'audio-capture': 'No microphone found — check your audio input',
                     'network':       'Network error during speech recognition',
                     'aborted':       null,
@@ -762,7 +785,13 @@
             };
 
             recognition.onend = () => {
-                recognition  = null;
+                recognition = null;
+                if (!userStoppedVoice) {
+                    // Browser killed recognition (silence/no-speech) — auto-restart
+                    voiceActive = false;
+                    setTimeout(() => { if (!userStoppedVoice) startVoice(); }, 300);
+                    return;
+                }
                 voiceActive  = false;
                 altHeld      = false;
                 voiceBtn.classList.remove('recording');
@@ -776,6 +805,7 @@
         }
 
         function stopVoice() {
+            userStoppedVoice = true;
             if (recognition) recognition.stop(); // fires onend automatically
         }
 
