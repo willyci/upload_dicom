@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5 in a Row 3D — Variable Grid & AI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #cceeff;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+      user-select: none;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      inset: 0;
+    }
+
+    #menu-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(4, 10, 24, 0.85);
+      backdrop-filter: blur(25px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-box {
+      background: rgba(3, 8, 22, 0.95);
+      border: 1px solid rgba(80, 195, 255, 0.25);
+      border-radius: 24px;
+      padding: 48px 64px;
+      text-align: center;
+      box-shadow: 0 16px 64px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      max-width: 500px;
+      width: 90%;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1)
+      }
+    }
+
+    .m-title {
+      font-size: 42px;
+      font-weight: 800;
+      background: linear-gradient(130deg, #50c8ff, #a070ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .m-sub {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 40px;
+    }
+
+    .m-section {
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .m-label {
+      font-size: 12px;
+      color: rgba(80, 195, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .m-btn {
+      flex: 1;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .m-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+    }
+
+    .m-btn.active {
+      background: rgba(80, 195, 255, 0.15);
+      border-color: rgba(80, 195, 255, 0.5);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(80, 195, 255, 0.2);
+    }
+
+    #btn-start {
+      width: 100%;
+      padding: 18px;
+      margin-top: 10px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, #50c8ff, #a070ff);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 8px 30px rgba(120, 150, 255, 0.3);
+    }
+
+    #btn-start:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(120, 150, 255, 0.4);
+    }
+
+    #panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 210px;
+      z-index: 10;
+      display: none;
+      background: rgba(5, 12, 28, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(50, 150, 255, 0.22);
+      border-radius: 18px;
+      padding: 18px 16px;
+      box-shadow: 0 4px 32px rgba(0, 0, 0, 0.7);
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 800;
+      background: linear-gradient(130deg, #50c8ff, #a070ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sub {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.28);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin: 2px 0 14px;
+    }
+
+    .pcard {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      margin-bottom: 11px;
+    }
+
+    .dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .bk {
+      background: radial-gradient(circle at 38% 33%, #666, #0a0a0a);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    }
+
+    .wh {
+      background: radial-gradient(circle at 38% 33%, #fff, #bbb);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7);
+    }
+
+    .plbl {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pnm {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .counts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .cbox {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 7px;
+      text-align: center;
+    }
+
+    .cv {
+      font-size: 19px;
+      font-weight: 700;
+      color: rgba(80, 195, 255, .9);
+    }
+
+    .cl {
+      font-size: 9px;
+      color: rgba(255, 255, 255, .27);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, .06);
+      margin: 9px 0;
+    }
+
+    .hints {
+      font-size: 11px;
+      color: rgba(255, 255, 255, .24);
+      line-height: 2;
+    }
+
+    .hints span {
+      color: rgba(80, 195, 255, .6);
+      font-weight: 500;
+    }
+
+    #nbtn {
+      width: 100%;
+      padding: 8px;
+      margin-top: 11px;
+      background: linear-gradient(135deg, rgba(80, 195, 255, .09), rgba(160, 120, 255, .09));
+      border: 1px solid rgba(80, 195, 255, .2);
+      border-radius: 9px;
+      color: rgba(80, 195, 255, .8);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    #nbtn:hover {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(80, 195, 255, .18), rgba(160, 120, 255, .18));
+    }
+
+    #tip {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5, 12, 28, .88);
+      border: 1px solid rgba(80, 195, 255, .18);
+      border-radius: 18px;
+      padding: 6px 18px;
+      font-size: 11px;
+      color: rgba(80, 195, 255, .6);
+      pointer-events: none;
+      z-index: 10;
+      white-space: nowrap;
+      display: none;
+    }
+
+    #winbox {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      background: rgba(3, 8, 22, .97);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 210, 0, .35);
+      border-radius: 22px;
+      padding: 38px 58px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(255, 210, 0, .1), 0 20px 60px rgba(0, 0, 0, .8);
+      animation: pop .42s cubic-bezier(.175, .885, .32, 1.275) forwards;
+    }
+
+    .wcrown {
+      font-size: 36px;
+      margin-bottom: 4px;
+    }
+
+    .wtitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: rgba(255, 210, 0, .6);
+      margin-bottom: 4px;
+    }
+
+    .wname {
+      font-size: 36px;
+      font-weight: 800;
+      background: linear-gradient(130deg, #ffd700, #ff9832);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .wsub {
+      font-size: 13px;
+      color: rgba(255, 255, 255, .3);
+      margin-bottom: 20px;
+    }
+
+    .wbtn {
+      padding: 10px 32px;
+      background: linear-gradient(135deg, #ffd700, #ff9832);
+      border: none;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a0e00;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .wbtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 26px rgba(255, 210, 0, .3);
+    }
+
+    #wbtn-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 8px;
+      transition: color 0.2s;
+    }
+
+    #wbtn-close:hover {
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="menu-overlay">
+    <div class="menu-box">
+      <div class="m-title">5 in a Row 3D</div>
+      <div class="m-sub">Immersive Logic Game</div>
+
+      <div class="m-section">
+        <div class="m-label">Grid Size</div>
+        <div class="btn-group" id="size-group">
+          <button class="m-btn sz active" data-v="7">7 × 7 × 7</button>
+          <button class="m-btn sz" data-v="9">9 × 9 × 9</button>
+          <button class="m-btn sz" data-v="13">13 × 13 × 13</button>
+          <button class="m-btn sz" data-v="15">15 × 15 × 15</button>
+        </div>
+      </div>
+
+      <div class="m-section">
+        <div class="m-label">Game Mode</div>
+        <div class="btn-group" id="mode-group">
+          <button class="m-btn md" data-v="0">Human vs Human</button>
+          <button class="m-btn md active" data-v="1">Human vs AI</button>
+          <button class="m-btn md" data-v="2">AI vs AI</button>
+        </div>
+      </div>
+
+      <div class="m-section" id="ai-level-section">
+        <div class="m-label">AI Level</div>
+        <div class="btn-group" id="level-group">
+          <button class="m-btn lv" data-v="1">Easy</button>
+          <button class="m-btn lv active" data-v="2">Medium</button>
+          <button class="m-btn lv" data-v="3">Hard</button>
+        </div>
+      </div>
+
+      <button id="btn-start">Start Game</button>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="panel">
+    <div class="title">5 in a Row</div>
+    <div class="sub" id="panel-sub-txt">3D · 19×19×19</div>
+    <div class="pcard">
+      <div class="dot bk" id="si"></div>
+      <div>
+        <div class="plbl">Current Player</div>
+        <div class="pnm" id="pn">Black</div>
+      </div>
+    </div>
+    <div class="counts">
+      <div class="cbox">
+        <div class="cv" id="bc">0</div>
+        <div class="cl">Black</div>
+      </div>
+      <div class="cbox">
+        <div class="cv" id="wc">0</div>
+        <div class="cl">White</div>
+      </div>
+    </div>
+    <hr>
+    <div class="hints">
+      <span>Drag</span> — Rotate<br>
+      <span>Scroll</span> — Zoom<br>
+      <span>Click</span> — Place stone
+    </div>
+    <button id="nbtn">Main Menu</button>
+  </div>
+
+  <div id="tip">Click on the grid to place</div>
+
+  <div id="winbox">
+    <button id="wbtn-close">&times;</button>
+    <div class="wcrown">🏆</div>
+    <div class="wtitle">Winner!</div>
+    <div class="wname" id="wn">Black</div>
+    <div class="wsub">wins with 5 in a row!</div>
+    <button class="wbtn" id="wbtn-menu">Main Menu</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+    }
+  }
+</script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ── Game Configuration ──────────────────────────────────────────
+    let N = 7, H = 3, WIN = 5, MODE = 1, AI_LEVEL = 2; // MODE: 0=HvH, 1=HvAI, 2=AIvAI; AI_LEVEL: 1=Easy, 2=Medium, 3=Hard
+    const DIRS = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1], [0, 1, 1], [0, 1, -1], [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1]];
+    let activeTimer = null;
+
+    // Menu Logic
+    let pendingN = 7;
+    let pendingMode = 1;
+    let pendingLevel = 2;
+    const updateLevelVisibility = () => {
+      document.getElementById('ai-level-section').style.display = pendingMode === 0 ? 'none' : 'block';
+    };
+    document.querySelectorAll('.m-btn.sz').forEach(b => {
+      b.onclick = () => { document.querySelectorAll('.m-btn.sz').forEach(x => x.classList.remove('active')); b.classList.add('active'); pendingN = parseInt(b.dataset.v); }
+    });
+    document.querySelectorAll('.m-btn.md').forEach(b => {
+      b.onclick = () => { document.querySelectorAll('.m-btn.md').forEach(x => x.classList.remove('active')); b.classList.add('active'); pendingMode = parseInt(b.dataset.v); updateLevelVisibility(); }
+    });
+    document.querySelectorAll('.m-btn.lv').forEach(b => {
+      b.onclick = () => { document.querySelectorAll('.m-btn.lv').forEach(x => x.classList.remove('active')); b.classList.add('active'); pendingLevel = parseInt(b.dataset.v); }
+    });
+    document.getElementById('btn-start').onclick = () => {
+      N = pendingN; H = Math.floor(N / 2); MODE = pendingMode; AI_LEVEL = pendingLevel;
+      document.getElementById('menu-overlay').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      document.getElementById('tip').style.display = 'block';
+      const lvNames = ['', 'Easy', 'Medium', 'Hard'];
+      document.getElementById('panel-sub-txt').textContent = `3D ${MODE === 0 ? 'HvH' : (MODE === 1 ? 'HvAI' : 'AIvAI')}${MODE !== 0 ? ' · ' + lvNames[AI_LEVEL] : ''} · ${N}×${N}×${N}`;
+      initGame();
+    };
+    document.getElementById('nbtn').onclick = document.getElementById('wbtn-menu').onclick = () => {
+      document.getElementById('menu-overlay').style.display = 'flex';
+      document.getElementById('panel').style.display = 'none';
+      document.getElementById('tip').style.display = 'none';
+      document.getElementById('winbox').style.display = 'none';
+      if (activeTimer) clearTimeout(activeTimer);
+    };
+    document.getElementById('wbtn-close').onclick = () => {
+      document.getElementById('winbox').style.display = 'none';
+    };
+
+    // ── State ──────────────────────────────────────────────────────
+    let board, cur, over, bc, wc;
+    const ci = (x, y, z) => x * N * N + y * N + z;
+    const itu = i => [Math.floor(i / (N * N)), Math.floor(i / N) % N, i % N];
+
+    // ── Shared Scene Components ─────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xcceeff);
+    const cam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 500);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const oc = new OrbitControls(cam, renderer.domElement);
+    oc.enablePan = false; oc.enableDamping = true; oc.dampingFactor = 0.07;
+    scene.add(new THREE.AmbientLight(0xaabbdd, 0.8));
+    const dl = new THREE.DirectionalLight(0xffffff, 1.5);
+    dl.position.set(15, 25, 20); dl.castShadow = true;
+    dl.shadow.mapSize.width = 1024; dl.shadow.mapSize.height = 1024;
+    dl.shadow.camera.near = 1; dl.shadow.camera.far = 80;
+    dl.shadow.camera.left = -20; dl.shadow.camera.right = 20;
+    dl.shadow.camera.top = 20; dl.shadow.camera.bottom = -20;
+    dl.shadow.radius = 4;
+    scene.add(dl);
+    const pl2 = new THREE.PointLight(0xaa77ff, 2, 150); pl2.position.set(-20, -15, -18); scene.add(pl2);
+
+    let gridGroup = new THREE.Group();
+    scene.add(gridGroup);
+    let hitMesh, bMesh, wMesh, hSph;
+    let goldObjs = [];
+    const clearGold = () => { goldObjs.forEach(o => gridGroup.remove(o)); goldObjs = []; };
+
+    const sGeo = new THREE.SphereGeometry(0.23, 32, 24);
+
+    // Generate random marble/stone texture
+    function makeStoneTexture(baseR, baseG, baseB, varR, varG, varB) {
+      const sz = 128, cv = document.createElement('canvas'); cv.width = sz; cv.height = sz;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = `rgb(${baseR},${baseG},${baseB})`; ctx.fillRect(0, 0, sz, sz);
+      for (let i = 0; i < 600; i++) {
+        const x = Math.random() * sz, y = Math.random() * sz;
+        const r = Math.random() * 4 + 0.5;
+        const dr = baseR + (Math.random() - 0.5) * varR;
+        const dg = baseG + (Math.random() - 0.5) * varG;
+        const db = baseB + (Math.random() - 0.5) * varB;
+        const a = Math.random() * 0.4 + 0.1;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${dr|0},${dg|0},${db|0},${a})`; ctx.fill();
+      }
+      // Add subtle veins
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath(); ctx.moveTo(Math.random() * sz, Math.random() * sz);
+        ctx.bezierCurveTo(Math.random()*sz,Math.random()*sz, Math.random()*sz,Math.random()*sz, Math.random()*sz,Math.random()*sz);
+        const vr = baseR + (Math.random() - 0.5) * varR * 0.7;
+        const vg = baseG + (Math.random() - 0.5) * varG * 0.7;
+        const vb = baseB + (Math.random() - 0.5) * varB * 0.7;
+        ctx.strokeStyle = `rgba(${vr|0},${vg|0},${vb|0},0.15)`;
+        ctx.lineWidth = Math.random() * 2 + 0.5; ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(cv);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    const blackTex = makeStoneTexture(25, 25, 30, 40, 40, 50);
+    const whiteTex = makeStoneTexture(230, 228, 225, 30, 30, 35);
+    const bm = new THREE.MeshPhysicalMaterial({ map: blackTex, metalness: 0.05, roughness: 0.18, clearcoat: 0.9, clearcoatRoughness: 0.1 });
+    const wm = new THREE.MeshPhysicalMaterial({ map: whiteTex, metalness: 0.02, roughness: 0.12, clearcoat: 0.9, clearcoatRoughness: 0.08 });
+
+    // Circle texture for dots
+    const dotCanvas = document.createElement('canvas'); dotCanvas.width = 32; dotCanvas.height = 32;
+    const dctx = dotCanvas.getContext('2d'); dctx.beginPath(); dctx.arc(16, 16, 14, 0, Math.PI * 2); dctx.fillStyle = '#fff'; dctx.fill();
+    const dotTex = new THREE.CanvasTexture(dotCanvas);
+
+    // Yellow Hover Sphere
+    const hGeo = new THREE.SphereGeometry(.05, 22, 16);
+    const hym = new THREE.MeshStandardMaterial({ color: 0xffff00, transparent: true, opacity: .8, emissive: 0xccaa00, emissiveIntensity: .6 });
+
+    // ── Initialize Specific Game ───────────────────────────────────
+    function initGame() {
+      if (activeTimer) clearTimeout(activeTimer);
+      board = new Uint8Array(N * N * N);
+      cur = 0; over = false; bc = 0; wc = 0;
+      anims.length = 0; clearGold(); hXYZ = null;
+
+      // Adjust camera distance based on Grid size
+      let dist = N * 1.5;
+      cam.position.set(dist, dist * 0.8, dist * 1.2);
+      oc.minDistance = N * 0.7; oc.maxDistance = N * 3.5; oc.target.set(0, 0, 0);
+
+      scene.remove(gridGroup);
+      gridGroup = new THREE.Group();
+      scene.add(gridGroup);
+
+      // Rebuild grid geometry
+      const pos = [];
+      for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) {
+        const pa = a - H, pb = b - H;
+        pos.push(-H, pa, pb, H, pa, pb);
+        pos.push(pa, -H, pb, pa, H, pb);
+        pos.push(pa, pb, -H, pa, pb, H);
+      }
+      const glGeo = new THREE.BufferGeometry(); glGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      gridGroup.add(new THREE.LineSegments(glGeo, new THREE.LineBasicMaterial({ color: 0x003366, transparent: true, opacity: 0.35 })));
+
+      // Rebuild edges
+      gridGroup.add(new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(N - 1, N - 1, N - 1)),
+        new THREE.LineBasicMaterial({ color: 0x001133, opacity: 0.8, transparent: true })
+      ));
+
+      // Rebuild dots (circular sprite texture so they render as circles, not squares)
+      const pts = [];
+      for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) for (let z = 0; z < N; z++) pts.push(x - H, y - H, z - H);
+      const ptGeo = new THREE.BufferGeometry(); ptGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      gridGroup.add(new THREE.Points(ptGeo, new THREE.PointsMaterial({ color: 0x003366, size: .1, sizeAttenuation: true, transparent: true, opacity: .6, map: dotTex, alphaMap: dotTex, alphaTest: 0.5 })));
+
+      // Rebuild hit mesh (Invisible Targets)
+      // Radius 0.28 is a safe balance that avoids 100% blocking but guarantees hits perfectly
+      const htGeo = new THREE.SphereGeometry(.28, 6, 6);
+      const htMat = new THREE.MeshBasicMaterial({ visible: false });
+      hitMesh = new THREE.InstancedMesh(htGeo, htMat, N * N * N);
+      for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) for (let z = 0; z < N; z++) {
+        dummy.position.set(x - H, y - H, z - H); dummy.scale.setScalar(1); dummy.updateMatrix();
+        hitMesh.setMatrixAt(ci(x, y, z), dummy.matrix);
+      }
+      hitMesh.instanceMatrix.needsUpdate = true;
+      gridGroup.add(hitMesh);
+
+      // Instanced stones
+      bMesh = new THREE.InstancedMesh(sGeo, bm, N * N * N); bMesh.count = 0; bMesh.castShadow = true; bMesh.receiveShadow = true; gridGroup.add(bMesh);
+      wMesh = new THREE.InstancedMesh(sGeo, wm, N * N * N); wMesh.count = 0; wMesh.castShadow = true; wMesh.receiveShadow = true; gridGroup.add(wMesh);
+
+      // Hover visual
+      hSph = new THREE.Mesh(hGeo, hym); hSph.visible = false; gridGroup.add(hSph);
+
+      document.getElementById('bc').textContent = '0';
+      document.getElementById('wc').textContent = '0';
+      updateUI();
+      tip('Click on the grid to place');
+
+      if (MODE === 2) {
+        activeTimer = setTimeout(makeAIMove, 600); // start AI vs AI
+      }
+    }
+
+    // ── Game Core Logic ───────────────────────────────────────────
+    const dummy = new THREE.Object3D();
+
+    // Synthesized stone-tap sound via Web Audio API
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTap() {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function doMove(x, y, z) {
+      if (over) return;
+      playTap();
+      const p = cur;
+      board[ci(x, y, z)] = p + 1;
+      const pVec = new THREE.Vector3(x - H, y - H, z - H);
+      dummy.position.copy(pVec); dummy.scale.setScalar(0.01); dummy.updateMatrix();
+      if (p === 0) { bMesh.setMatrixAt(bc, dummy.matrix); bMesh.count = ++bc; bMesh.instanceMatrix.needsUpdate = true; kickAnim(bMesh, bc - 1, pVec); }
+      else { wMesh.setMatrixAt(wc, dummy.matrix); wMesh.count = ++wc; wMesh.instanceMatrix.needsUpdate = true; kickAnim(wMesh, wc - 1, pVec); }
+
+      document.getElementById('bc').textContent = bc;
+      document.getElementById('wc').textContent = wc;
+
+      const winLine = checkWin(x, y, z, p);
+      if (winLine) {
+        over = true; if (hSph) hSph.visible = false;
+        showWin(winLine, p);
+        return;
+      }
+
+      cur = 1 - cur;
+      updateUI();
+      hXYZ = null; if (hSph) hSph.visible = false;
+
+      // Hand off to AI if needed
+      if (!over) {
+        if ((MODE === 1 && cur === 1) || MODE === 2) {
+          activeTimer = setTimeout(makeAIMove, 250);
+        }
+      }
+    }
+
+    function showWin(cells, p) {
+      const gg = new THREE.SphereGeometry(.48, 22, 16);
+      const gmat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff8800, emissiveIntensity: 1.5, transparent: true, opacity: .9 });
+      cells.forEach(([x, y, z]) => { const m = new THREE.Mesh(gg, gmat); m.position.set(x - H, y - H, z - H); gridGroup.add(m); goldObjs.push(m); });
+      const pts = cells.map(([x, y, z]) => new THREE.Vector3(x - H, y - H, z - H));
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffd700, linewidth: 2 }));
+      gridGroup.add(line); goldObjs.push(line);
+
+      setTimeout(() => {
+        document.getElementById('wn').textContent = p === 0 ? 'Black' : 'White';
+        document.getElementById('winbox').style.display = 'block';
+      }, 600);
+    }
+
+    function checkWin(x, y, z, p) {
+      const v = p + 1;
+      for (const [dx, dy, dz] of DIRS) {
+        const ln = [[x, y, z]];
+        for (let s = 1; s <= 4; s++) { const nx = x + dx * s, ny = y + dy * s, nz = z + dz * s; if (nx < 0 || nx >= N || ny < 0 || ny >= N || nz < 0 || nz >= N || board[ci(nx, ny, nz)] !== v) break; ln.push([nx, ny, nz]); }
+        for (let s = 1; s <= 4; s++) { const nx = x - dx * s, ny = y - dy * s, nz = z - dz * s; if (nx < 0 || nx >= N || ny < 0 || ny >= N || nz < 0 || nz >= N || board[ci(nx, ny, nz)] !== v) break; ln.push([nx, ny, nz]); }
+        if (ln.length >= WIN) return ln.slice(0, WIN);
+      }
+      return null;
+    }
+
+    // ── AI Implementation (3 levels) ────────────────────────────────
+
+    function makeAIMove() {
+      if (over) return;
+
+      // First move optimization (all levels)
+      if (bc === 0 && wc === 0) { doMove(H, H, H); return; }
+      if (bc === 1 && wc === 0 && board[ci(H, H, H)] === 1) { doMove(H + 1, H, H); return; }
+
+      let move;
+      if (AI_LEVEL === 1) move = aiEasy();
+      else if (AI_LEVEL === 2) move = aiMedium();
+      else move = aiHard();
+
+      doMove(move[0], move[1], move[2]);
+    }
+
+    // ── Easy: only blocks immediate wins, otherwise random near stones ──
+    function aiEasy() {
+      const candidates = getCandidates(1);
+      // Check for immediate win or must-block
+      for (const [x, y, z] of candidates) {
+        const s = evaluateCell(x, y, z, cur);
+        if (s >= 500000) return [x, y, z]; // win or block win
+      }
+      // Otherwise pick randomly from candidates
+      return candidates[Math.floor(Math.random() * candidates.length)] || fallback();
+    }
+
+    // ── Medium: full threat scoring (original AI) ──
+    function aiMedium() {
+      const candidates = getCandidates(2);
+      let bestScore = -1, bestMoves = [];
+      for (const [x, y, z] of candidates) {
+        const score = evaluateCell(x, y, z, cur);
+        if (score > bestScore) { bestScore = score; bestMoves = [[x, y, z]]; }
+        else if (score === bestScore) bestMoves.push([x, y, z]);
+      }
+      return bestMoves.length ? bestMoves[Math.floor(Math.random() * bestMoves.length)] : fallback();
+    }
+
+    // ── Hard: threat scoring + 1-ply lookahead (checks opponent's best response) ──
+    function aiHard() {
+      const candidates = getCandidates(2);
+      let bestScore = -Infinity, bestMoves = [];
+
+      for (const [x, y, z] of candidates) {
+        const myScore = evaluateCell(x, y, z, cur);
+        // Instant win — take it
+        if (myScore >= 1000000) return [x, y, z];
+
+        // Simulate placing here, then see opponent's best threat
+        board[ci(x, y, z)] = cur + 1;
+        const opp = 1 - cur;
+        let oppBest = 0;
+        for (const [ox, oy, oz] of getCandidates(2)) {
+          if (board[ci(ox, oy, oz)] !== 0) continue;
+          oppBest = Math.max(oppBest, evaluateCell(ox, oy, oz, opp));
+        }
+        board[ci(x, y, z)] = 0; // undo
+
+        // Score = our gain minus opponent's best reply (weighted)
+        const combined = myScore - oppBest * 0.6;
+        if (combined > bestScore) { bestScore = combined; bestMoves = [[x, y, z]]; }
+        else if (combined === bestScore) bestMoves.push([x, y, z]);
+      }
+      return bestMoves.length ? bestMoves[Math.floor(Math.random() * bestMoves.length)] : fallback();
+    }
+
+    // ── Helpers ──
+    function getCandidates(radius) {
+      const moves = [];
+      for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) for (let z = 0; z < N; z++) {
+        if (board[ci(x, y, z)] !== 0) continue;
+        if (!hasAdjacent(x, y, z, radius)) continue;
+        moves.push([x, y, z]);
+      }
+      return moves;
+    }
+
+    function fallback() {
+      for (let i = 0; i < N * N * N; i++) if (board[i] === 0) return itu(i);
+      return [H, H, H];
+    }
+
+    function hasAdjacent(cx, cy, cz, r = 2) {
+      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+        if (dx === 0 && dy === 0 && dz === 0) continue;
+        const nx = cx + dx, ny = cy + dy, nz = cz + dz;
+        if (nx >= 0 && nx < N && ny >= 0 && ny < N && nz >= 0 && nz < N) {
+          if (board[ci(nx, ny, nz)] !== 0) return true;
+        }
+      }
+      return false;
+    }
+
+    function evaluateCell(x, y, z, pColor) {
+      let score = 0;
+      const fCol = pColor + 1;
+      const eCol = (1 - pColor) + 1;
+
+      for (const [dx, dy, dz] of DIRS) {
+        let f1 = getLine(x, y, z, dx, dy, dz, fCol);
+        let f2 = getLine(x, y, z, -dx, -dy, -dz, fCol);
+        let fTot = f1.c + f2.c, fOp = f1.o + f2.o;
+
+        let e1 = getLine(x, y, z, dx, dy, dz, eCol);
+        let e2 = getLine(x, y, z, -dx, -dy, -dz, eCol);
+        let eTot = e1.c + e2.c, eOp = e1.o + e2.o;
+
+        if (fTot >= 4) score += 1000000;
+        else if (eTot >= 4) score += 500000;
+        else if (fTot === 3 && fOp === 2) score += 50000;
+        else if (eTot === 3 && eOp === 2) score += 25000;
+        else if (fTot === 3 && fOp === 1) score += 1000;
+        else if (eTot === 3 && eOp === 1) score += 500;
+        else if (fTot === 2 && fOp === 2) score += 100;
+        else if (eTot === 2 && eOp === 2) score += 50;
+        else score += (fTot + eTot);
+      }
+
+      score -= (Math.abs(x - H) + Math.abs(y - H) + Math.abs(z - H));
+      return score;
+    }
+
+    function getLine(x, y, z, dx, dy, dz, targetColor) {
+      let c = 0, o = 0;
+      for (let s = 1; s <= 5; s++) {
+        const nx = x + dx * s, ny = y + dy * s, nz = z + dz * s;
+        if (nx < 0 || nx >= N || ny < 0 || ny >= N || nz < 0 || nz >= N) break;
+        const v = board[ci(nx, ny, nz)];
+        if (v === targetColor) c++;
+        else if (v === 0) { o = 1; break; }
+        else break;
+      }
+      return { c, o };
+    }
+
+
+    // ── User Input & Render Loop ──────────────────────────────────
+    const anims = [];
+    const easeBack = t => { const c = 2.70158; return 1 + c * (t - 1) * (t - 1) * (t - 1) + (c + 1) * (t - 1) * (t - 1); };
+    function kickAnim(mesh, idx, pos) { anims.push({ mesh, idx, pos: pos.clone(), t: 0 }); }
+
+    const ray = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hXYZ = null, drag = false, mdp = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('pointerdown', e => { mdp = { x: e.clientX, y: e.clientY }; drag = false; });
+    renderer.domElement.addEventListener('pointermove', e => {
+      if (e.buttons > 0 && Math.hypot(e.clientX - mdp.x, e.clientY - mdp.y) > 5) drag = true;
+      mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+      checkHover();
+    });
+    renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+    renderer.domElement.addEventListener('pointerup', e => {
+      if (e.button === 0 && !drag) processClick();
+    });
+
+    function checkHover() {
+      if (over || document.getElementById('menu-overlay').style.display !== 'none') { if (hSph) hSph.visible = false; return; }
+      if (MODE === 1 && cur === 1) { if (hSph) hSph.visible = false; return; }
+      if (MODE === 2) { if (hSph) hSph.visible = false; return; }
+
+      ray.setFromCamera(mouse, cam);
+      const hits = ray.intersectObject(hitMesh);
+
+      if (!hits.length) { hXYZ = null; if (hSph) hSph.visible = false; tip('Click on the grid to place'); return; }
+      const [x, y, z] = itu(hits[0].instanceId);
+      if (board[ci(x, y, z)] !== 0) { hXYZ = null; if (hSph) hSph.visible = false; tip('Occupied — choose another'); return; }
+
+      hXYZ = [x, y, z];
+      hSph.position.set(hXYZ[0] - H, hXYZ[1] - H, hXYZ[2] - H);
+      hSph.visible = true;
+      tip(`(${hXYZ[0]},${hXYZ[1]},${hXYZ[2]}) — Click to place`);
+    }
+
+    function processClick() {
+      if (over || !hXYZ || document.getElementById('menu-overlay').style.display !== 'none') return;
+      if (MODE === 1 && cur === 1) return; // Ignore click if AI turn
+      if (MODE === 2) return; // Ignore click if AIvAI
+
+      doMove(hXYZ[0], hXYZ[1], hXYZ[2]);
+    }
+
+    function updateUI() {
+      const b = cur === 0; document.getElementById('pn').textContent = b ? 'Black' : 'White';
+      document.getElementById('si').className = 'dot ' + (b ? 'bk' : 'wh');
+    }
+    function tip(t) { document.getElementById('tip').textContent = t; }
+
+    const clk = new THREE.Clock();
+    (function loop() {
+      requestAnimationFrame(loop);
+      const t = clk.getElapsedTime();
+      oc.update();
+      if (hSph && hSph.visible) { hSph.material.emissiveIntensity = .35 + Math.sin(t * 3) * .25; hSph.scale.setScalar(1 + Math.sin(t * 3) * .05); }
+      for (let i = anims.length - 1; i >= 0; i--) {
+        const a = anims[i]; a.t = Math.min(a.t + .1, 1);
+        dummy.position.copy(a.pos); dummy.scale.setScalar(easeBack(a.t)); dummy.updateMatrix();
+        a.mesh.setMatrixAt(a.idx, dummy.matrix); a.mesh.instanceMatrix.needsUpdate = true;
+        if (a.t >= 1) anims.splice(i, 1);
+      }
+      goldObjs.forEach(o => { if (o.isMesh) o.material.emissiveIntensity = .9 + Math.sin(t * 4) * .5; });
+      dl.position.set(Math.cos(t * .2) * 30, 28, Math.sin(t * .2) * 30);
+      renderer.render(scene, cam);
+    })();
+
+    window.addEventListener('resize', () => {
+      cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // Create initial empty scene objects before start
+    initGame();
+    document.getElementById('menu-overlay').style.display = 'flex'; // assure menu is upfront initially
+  </script>
+</body>
+
+</html>

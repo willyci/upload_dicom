@@ -261,6 +261,7 @@
             display: flex;
             gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .opt-btn {
@@ -286,6 +287,16 @@
             border-color: #4af;
             color: #fff;
             background: rgba(68, 170, 255, 0.15);
+        }
+
+        #piece-preview {
+            display: flex;
+            justify-content: center;
+            margin-top: 14px;
+        }
+
+        #piece-preview canvas {
+            border-radius: 6px;
         }
 
         #start-btn {
@@ -499,6 +510,11 @@
                 <button class="opt-btn active" data-group="diff" data-val="standard">STANDARD</button>
                 <button class="opt-btn" data-group="diff" data-val="hard">HARD</button>
             </div>
+            <div class="btns" style="margin-top: 10px;">
+                <button class="opt-btn" data-group="diff" data-val="asian">ASIAN</button>
+                <button class="opt-btn" data-group="diff" data-val="emotional">EMOTIONAL DAMAGE</button>
+            </div>
+            <div id="piece-preview"></div>
         </div>
         <div class="option-group">
             <label>Grid Size</label>
@@ -686,6 +702,64 @@
             { name: 'X', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [2, 0, 1], [1, 0, 2]], color: 0xff6d00, pivot: [1, 0, 1] },
             { name: 'Y', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [1, 0, 3]], color: 0xaa00ff },
             { name: 'Z5', blocks: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0x64ffda },
+            { name: 's', blocks: [[0, 0, 2], [1, 0, 0], [1, 0, 1], [1, 0, 2], [2, 0, 0]], color: 0x40c4ff, pivot: [1, 0, 1] },
+        ]);
+
+        // ── Asian: standard 7 + Branch, Right Screw, Left Screw, Cube ──
+        const ASIAN_PIECES = defPieces([
+            // Standard 7
+            { name: 'I', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], color: 0x00e5ff, pivot: [1.5, 0, 0.5] },
+            { name: 'O', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0xffd600, pivot: [0.5, 0, 0.5] },
+            { name: 'T', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 0, 1]], color: 0xd500f9, pivot: [1, 0, 0] },
+            { name: 'S', blocks: [[1, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0x76ff03, pivot: [1, 0, 0] },
+            { name: 'Z', blocks: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [2, 0, 1]], color: 0xff1744, pivot: [1, 0, 0] },
+            { name: 'L', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 0, 1]], color: 0xff9100, pivot: [1, 0, 0] },
+            { name: 'J', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 0, 1]], color: 0x2979ff, pivot: [1, 0, 0] },
+            { name: 'B', blocks: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [0, 0, 2]], color: 0x4fc3f7, pivot: [0.5, 0, 1] },
+            { name: 'D', blocks: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0xff6e40 },
+            { name: 'Fs', blocks: [[2, 0, 0], [1, 0, 1], [2, 0, 1], [0, 0, 2], [1, 0, 2]], color: 0x7c4dff },
+            { name: 'O8', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 1, 0], [1, 1, 0], [0, 1, 1], [1, 1, 1]], color: 0xffc400, pivot: [0.5, 0.5, 0.5] },
+            // 3D pieces
+            { name: 'F', blocks: [[0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0]], color: 0xe91e63, pivot: [0.75, 0.25, 0.5] },
+            { name: 'D', blocks: [[0, 0, 1], [0, 1, 1], [1, 0, 0], [1, 0, 1]], color: 0x00e676, pivot: [0.5, 0.25, 0.75] },
+            { name: 't2', blocks: [[0, 1, 1], [1, 0, 1], [1, 1, 0], [1, 1, 1], [1, 2, 1]], color: 0x64ffda, pivot: [0.8, 1, 0.8] },
+            { name: 't1', blocks: [[0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 1]], color: 0xaa00ff, pivot: [0.75, 0.25, 0.75] },
+            { name: 'x1', blocks: [[0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 0, 2], [1, 1, 1], [2, 0, 1]], color: 0xff80ab, pivot: [1, 0.17, 1] },
+            { name: 'x2', blocks: [[0, 1, 1], [1, 0, 1], [1, 1, 0], [1, 1, 1], [1, 1, 2], [1, 2, 1], [2, 1, 1]], color: 0xb0bec5, pivot: [1, 1, 1] },
+        ]);
+
+        // ── Emotional Damage: all Hard + Asian unique + 3 new crosses ──
+        const EMOTIONAL_DAMAGE_PIECES = defPieces([
+            // All Hard pieces
+            { name: 'F', blocks: [[1, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2]], color: 0xe91e63 },
+            { name: 'I5', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]], color: 0x00e5ff, pivot: [2, 0, 0.5] },
+            { name: 'L5', blocks: [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [1, 0, 3]], color: 0xff9100 },
+            { name: 'N', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 0, 2], [0, 0, 3]], color: 0x76ff03 },
+            { name: 'P', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 0, 2]], color: 0xd500f9 },
+            { name: 'T5', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 0, 1], [1, 0, 2]], color: 0xffd600, pivot: [1, 0, 1] },
+            { name: 'U', blocks: [[0, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1], [2, 0, 1]], color: 0x2979ff, pivot: [1, 0, 0] },
+            { name: 'V', blocks: [[0, 0, 0], [0, 0, 1], [0, 0, 2], [1, 0, 2], [2, 0, 2]], color: 0xff1744 },
+            { name: 'W', blocks: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0x00e676 },
+            { name: 'X', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [2, 0, 1], [1, 0, 2]], color: 0xff6d00, pivot: [1, 0, 1] },
+            { name: 'Y', blocks: [[1, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 2], [1, 0, 3]], color: 0xaa00ff },
+            { name: 'Z5', blocks: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [1, 0, 2], [2, 0, 2]], color: 0x64ffda },
+            // Asian unique pieces (colors shifted to avoid dupes with Hard)
+            { name: 'I', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], color: 0x84ffff, pivot: [1.5, 0, 0.5] },
+            { name: 'O', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0xffff8d, pivot: [0.5, 0, 0.5] },
+            { name: 'T', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 0, 1]], color: 0xea80fc, pivot: [1, 0, 0] },
+            { name: 'S', blocks: [[1, 0, 0], [2, 0, 0], [0, 0, 1], [1, 0, 1]], color: 0xb2ff59, pivot: [1, 0, 0] },
+            { name: 'L', blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 0, 1]], color: 0xffcc80, pivot: [1, 0, 0] },
+            { name: 'O8', blocks: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 1, 0], [1, 1, 0], [0, 1, 1], [1, 1, 1]], color: 0xffc400, pivot: [0.5, 0.5, 0.5] },
+            // ✝ — Cross with extra blocks on top AND bottom (7 blocks):
+            { name: '✝', blocks: [[1, 0, 0], [1, 0, 1], [0, 0, 2], [1, 0, 2], [2, 0, 2], [1, 0, 3], [1, 0, 4]], color: 0x00bfa5, pivot: [1, 0, 2] },
+            // ╋ — Cross with one extra block on top (6 blocks):
+            { name: '╋', blocks: [[1, 0, 0], [1, 0, 1], [0, 0, 2], [1, 0, 2], [2, 0, 2], [1, 0, 3]], color: 0x651fff, pivot: [1, 0, 1.5] },
+            // 3D pieces
+            { name: 'vv', blocks: [[0, 0, 1], [0, 1, 0], [0, 1, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0]], color: 0xff4081, pivot: [0.5, 0.5, 0.5] },
+            { name: 'o1', blocks: [[0, 0, 0], [0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0]], color: 0x795548, pivot: [0.6, 0.2, 0.4] },
+            { name: 'oi', blocks: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0]], color: 0x69f0ae, pivot: [0.5, 0.33, 0.5] },
+            { name: 'ii', blocks: [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]], color: 0xbcaaa4, pivot: [0.5, 0.5, 0.5] },
+            { name: 'LL', blocks: [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0], [1, 0, 1], [1, 1, 0]], color: 0xb388ff, pivot: [0.5, 0.33, 0.33] },
         ]);
 
         let activePieces = STANDARD_PIECES;
@@ -1024,8 +1098,8 @@
             mesh.add(new THREE.LineSegments(edgeGeo,
                 new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: opacity * 0.2 })
             ));
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
             return mesh;
         }
 
@@ -1600,7 +1674,7 @@
                 gp.pos.y--;
             if (gp.pos.y !== cur.pos.y) {
                 for (const [x, y, z] of wb(gp)) {
-                    const m = makeBlock(cur.color, 0.12);
+                    const m = makeBlock(cur.color, 0.5);
                     m.position.set(x + 0.5, y + 0.5, z + 0.5);
                     ghostGroup.add(m);
                 }
@@ -1667,30 +1741,35 @@
         }
 
         // ── Start menu logic ──
-        let selectedSize = 4;
+        let selectedSize = 6;
         let selectedSpeed = 1;
         let selectedDiff = 'standard';
 
         const sizeOptions = {
             easy: [{ label: '4 x 4', val: 4 }, { label: '6 x 6', val: 6 }, { label: '8 x 8', val: 8 }],
             standard: [{ label: '4 x 4', val: 4 }, { label: '6 x 6', val: 6 }, { label: '8 x 8', val: 8 }],
-            hard: [{ label: '5 x 5', val: 5 }, { label: '10 x 10', val: 10 }],
+            hard: [{ label: '5 x 5', val: 5 }, { label: '7 x 7', val: 7 }, { label: '9 x 9', val: 9 }],
+            asian: [{ label: '7 x 7', val: 7 }, { label: '9 x 9', val: 9 }, { label: '11 x 11', val: 11 }],
+            emotional: [{ label: '7 x 7', val: 7 }, { label: '9 x 9', val: 9 }, { label: '11 x 11', val: 11 }],
         };
 
         function rebuildSizeButtons(diff) {
             const container = document.getElementById('size-btns');
             container.innerHTML = '';
             const opts = sizeOptions[diff];
+            // Pick the option matching the current selectedSize, else fall back to first
+            const matchIdx = opts.findIndex(o => o.val === selectedSize);
+            const defaultIdx = matchIdx >= 0 ? matchIdx : 0;
             opts.forEach((o, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'opt-btn' + (i === 0 ? ' active' : '');
+                btn.className = 'opt-btn' + (i === defaultIdx ? ' active' : '');
                 btn.dataset.group = 'size';
                 btn.dataset.val = o.val;
                 btn.textContent = o.label;
                 btn.addEventListener('click', handleOptClick);
                 container.appendChild(btn);
             });
-            selectedSize = opts[0].val;
+            selectedSize = opts[defaultIdx].val;
         }
 
         function handleOptClick(e) {
@@ -1703,12 +1782,121 @@
             if (group === 'diff') {
                 selectedDiff = btn.dataset.val;
                 rebuildSizeButtons(selectedDiff);
+                rebuildPiecePreview(selectedDiff);
             }
         }
 
         document.querySelectorAll('.opt-btn').forEach(btn => {
             btn.addEventListener('click', handleOptClick);
         });
+
+        // ── Piece preview grid in start menu (single shared WebGL context) ──
+        const diffToPieces = {
+            easy: EASY_PIECES,
+            standard: STANDARD_PIECES,
+            hard: HARD_PIECES,
+            asian: ASIAN_PIECES,
+            emotional: EMOTIONAL_DAMAGE_PIECES
+        };
+
+        const pvCanvas = document.createElement('canvas');
+        const pvRenderer = new THREE.WebGLRenderer({ canvas: pvCanvas, antialias: true });
+        pvRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        pvRenderer.setClearColor(0x0a0a18);
+        pvRenderer.setScissorTest(true);
+        document.getElementById('piece-preview').appendChild(pvCanvas);
+
+        const pvBlockGeo = new THREE.BoxGeometry(0.88, 0.88, 0.88);
+        const pvEdgeGeo = new THREE.EdgesGeometry(pvBlockGeo);
+
+        let pvSlots = [];
+        let pvCols = 1, pvRows = 1, pvCell = 64;
+
+        function rebuildPiecePreview(diff) {
+            pvSlots = [];
+            const pieces = diffToPieces[diff];
+            if (!pieces) { pvCanvas.width = 0; pvCanvas.height = 0; return; }
+
+            const count = pieces.length;
+            pvCell = count > 20 ? 44 : count > 12 ? 56 : 64;
+            pvCols = Math.ceil(count / 2);
+            if (count <= pvCols) pvCols = count;
+            pvRows = Math.ceil(count / pvCols);
+
+            const totalW = pvCols * pvCell;
+            const totalH = pvRows * pvCell;
+            pvCanvas.style.width = totalW + 'px';
+            pvCanvas.style.height = totalH + 'px';
+            const dpr = Math.min(devicePixelRatio, 2);
+            pvCanvas.width = totalW * dpr;
+            pvCanvas.height = totalH * dpr;
+            pvRenderer.setSize(totalW, totalH, false);
+
+            pieces.forEach((d, i) => {
+                const col = i % pvCols;
+                const row = Math.floor(i / pvCols);
+
+                const pvScene = new THREE.Scene();
+                pvScene.add(new THREE.AmbientLight(0xffffff, 1.4));
+                const pvDL = new THREE.DirectionalLight(0xffffff, 0.8);
+                pvDL.position.set(3, 5, 3);
+                pvScene.add(pvDL);
+
+                const pvCam = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+                const pvGroup = new THREE.Group();
+                pvScene.add(pvGroup);
+
+                let cx = 0, cy = 0, cz = 0;
+                for (const b of d.blocks) { cx += b[0]; cy += b[1]; cz += b[2]; }
+                cx /= d.blocks.length; cy /= d.blocks.length; cz /= d.blocks.length;
+
+                for (const b of d.blocks) {
+                    const c = new THREE.Color(d.color);
+                    const m = new THREE.Mesh(pvBlockGeo, new THREE.MeshStandardMaterial({
+                        color: c, metalness: 0.0, roughness: 0.85,
+                        emissive: c.clone().multiplyScalar(0.4)
+                    }));
+                    m.add(new THREE.LineSegments(pvEdgeGeo,
+                        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })));
+                    m.position.set(b[0] - cx, b[1] - cy, b[2] - cz);
+                    pvGroup.add(m);
+                }
+
+                const xs = d.blocks.map(b => b[0]), ys = d.blocks.map(b => b[1]), zs = d.blocks.map(b => b[2]);
+                const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), Math.max(...zs) - Math.min(...zs), 1);
+                const dist = 1.8 + span * 0.9;
+                pvCam.position.set(dist, dist * 0.6, dist);
+                pvCam.lookAt(0, 0, 0);
+
+                pvSlots.push({ scene: pvScene, camera: pvCam, group: pvGroup, col, row });
+            });
+        }
+
+        function animatePreview(time) {
+            requestAnimationFrame(animatePreview);
+            const menu = document.getElementById('start-menu');
+            if (menu.style.display === 'none' || pvSlots.length === 0) return;
+
+            const dpr = pvRenderer.getPixelRatio();
+            const canvasH = pvCanvas.height;
+
+            pvRenderer.setClearColor(0x0a0a18);
+            pvRenderer.clear();
+
+            for (const s of pvSlots) {
+                s.group.rotation.y = time * 0.001;
+                const px = s.col * pvCell * dpr;
+                const py = canvasH - (s.row + 1) * pvCell * dpr;
+                const sz = pvCell * dpr;
+                pvRenderer.setViewport(px, py, sz, sz);
+                pvRenderer.setScissor(px, py, sz, sz);
+                pvRenderer.render(s.scene, s.camera);
+            }
+        }
+        requestAnimationFrame(animatePreview);
+
+        rebuildPiecePreview(selectedDiff);
+        rebuildSizeButtons(selectedDiff);
 
         function showUI(show) {
             const d = show ? 'block' : 'none';
@@ -1727,6 +1915,8 @@
             GZ = selectedSize;
             if (selectedDiff === 'easy') activePieces = EASY_PIECES;
             else if (selectedDiff === 'hard') activePieces = HARD_PIECES;
+            else if (selectedDiff === 'asian') activePieces = ASIAN_PIECES;
+            else if (selectedDiff === 'emotional') activePieces = EMOTIONAL_DAMAGE_PIECES;
             else activePieces = STANDARD_PIECES;
             GY = 8 + GX;
             speedMult = selectedSpeed;

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Block Designer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a1e;
+            color: #ccd;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        #viewport {
+            flex: 1;
+            position: relative;
+        }
+        #viewport canvas { display: block; }
+
+        #sidebar {
+            width: 380px;
+            background: rgba(10, 12, 30, 0.95);
+            border-left: 1px solid rgba(100, 150, 255, 0.15);
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 18px;
+            letter-spacing: 3px;
+            color: #4af;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 13px;
+            letter-spacing: 2px;
+            color: #667;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .color-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .color-swatch {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .color-swatch:hover {
+            transform: scale(1.15);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .color-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 12px rgba(68, 170, 255, 0.5);
+        }
+
+        #output {
+            font-family: 'Consolas', 'Fira Code', monospace;
+            font-size: 13px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            border-radius: 8px;
+            padding: 14px;
+            color: #9fa;
+            word-break: break-all;
+            min-height: 60px;
+            line-height: 1.5;
+            user-select: all;
+        }
+
+        .btn {
+            font-size: 13px;
+            padding: 10px 20px;
+            cursor: pointer;
+            background: transparent;
+            color: #99a;
+            border: 1.5px solid #334;
+            border-radius: 8px;
+            font-family: inherit;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+        }
+        .btn:hover {
+            border-color: #4af;
+            color: #4af;
+        }
+        .btn-danger:hover {
+            border-color: #f44;
+            color: #f44;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #556;
+            line-height: 1.6;
+        }
+
+        .stats {
+            font-size: 14px;
+            color: #8af;
+        }
+
+        #layer-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        #layer-btns .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-width: 36px;
+        }
+        #layer-btns .btn.active {
+            border-color: #4af;
+            color: #fff;
+            background: rgba(68, 170, 255, 0.15);
+        }
+
+        #copy-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-60px);
+            background: rgba(68, 170, 255, 0.9);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #copy-toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="viewport"></div>
+    <div id="sidebar">
+        <h1>Block Designer</h1>
+
+        <div class="section">
+            <h2>Instructions</h2>
+            <div class="hint">
+                Click sphere — add block<br>
+                Click block — remove block<br>
+                Scroll — zoom<br>
+                Right drag — rotate view
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Color</h2>
+            <div class="color-grid" id="color-grid"></div>
+        </div>
+
+        <div class="section">
+            <h2>Layer (Y)</h2>
+            <div id="layer-btns"></div>
+        </div>
+
+        <div class="section">
+            <h2>Block Count: <span class="stats" id="block-count">0</span></h2>
+        </div>
+
+        <div class="section">
+            <h2>Output</h2>
+            <div id="output">No blocks placed</div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn" id="copy-btn">COPY</button>
+            <button class="btn btn-danger" id="clear-btn">CLEAR ALL</button>
+            <button class="btn" id="fill-btn">FILL ALL</button>
+        </div>
+    </div>
+
+    <div id="copy-toast">Copied to clipboard!</div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const GRID = 5;
+        const COLORS = [
+            { name: 'Cyan',    hex: 0x00e5ff },
+            { name: 'Yellow',  hex: 0xffd600 },
+            { name: 'Purple',  hex: 0xd500f9 },
+            { name: 'Green',   hex: 0x76ff03 },
+            { name: 'Red',     hex: 0xff1744 },
+            { name: 'Orange',  hex: 0xff9100 },
+            { name: 'Blue',    hex: 0x2979ff },
+            { name: 'Pink',    hex: 0xe91e63 },
+            { name: 'LtBlue',  hex: 0x4fc3f7 },
+            { name: 'DeepOrg', hex: 0xff6e40 },
+            { name: 'Violet',  hex: 0x7c4dff },
+            { name: 'Gold',    hex: 0xffc400 },
+            { name: 'Teal',    hex: 0x00bfa5 },
+            { name: 'DpPurp',  hex: 0x651fff },
+            { name: 'Lime',    hex: 0x00e676 },
+            { name: 'Amber',   hex: 0xffb74d },
+        ];
+
+        let activeColor = COLORS[0].hex;
+        let activeLayer = -1; // -1 = all layers visible
+
+        // filled[x][y][z] = true/false
+        const filled = Array.from({ length: GRID }, () =>
+            Array.from({ length: GRID }, () => Array(GRID).fill(false))
+        );
+
+        // ── Three.js setup ──
+        const viewport = document.getElementById('viewport');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1e);
+
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.set(8, 6, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        viewport.appendChild(renderer.domElement);
+
+        // OrbitControls on RIGHT mouse button only, so left is free for clicking
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.mouseButtons = {
+            LEFT: null,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE
+        };
+        controls.target.set(GRID / 2, 1, GRID / 2);
+        controls.update();
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+        const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+        dl.position.set(5, 10, 5);
+        scene.add(dl);
+        const dl2 = new THREE.DirectionalLight(0xffffff, 0.3);
+        dl2.position.set(-5, 3, -5);
+        scene.add(dl2);
+
+        // ── Shared geometry ──
+        const blockGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+        const edgeGeo = new THREE.EdgesGeometry(blockGeo);
+        const sphereGeo = new THREE.SphereGeometry(0.12, 12, 8);
+        const sphereMatDefault = new THREE.MeshBasicMaterial({ color: 0x556677 });
+        const sphereMatHover = new THREE.MeshBasicMaterial({ color: 0x66bbff });
+
+        const clickables = new THREE.Group(); // holds spheres + blocks
+        scene.add(clickables);
+
+        // Axis lines at origin corner
+        const axMat = (c) => new THREE.LineBasicMaterial({ color: c, linewidth: 2 });
+        const axLine = (to, c) => {
+            const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), to]);
+            return new THREE.Line(g, axMat(c));
+        };
+        scene.add(axLine(new THREE.Vector3(GRID + 0.5, 0, 0), 0xff4444));
+        scene.add(axLine(new THREE.Vector3(0, GRID + 0.5, 0), 0x44ff44));
+        scene.add(axLine(new THREE.Vector3(0, 0, GRID + 0.5), 0x4444ff));
+
+        // Thin grid lines on floor (y=0) for orientation
+        const floorGrid = new THREE.GridHelper(GRID, GRID, 0x334, 0x223);
+        floorGrid.position.set(GRID / 2, 0, GRID / 2);
+        scene.add(floorGrid);
+
+        // ── Rebuild: spheres for empty cells, solid blocks for filled cells ──
+        function rebuildScene() {
+            while (clickables.children.length) clickables.remove(clickables.children[0]);
+
+            for (let x = 0; x < GRID; x++) {
+                for (let y = 0; y < GRID; y++) {
+                    for (let z = 0; z < GRID; z++) {
+                        const vis = activeLayer === -1 || y === activeLayer;
+                        if (!vis) continue;
+
+                        if (filled[x][y][z]) {
+                            // Solid colored block
+                            const c = new THREE.Color(activeColor);
+                            const mesh = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+                                color: c, metalness: 0.0, roughness: 0.7,
+                                emissive: c.clone().multiplyScalar(0.35)
+                            }));
+                            mesh.add(new THREE.LineSegments(edgeGeo,
+                                new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })));
+                            mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+                            mesh.userData = { x, y, z, kind: 'block' };
+                            clickables.add(mesh);
+                        } else {
+                            // Small sphere marker
+                            const sphere = new THREE.Mesh(sphereGeo, sphereMatDefault.clone());
+                            sphere.position.set(x + 0.5, y + 0.5, z + 0.5);
+                            sphere.userData = { x, y, z, kind: 'sphere' };
+                            clickables.add(sphere);
+                        }
+                    }
+                }
+            }
+            updateOutput();
+        }
+
+        // ── Raycasting ──
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function getHit(e) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(clickables.children, false);
+            return hits.length > 0 ? hits[0].object : null;
+        }
+
+        // Hover highlight
+        let hovered = null;
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            // Restore previous hover
+            if (hovered) {
+                const { kind } = hovered.userData;
+                if (kind === 'sphere') hovered.material = sphereMatDefault.clone();
+                hovered.scale.set(1, 1, 1);
+                hovered = null;
+            }
+            const hit = getHit(e);
+            if (hit) {
+                if (hit.userData.kind === 'sphere') {
+                    hit.material = sphereMatHover.clone();
+                    hit.scale.set(1.6, 1.6, 1.6);
+                }
+                hovered = hit;
+                renderer.domElement.style.cursor = 'pointer';
+            } else {
+                renderer.domElement.style.cursor = 'default';
+            }
+        });
+
+        // Left click: sphere = add block, block = remove block
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            const hit = getHit(e);
+            if (!hit) return;
+            const { x, y, z, kind } = hit.userData;
+            if (kind === 'sphere') {
+                filled[x][y][z] = true;
+            } else {
+                filled[x][y][z] = false;
+            }
+            hovered = null;
+            rebuildScene();
+        });
+
+        // Prevent context menu
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // ── Color picker ──
+        const colorGrid = document.getElementById('color-grid');
+        COLORS.forEach((c, i) => {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch' + (i === 0 ? ' active' : '');
+            swatch.style.background = '#' + c.hex.toString(16).padStart(6, '0');
+            swatch.title = c.name;
+            swatch.addEventListener('click', () => {
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                swatch.classList.add('active');
+                activeColor = c.hex;
+                rebuildScene();
+            });
+            colorGrid.appendChild(swatch);
+        });
+
+        // ── Layer buttons ──
+        const layerBtns = document.getElementById('layer-btns');
+        function buildLayerBtns() {
+            layerBtns.innerHTML = '';
+            const allBtn = document.createElement('button');
+            allBtn.className = 'btn' + (activeLayer === -1 ? ' active' : '');
+            allBtn.textContent = 'ALL';
+            allBtn.addEventListener('click', () => { activeLayer = -1; buildLayerBtns(); rebuildScene(); });
+            layerBtns.appendChild(allBtn);
+            for (let y = 0; y < GRID; y++) {
+                const btn = document.createElement('button');
+                btn.className = 'btn' + (activeLayer === y ? ' active' : '');
+                btn.textContent = y;
+                btn.addEventListener('click', () => { activeLayer = y; buildLayerBtns(); rebuildScene(); });
+                layerBtns.appendChild(btn);
+            }
+        }
+        buildLayerBtns();
+
+        // ── Output ──
+        function updateOutput() {
+            const blocks = [];
+            for (let x = 0; x < GRID; x++)
+                for (let y = 0; y < GRID; y++)
+                    for (let z = 0; z < GRID; z++)
+                        if (filled[x][y][z]) blocks.push([x, y, z]);
+
+            document.getElementById('block-count').textContent = blocks.length;
+
+            const out = document.getElementById('output');
+            if (blocks.length === 0) {
+                out.textContent = 'No blocks placed';
+                return;
+            }
+
+            // Normalize to origin
+            const minX = Math.min(...blocks.map(b => b[0]));
+            const minY = Math.min(...blocks.map(b => b[1]));
+            const minZ = Math.min(...blocks.map(b => b[2]));
+            const norm = blocks.map(b => [b[0] - minX, b[1] - minY, b[2] - minZ]);
+
+            // Compute pivot (center of mass)
+            const n = norm.length;
+            const px = norm.reduce((s, b) => s + b[0], 0) / n;
+            const py = norm.reduce((s, b) => s + b[1], 0) / n;
+            const pz = norm.reduce((s, b) => s + b[2], 0) / n;
+            const pivot = [Math.round(px * 100) / 100, Math.round(py * 100) / 100, Math.round(pz * 100) / 100];
+
+            const blocksStr = norm.map(b => `[${b.join(', ')}]`).join(', ');
+            const colorHex = '0x' + activeColor.toString(16).padStart(6, '0');
+            out.textContent = `{ name: '??', blocks: [${blocksStr}], color: ${colorHex}, pivot: [${pivot.join(', ')}] }`;
+        }
+
+        // ── Buttons ──
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            for (let x = 0; x < GRID; x++)
+                for (let y = 0; y < GRID; y++)
+                    for (let z = 0; z < GRID; z++)
+                        filled[x][y][z] = false;
+            rebuildScene();
+        });
+
+        document.getElementById('fill-btn').addEventListener('click', () => {
+            for (let x = 0; x < GRID; x++)
+                for (let y = 0; y < GRID; y++)
+                    for (let z = 0; z < GRID; z++)
+                        filled[x][y][z] = true;
+            rebuildScene();
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const text = document.getElementById('output').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('copy-toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 1500);
+            });
+        });
+
+        // ── Resize ──
+        function onResize() {
+            const w = viewport.clientWidth;
+            const h = viewport.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        }
+        window.addEventListener('resize', onResize);
+        onResize();
+
+        // ── Render loop ──
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        rebuildScene();
+        animate();
+    </script>
+</body>
+</html>
