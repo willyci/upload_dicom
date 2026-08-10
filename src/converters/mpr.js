@@ -21,21 +21,31 @@ function loadSlice(srcFd, readBuf, z, target, sliceSize) {
     target.set(view);
 }
 
-/**
- * Scan a few sample z-slices to compute window center/width.
- */
-function computeWindow(srcFd, readBuf, sliceSize, depth) {
-    const sampleIndices = [];
+/** Up to five evenly spread slice indices, used for sampling the data's distribution. */
+function sampleIndices(depth) {
+    const indices = [];
     const step = Math.max(1, Math.floor(depth / 5));
     for (let i = 0; i < depth; i += step) {
-        sampleIndices.push(i);
+        indices.push(i);
     }
-    if (sampleIndices.length > 5) sampleIndices.length = 5;
+    if (indices.length > 5) indices.length = 5;
+    return indices;
+}
 
+/**
+ * Scan a few sample z-slices and window on the 1st-99th percentile rather than the absolute
+ * min/max. A single hot voxel - a metal implant, a marker, noise - used to stretch the window
+ * over the whole range and leave the anatomy squeezed into the bottom third of the greyscale.
+ *
+ * Two passes over the samples: one for the bounds, one to histogram them, since the value range
+ * is not known in advance.
+ */
+function computeWindow(srcFd, readBuf, sliceSize, depth) {
+    const indices = sampleIndices(depth);
     const sliceFloat = new Float32Array(sliceSize);
     let min = Infinity, max = -Infinity;
 
-    for (const z of sampleIndices) {
+    for (const z of indices) {
         loadSlice(srcFd, readBuf, z, sliceFloat, sliceSize);
         for (let i = 0; i < sliceSize; i++) {
             const v = sliceFloat[i];
@@ -44,11 +54,56 @@ function computeWindow(srcFd, readBuf, sliceSize, depth) {
         }
     }
 
-    const windowCenter = (max + min) / 2;
-    let windowWidth = max - min;
-    if (windowWidth < 10) windowWidth = max * 2;
+    if (!(max > min)) {
+        return { windowCenter: min, windowWidth: 1 };
+    }
 
-    return { windowCenter, windowWidth };
+    const BINS = 2048;
+    const histogram = new Int32Array(BINS);
+    const scale = (BINS - 1) / (max - min);
+    let total = 0;
+
+    for (const z of indices) {
+        loadSlice(srcFd, readBuf, z, sliceFloat, sliceSize);
+        for (let i = 0; i < sliceSize; i++) {
+            histogram[Math.round((sliceFloat[i] - min) * scale)]++;
+            total++;
+        }
+    }
+
+    const lowTarget = total * 0.01;
+    const highTarget = total * 0.99;
+    let running = 0, lowBin = 0, highBin = BINS - 1;
+
+    for (let bin = 0; bin < BINS; bin++) {
+        running += histogram[bin];
+        if (running <= lowTarget) lowBin = bin;
+        if (running >= highTarget) { highBin = bin; break; }
+    }
+
+    const low = min + lowBin / scale;
+    const high = min + highBin / scale;
+    const windowWidth = Math.max(high - low, 1);
+
+    return { windowCenter: low + windowWidth / 2, windowWidth };
+}
+
+/**
+ * The window to render the slices with. The DICOM's own WindowCenter/WindowWidth is what the
+ * scanner or the reporting radiologist chose, so it beats anything derived from the pixels -
+ * for a head CT that is typically 40/350, against a data range of some 4000, which is the
+ * difference between readable soft tissue and uniform grey.
+ */
+function resolveWindow(volume, srcFd, readBuf, sliceSize, depth) {
+    const declared = volume.window;
+    if (declared && Number.isFinite(declared.center) && declared.width > 0) {
+        console.log(`MPR window from DICOM: center=${declared.center}, width=${declared.width}`);
+        return { windowCenter: declared.center, windowWidth: declared.width, windowSource: 'dicom' };
+    }
+
+    const { windowCenter, windowWidth } = computeWindow(srcFd, readBuf, sliceSize, depth);
+    console.log(`MPR window from data (1-99 percentile): center=${windowCenter.toFixed(1)}, width=${windowWidth.toFixed(1)}`);
+    return { windowCenter, windowWidth, windowSource: 'percentile' };
 }
 
 /**
@@ -180,11 +235,10 @@ export async function convertToMpr(volume, outputDir) {
     // Open temp file for reading
     const srcFd = fs.openSync(tempFilePath, 'r');
 
-    let windowCenter, windowWidth;
+    let windowCenter, windowWidth, windowSource;
     try {
-        // Step 2: Compute window from sample slices
-        ({ windowCenter, windowWidth } = computeWindow(srcFd, readBuf, sliceSize, depth));
-        console.log(`MPR window: center=${windowCenter.toFixed(1)}, width=${windowWidth.toFixed(1)}`);
+        // Step 2: Window from the DICOM header, or from the data's percentiles if it has none
+        ({ windowCenter, windowWidth, windowSource } = resolveWindow(volume, srcFd, readBuf, sliceSize, depth));
     } catch (err) {
         fs.closeSync(srcFd);
         throw err;
@@ -195,7 +249,9 @@ export async function convertToMpr(volume, outputDir) {
 
     // Step 3: Allocate scatter buffers for sagittal and coronal
     // Sagittal (YZ plane, fixed X): each image is depth(W) x rows(H), one per column
-    // sagittalAll[x * (depth * rows) + y * depth + (depth - 1 - z)] = windowed value
+    // sagittalAll[x * (depth * rows) + y * depth + z] = windowed value
+    // Note the image runs left-to-right along +z; it is NOT reversed. Consumers have to orient
+    // themselves to match, or the slice comes out mirrored.
     let sagittalAll = new Uint8Array(columns * depth * rows);
 
     // Coronal (XZ plane, fixed Y): each image is columns(W) x depth(H), one per row
@@ -298,7 +354,8 @@ export async function convertToMpr(volume, outputDir) {
         coronal: { count: rows, width: columns, height: depth },
         spacing: spacing,
         windowCenter: Math.round(windowCenter),
-        windowWidth: Math.round(windowWidth)
+        windowWidth: Math.round(windowWidth),
+        windowSource: windowSource
     };
 
     fs.writeFileSync(path.join(mprDir, 'mpr_info.json'), JSON.stringify(mprInfo, null, 2));

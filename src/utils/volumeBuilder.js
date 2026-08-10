@@ -14,6 +14,43 @@ function logMemory(label) {
 }
 
 /**
+ * First value of a DICOM element that may arrive as a number, a string, or a multi-valued array.
+ * WindowCenter in particular is often "40\40" or [40, 40].
+ */
+function firstNumber(value, fallback) {
+    if (Array.isArray(value)) value = value[0];
+    if (typeof value === 'string') value = Number(value.split('\\')[0]);
+    return Number.isFinite(value) ? Number(value) : fallback;
+}
+
+/**
+ * Distance between neighbouring slices, taken from ImagePositionPatient rather than
+ * SliceThickness: thickness is how much tissue each slice covers, which is not the same as the
+ * step between them whenever the series has a gap or overlap, and it is the step that decides
+ * the volume's geometry.
+ *
+ * Uses the median of the gaps so one duplicated or missing slice cannot skew the result, and
+ * falls back to SliceThickness when the positions are unusable.
+ */
+function computeSliceSpacing(sortedSlices, fallback) {
+    if (sortedSlices.length < 2) return fallback;
+
+    const gaps = [];
+    for (let i = 1; i < sortedSlices.length; i++) {
+        const a = sortedSlices[i - 1].position;
+        const b = sortedSlices[i].position;
+        const gap = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+        if (gap > 0.0001) gaps.push(gap);
+    }
+
+    if (gaps.length === 0) return fallback;
+
+    gaps.sort((a, b) => a - b);
+    const median = gaps[Math.floor(gaps.length / 2)];
+    return Number.isFinite(median) && median > 0.0001 ? median : fallback;
+}
+
+/**
  * Build volume data from DICOM files and write to a temp file on disk.
  * Only one slice (~1 MB) is held in memory at a time.
  *
@@ -58,13 +95,21 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         const rows = dataSet.uint16('x00280010');
         const columns = dataSet.uint16('x00280011');
 
+        // WindowCenter (0028,1050) / WindowWidth (0028,1051): the radiologist's own greyscale
+        // window, in rescaled units. Kept here so the derived images can use it instead of
+        // guessing a window from the data's extremes.
+        const windowCenter = firstNumber(dataSet.string('x00281050'), null);
+        const windowWidth = firstNumber(dataSet.string('x00281051'), null);
+
         slices.push({
             filePath,
             position,
             spacing: [...spacing, sliceThickness],
             rows,
             columns,
-            zPosition: position[2]
+            zPosition: position[2],
+            windowCenter,
+            windowWidth
         });
 
         // Release references so GC can reclaim the buffer
@@ -91,6 +136,19 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
     const depth = slices.length;
     const spacing = slices[0].spacing;
     const origin = slices[0].position;
+
+    // spacing is slices[0].spacing by reference, so keep the declared thickness before overwriting.
+    const sliceThickness = spacing[2];
+    spacing[2] = computeSliceSpacing(slices, sliceThickness);
+    console.log(`Volume: ${columns}x${rows}x${depth}, spacing [${spacing.join(', ')}] ` +
+        `(z measured from slice positions; SliceThickness was ${sliceThickness})`);
+
+    // The middle slice's window is the most representative of the series, and avoids a scout or
+    // localiser image at either end setting it.
+    const middle = slices[Math.floor(slices.length / 2)];
+    const window = middle.windowWidth > 0
+        ? { center: middle.windowCenter, width: middle.windowWidth }
+        : null;
 
     // Second pass: write pixel data to temp file, one slice at a time
     const tempFilePath = path.join(os.tmpdir(), `dicom_vol_${Date.now()}_${process.pid}.raw`);
@@ -129,9 +187,29 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
                 continue;
             }
 
+            // Apply RescaleSlope/RescaleIntercept, as jpg.js already does. Without it the volume
+            // holds raw stored values rather than Hounsfield units - for CT that is typically a
+            // +1024 offset, which puts air at 0 instead of -1000 and quietly breaks everything
+            // downstream that reasons in HU: the STL bone threshold, and the viewers' presets.
+            // Read per slice, because slope and intercept may legitimately differ between them.
+            const slope = firstNumber(dataset.RescaleSlope, 1);
+            const intercept = firstNumber(dataset.RescaleIntercept, 0);
+            const count = Math.min(pixelData.length, sliceSize);
+
             sliceFloat.fill(0);
-            for (let i = 0; i < Math.min(pixelData.length, sliceSize); i++) {
-                sliceFloat[i] = pixelData[i];
+            if (slope === 1 && intercept === 0) {
+                for (let i = 0; i < count; i++) {
+                    sliceFloat[i] = pixelData[i];
+                }
+            } else {
+                for (let i = 0; i < count; i++) {
+                    sliceFloat[i] = pixelData[i] * slope + intercept;
+                }
+            }
+
+            if (z === 0) {
+                console.log(`Rescale: slope=${slope} intercept=${intercept} ` +
+                    `(values are ${slope === 1 && intercept === 0 ? 'stored values' : 'rescaled units / HU'})`);
             }
 
             fs.writeSync(fd, Buffer.from(sliceFloat.buffer, sliceFloat.byteOffset, sliceFloat.byteLength));
@@ -164,6 +242,7 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         dimensions: { rows, columns, depth },
         spacing,
         origin,
+        window,
         cleanup() {
             try { fs.unlinkSync(tempFilePath); } catch {}
         }

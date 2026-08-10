@@ -11,6 +11,7 @@ import { convertToMpr } from '../converters/mpr.js';
 import { showDicomInfo } from '../utils/dicomInfo.js';
 import { buildVolumeData } from '../utils/volumeBuilder.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
+import { PUBLIC_DIR } from '../config.js';
 import { DicomMetaDictionary, DicomMessage } from '../utils/dicomHelpers.js';
 import { yieldToEventLoop } from '../utils/pixelData.js';
 import { analyzeDicom } from './medgemma.js';
@@ -195,8 +196,10 @@ export async function processDirectory(dirPath) {
         setProcessingStatus('Running MedGemma AI analysis...');
         const midIdx = Math.floor(processedFiles.length / 2);
         const representative = processedFiles[midIdx];
-        // Resolve the absolute path for the JPG
-        const jpgAbsPath = path.resolve('public', representative.jpgPath);
+        // jpgPath is server-relative and starts with a slash ("/uploads/..."), which path.resolve
+        // treats as absolute - it discarded the "public" segment and produced a path that never
+        // exists, so analyzeDicom bailed at its existsSync guard and no upload ever got analysed.
+        const jpgAbsPath = path.join(PUBLIC_DIR, representative.jpgPath);
         aiAnalysis = await analyzeDicom(jpgAbsPath, representative.dicomInfo);
     }
 

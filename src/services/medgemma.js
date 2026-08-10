@@ -6,6 +6,11 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/medgemma_analyze.py');
 
+// Total budget for the local Python attempt, across every python command tried. The upload
+// response waits on this, so it has to be bounded: three candidates at the spawn timeout each
+// could otherwise hold a request open for a quarter of an hour.
+const LOCAL_ANALYSIS_BUDGET_MS = Number(process.env.MEDGEMMA_TIMEOUT_MS) || 120000;
+
 const HF_MODEL = 'google/medgemma-4b-it';
 const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}/v1/chat/completions`;
 
@@ -26,13 +31,35 @@ function getHfToken() {
     return null;
 }
 
+/**
+ * DICOM pads odd-length string values to an even byte count, so text elements routinely arrive
+ * with a trailing NUL or space - "Patient Sex: F\x00". Node refuses to spawn a process with a NUL
+ * in an argument, so an unwashed value here kills the whole upload.
+ *
+ * Multi-valued elements come through as arrays, and person names as { Alphabetic: "..." }.
+ */
+function cleanText(value) {
+    if (value == null) return '';
+    if (Array.isArray(value)) return value.map(cleanText).filter(Boolean).join(' ');
+    if (typeof value === 'object') return cleanText(value.Alphabetic ?? '');
+
+    // Anything below space, plus DEL, becomes a space - which covers the NUL padding - and the
+    // runs of spaces that leaves are collapsed. Written without a control-character class so no
+    // raw control bytes end up in this file.
+    return Array.from(String(value))
+        .map(ch => (ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127) ? ' ' : ch)
+        .join('')
+        .replace(/[ ]+/g, ' ')
+        .trim();
+}
+
 function buildContext(dicomInfo) {
-    const modality = dicomInfo?.Modality || 'Unknown';
-    const bodyPart = dicomInfo?.BodyPartExamined || 'Unknown';
-    const studyDesc = dicomInfo?.StudyDescription || '';
-    const seriesDesc = dicomInfo?.SeriesDescription || '';
-    const patientAge = dicomInfo?.PatientAge || '';
-    const patientSex = dicomInfo?.PatientSex || '';
+    const modality = cleanText(dicomInfo?.Modality) || 'Unknown';
+    const bodyPart = cleanText(dicomInfo?.BodyPartExamined) || 'Unknown';
+    const studyDesc = cleanText(dicomInfo?.StudyDescription);
+    const seriesDesc = cleanText(dicomInfo?.SeriesDescription);
+    const patientAge = cleanText(dicomInfo?.PatientAge);
+    const patientSex = cleanText(dicomInfo?.PatientSex);
 
     return [
         `Modality: ${modality}`,
@@ -56,12 +83,22 @@ function findPython() {
 
 function tryLocalAnalysis(imagePath, context) {
     return new Promise((resolve) => {
+        if (!fs.existsSync(SCRIPT_PATH)) {
+            console.log('MedGemma: analysis script missing — skipping local analysis.');
+            resolve(null);
+            return;
+        }
+
         const pythonCmds = findPython();
+        const deadline = Date.now() + LOCAL_ANALYSIS_BUDGET_MS;
         let tried = 0;
 
         function tryNext() {
-            if (tried >= pythonCmds.length) {
-                resolve(null); // No working python found
+            const remaining = deadline - Date.now();
+            if (tried >= pythonCmds.length || remaining <= 0) {
+                if (remaining <= 0)
+                    console.log(`MedGemma: local analysis gave up after ${LOCAL_ANALYSIS_BUDGET_MS} ms.`);
+                resolve(null); // No working python found, or out of time
                 return;
             }
 
@@ -73,7 +110,7 @@ function tryLocalAnalysis(imagePath, context) {
             let stderr = '';
 
             const proc = spawn(cmd, args, {
-                timeout: 300000, // 5 min max
+                timeout: remaining,
                 stdio: ['ignore', 'pipe', 'pipe']
             });
 

@@ -44,6 +44,66 @@ async function findDcmFiles(dir) {
     return results;
 }
 
+/**
+ * Scan the uploads tree and (re)write index.json — the catalog every viewer reads, including the
+ * Quest app, which has no other way to discover a dataset.
+ *
+ * Returns the folder list. Called both by /list-uploads and at the end of an upload, so a new
+ * dataset appears without anyone having to open the web listing first.
+ */
+export async function buildUploadsIndex() {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+        return [];
+    }
+
+    async function findJsonFiles(dir) {
+        const jsonFiles = [];
+        const items = await fs.promises.readdir(dir, { withFileTypes: true });
+
+        for (const item of items) {
+            const fullPath = path.join(dir, item.name);
+
+            if (item.isDirectory()) {
+                const nestedFiles = await findJsonFiles(fullPath);
+                jsonFiles.push(...nestedFiles);
+            } else if (item.name === 'dicom_info.json') {
+                const mprInfoPath = path.join(path.dirname(fullPath), 'mpr', 'mpr_info.json');
+                jsonFiles.push({
+                    jsonPath: fullPath,
+                    mprInfoPath: fs.existsSync(mprInfoPath) ? mprInfoPath : null
+                });
+            }
+        }
+
+        return jsonFiles;
+    }
+
+    const jsonFiles = await findJsonFiles(UPLOADS_DIR);
+
+    const folders = jsonFiles.map((filePath, index) => {
+        const jsonPath = filePath.jsonPath.replace(/\\/g, '/');
+        const sibling = name => removePathBeforeUploads(jsonPath.replace(/dicom_info\.json/, name));
+
+        return {
+            index: index + 1,
+            path: removePathBeforeUploads(jsonPath),
+            vtiPath: sibling('volume.vti'),
+            nrrdPath: sibling('volume.nrrd'),
+            niftiPath: sibling('volume.nii'),
+            stlPath: sibling('model.stl'),
+            vtkLegacyPath: sibling('volume.vtk'),
+            mprPath: filePath.mprInfoPath ? removePathBeforeUploads(filePath.mprInfoPath.replace(/\\/g, '/')) : null
+        };
+    });
+
+    await fs.promises.writeFile(
+        path.join(UPLOADS_DIR, 'index.json'),
+        JSON.stringify({ folders }, null, 2)
+    );
+
+    return folders;
+}
+
 const uploadMiddleware = upload.array('files', 200);
 
 const handleUpload = (req, res, next) => {
@@ -86,8 +146,14 @@ router.post('/upload', handleUpload, async (req, res, next) => {
         }
 
         const timestamp = Date.now();
-        // Build folder name from first file's original name
-        const firstName = req.files[0].originalname.replace(/\.zip$/i, '').replace(/\.dcm$/i, '');
+        // Build folder name from first file's original name. The name is client-supplied, so strip
+        // anything that could climb out of the uploads directory or confuse a path.
+        const firstName = req.files[0].originalname
+            .replace(/\.zip$/i, '')
+            .replace(/\.dcm$/i, '')
+            .replace(/[^\w.\-]+/g, '_')
+            .replace(/^\.+/, '')
+            || 'upload';
         const suffix = req.files.length > 1 ? `_and_${req.files.length - 1}_more` : '';
         const folderName = `${timestamp}_${firstName}${suffix}`;
         const extractPath = path.join(UPLOADS_DIR, folderName);
@@ -147,9 +213,17 @@ router.post('/upload', handleUpload, async (req, res, next) => {
                                 return;
                             }
 
-                            // Preserve relative path structure
+                            // Preserve relative path structure, but never outside the upload's own
+                            // folder: entry names come from the archive, and "../../x" would
+                            // otherwise write wherever it liked (zip-slip).
                             const relativePath = entry.path;
-                            const writePath = path.join(extractPath, relativePath);
+                            const writePath = path.resolve(extractPath, relativePath);
+
+                            if (writePath !== extractPath && !writePath.startsWith(extractPath + path.sep)) {
+                                console.warn(`Skipping ZIP entry that escapes the upload folder: ${relativePath}`);
+                                entry.autodrain();
+                                return;
+                            }
 
                             // Ensure parent directory exists
                             await fs.promises.mkdir(path.dirname(writePath), { recursive: true });
@@ -214,6 +288,16 @@ router.post('/upload', handleUpload, async (req, res, next) => {
         const jsonData = JSON.stringify(jsonOutput, null, 2);
         const jsonPath = path.join(extractPath + '/', 'dicom_info.json');
         await fs.promises.writeFile(jsonPath, jsonData);
+
+        // Refresh the catalog now rather than waiting for someone to load the web listing, which
+        // is the only thing that used to write it - until then the new dataset was invisible to
+        // the Quest app.
+        try {
+            await buildUploadsIndex();
+        } catch (indexError) {
+            console.error('Failed to update index.json:', indexError.message);
+            errors.push({ converter: 'index', error: indexError.message });
+        }
 
         // Clean up temp files
         for (const tmp of tempFiles) {
@@ -289,54 +373,11 @@ router.get('/list-uploads', async (req, res) => {
             return res.json({ jsonFiles: [] });
         }
 
-        async function findJsonFiles(dir) {
-            const jsonFiles = [];
-            const items = await fs.promises.readdir(dir, { withFileTypes: true });
-
-            for (const item of items) {
-                const fullPath = path.join(dir, item.name);
-
-                if (item.isDirectory()) {
-                    const nestedFiles = await findJsonFiles(fullPath);
-                    jsonFiles.push(...nestedFiles);
-                } else if (item.name === 'dicom_info.json') {
-                    const vtiPath = path.join(path.dirname(fullPath), 'volume.vti');
-                    const nrrdPath = path.join(path.dirname(fullPath), 'volume.nrrd');
-                    const mprInfoPath = path.join(path.dirname(fullPath), 'mpr', 'mpr_info.json');
-                    jsonFiles.push({
-                        jsonPath: fullPath,
-                        vtiPath: fs.existsSync(vtiPath) ? vtiPath : null,
-                        nrrdPath: fs.existsSync(nrrdPath) ? nrrdPath : null,
-                        mprInfoPath: fs.existsSync(mprInfoPath) ? mprInfoPath : null
-                    });
-                }
-            }
-
-            return jsonFiles;
-        }
-
-        const jsonFiles = await findJsonFiles(UPLOADS_DIR);
-
-        const normalizedPaths = jsonFiles.map((filePath, index) => ({
-            index: index + 1,
-            path: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/')),
-            vtiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vti')),
-            nrrdPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nrrd')),
-            niftiPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.nii')),
-            stlPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'model.stl')),
-            vtkLegacyPath: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/').replace(/dicom_info.json/, 'volume.vtk')),
-            mprPath: filePath.mprInfoPath ? removePathBeforeUploads(filePath.mprInfoPath.replace(/\\/g, '/')) : null
-        }));
-
-        const indexPath = path.join(UPLOADS_DIR, 'index.json');
-        await fs.promises.writeFile(
-            indexPath,
-            JSON.stringify({ folders: normalizedPaths }, null, 2)
-        );
+        const folders = await buildUploadsIndex();
 
         res.json({
-            folders: normalizedPaths,
-            indexPath: removePathBeforeUploads(indexPath)
+            folders,
+            indexPath: removePathBeforeUploads(path.join(UPLOADS_DIR, 'index.json'))
         });
     } catch (error) {
         console.error('Error listing uploads:', error);

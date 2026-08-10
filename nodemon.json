@@ -1,0 +1,13 @@
+{
+  "//": "Without this, nodemon's defaults watch every .json under the project - including the mpr_info.json, dicom_info.json and index.json that the processor itself writes into public/uploads. A restart then fires in the middle of the upload request that produced them, and the browser reports 'Network error occurred' because the connection died before the response.",
+  "watch": ["src", "server.js"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "public/uploads/**",
+    "src/uploads/**",
+    "src/public/**",
+    "uploads/**",
+    "data/**",
+    ".history/**"
+  ]
+}
