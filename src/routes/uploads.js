@@ -6,6 +6,7 @@ import unzipper from 'unzipper';
 import { UPLOADS_DIR } from '../config.js';
 import { processDirectory } from '../services/processor.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
+import { findDicomFiles, isDicomFile } from '../utils/dicomFiles.js';
 import { getProcessingStatus } from '../utils/progress.js';
 
 const upload = multer({
@@ -26,22 +27,6 @@ function isValidZip(filePath) {
     } catch {
         return false;
     }
-}
-
-// Recursively find all .dcm files in a directory tree
-async function findDcmFiles(dir) {
-    const results = [];
-    const items = await fs.promises.readdir(dir, { withFileTypes: true });
-    for (const item of items) {
-        const fullPath = path.join(dir, item.name);
-        if (item.isDirectory()) {
-            const nested = await findDcmFiles(fullPath);
-            results.push(...nested);
-        } else if (item.name.toLowerCase().endsWith('.dcm')) {
-            results.push(fullPath);
-        }
-    }
-    return results;
 }
 
 /**
@@ -81,15 +66,28 @@ export async function buildUploadsIndex() {
     const jsonFiles = await findJsonFiles(UPLOADS_DIR);
 
     const folders = jsonFiles.map((filePath, index) => {
-        const jsonPath = filePath.jsonPath.replace(/\\/g, '/');
-        const sibling = name => removePathBeforeUploads(jsonPath.replace(/dicom_info\.json/, name));
+        const folder = path.dirname(filePath.jsonPath);
+
+        // Existence-checked, and the candidates are tried in order. This used to be blind string
+        // substitution, which advertised files that might not exist - and a missing niftiPath is
+        // expensive rather than merely wrong: the Quest app reads a null as "no NIfTI" and falls
+        // back to downloading the DICOM series one slice at a time.
+        const sibling = (...names) => {
+            for (const name of names) {
+                const candidate = path.join(folder, name);
+                if (fs.existsSync(candidate))
+                    return removePathBeforeUploads(candidate.replace(/\\/g, '/'));
+            }
+            return null;
+        };
 
         return {
             index: index + 1,
-            path: removePathBeforeUploads(jsonPath),
+            path: removePathBeforeUploads(filePath.jsonPath.replace(/\\/g, '/')),
             vtiPath: sibling('volume.vti'),
             nrrdPath: sibling('volume.nrrd'),
-            niftiPath: sibling('volume.nii'),
+            // Newer uploads are gzipped; older ones on disk are not, and both must keep working.
+            niftiPath: sibling('volume.nii.gz', 'volume.nii'),
             stlPath: sibling('model.stl'),
             vtkLegacyPath: sibling('volume.vtk'),
             mprPath: filePath.mprInfoPath ? removePathBeforeUploads(filePath.mprInfoPath.replace(/\\/g, '/')) : null
@@ -164,8 +162,6 @@ router.post('/upload', handleUpload, async (req, res, next) => {
 
         // Process each uploaded file
         for (const file of req.files) {
-            const lowerName = file.originalname.toLowerCase();
-
             if (isValidZip(file.path)) {
                 // Extract ZIP preserving relative paths
                 await new Promise((resolve, reject) => {
@@ -251,21 +247,23 @@ router.post('/upload', handleUpload, async (req, res, next) => {
                             if (!aborted) reject(err);
                         });
                 });
-            } else if (lowerName.endsWith('.dcm')) {
-                // Move .dcm file directly into extraction directory
+            } else if (isDicomFile(file.path, file.originalname)) {
+                // A .dcm file, or an extensionless one whose bytes say DICOM. Judged on
+                // originalname for the extension and on file.path for the magic bytes, because
+                // multer stores the upload under a generated name with no extension of its own.
                 const destPath = path.join(extractPath, file.originalname);
                 await fs.promises.rename(file.path, destPath);
                 // Remove from temp cleanup list since it was moved
                 const idx = tempFiles.indexOf(file.path);
                 if (idx !== -1) tempFiles.splice(idx, 1);
             } else {
-                // Skip non-ZIP, non-DCM files
+                // Skip non-ZIP, non-DICOM files
                 skipped.push(file.originalname);
             }
         }
 
-        // Recursively find all .dcm files
-        const dcmFiles = await findDcmFiles(extractPath);
+        // Recursively find every DICOM file, extensionless ones included
+        const dcmFiles = await findDicomFiles(extractPath);
 
         if (dcmFiles.length === 0) {
             await fs.promises.rm(extractPath, { recursive: true, force: true });
@@ -274,8 +272,8 @@ router.post('/upload', handleUpload, async (req, res, next) => {
                 try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
             }
             const msg = skipped.length > 0
-                ? `No .dcm files found. Skipped non-DICOM files: ${skipped.join(', ')}`
-                : 'No .dcm files found in the uploaded files';
+                ? `No DICOM files found. Skipped non-DICOM files: ${skipped.join(', ')}`
+                : 'No DICOM files found in the uploaded files';
             return res.status(400).json({ success: false, message: msg });
         }
 

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetri3D Rotate</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #080818;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            backdrop-filter: blur(6px);
+            z-index: 5;
+        }
+
+        #ui h1 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+            color: #4af;
+        }
+
+        .stat {
+            font-size: 14px;
+            margin: 5px 0;
+            color: #99a;
+        }
+
+        .stat span {
+            color: #fff;
+            font-weight: bold;
+            font-size: 18px;
+            float: right;
+            margin-left: 20px;
+        }
+
+        #game-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 800px;
+            height: 800px;
+        }
+
+        /* The canvas itself rotates */
+        #game-canvas {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(68, 170, 255, 0.1);
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        #controls-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 18px 24px;
+            border-radius: 14px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            backdrop-filter: blur(8px);
+            z-index: 5;
+        }
+
+        .ctrl-row {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .ctrl-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .ctrl-block-label {
+            font-size: 11px;
+            color: #667;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 7px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #ccd;
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        kbd.wide { width: 75px; }
+
+        .keys-group { display: flex; gap: 5px; }
+
+        /* ── Start menu ── */
+        #start-menu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+
+        #start-menu h1 {
+            font-size: 52px;
+            letter-spacing: 8px;
+            color: #4af;
+            text-shadow: 0 0 40px rgba(68, 170, 255, 0.3);
+            margin-bottom: 40px;
+        }
+
+        .option-group { margin-bottom: 28px; text-align: center; }
+        .option-group label {
+            display: block; font-size: 13px; color: #667;
+            letter-spacing: 3px; margin-bottom: 10px; text-transform: uppercase;
+        }
+        .option-group .btns { display: flex; gap: 10px; justify-content: center; }
+
+        .opt-btn {
+            font-size: 15px; padding: 10px 24px; cursor: pointer;
+            background: transparent; color: #99a;
+            border: 1.5px solid #334; border-radius: 8px;
+            transition: all 0.15s; min-width: 70px; font-family: inherit;
+        }
+        .opt-btn:hover { border-color: #4af; color: #4af; }
+        .opt-btn.active { border-color: #4af; color: #fff; background: rgba(68, 170, 255, 0.15); }
+
+        #start-btn {
+            margin-top: 16px; font-size: 18px; padding: 14px 56px;
+            cursor: pointer; background: transparent; color: #4af;
+            border: 2px solid #4af; border-radius: 10px;
+            letter-spacing: 4px; transition: all 0.2s; font-family: inherit;
+        }
+        #start-btn:hover { background: #4af; color: #000; }
+
+        /* ── Game over overlay ── */
+        #overlay {
+            display: none; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75);
+            justify-content: center; align-items: center; flex-direction: column;
+            backdrop-filter: blur(4px); z-index: 10;
+        }
+        #overlay.show { display: flex; }
+
+        #overlay h1 {
+            font-size: 52px; color: #f44;
+            text-shadow: 0 0 40px rgba(255, 50, 50, 0.4);
+            margin-bottom: 8px; letter-spacing: 6px;
+        }
+        #overlay .sub { font-size: 18px; color: #aab; margin-bottom: 30px; }
+        
+        .ov-btn {
+            font-size: 16px; padding: 12px 36px; cursor: pointer;
+            background: transparent; border: 2px solid #4af; border-radius: 8px;
+            letter-spacing: 3px; transition: all 0.2s; color: #4af;
+        }
+        .ov-btn:hover { background: #4af; color: #000; }
+
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>Tetri3D Rotate</h1>
+        <div class="stat">SCORE <span id="score">0</span></div>
+        <div class="stat">LINES <span id="lines">0</span></div>
+        <div class="stat">LEVEL <span id="level">1</span></div>
+    </div>
+
+    <div id="controls-panel">
+        <div class="ctrl-row">
+            <div class="ctrl-block">
+                <div class="keys-group"><kbd>A</kbd><kbd>D</kbd></div>
+                <div class="ctrl-block-label">Move</div>
+            </div>
+            <div class="ctrl-block">
+                <kbd>W</kbd>
+                <div class="ctrl-block-label">Rotate Piece</div>
+            </div>
+            <div class="ctrl-block">
+                <div class="keys-group"><kbd>S</kbd><kbd class="wide">Space</kbd></div>
+                <div class="ctrl-block-label">Soft / Hard Drop</div>
+            </div>
+            <div class="ctrl-block">
+                <div class="keys-group"><kbd>Q</kbd><kbd>E</kbd></div>
+                <div class="ctrl-block-label">Rotate Grid</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="start-menu">
+        <h1>TETRIS ROTATE</h1>
+        <div class="option-group">
+            <label>Grid Size</label>
+            <div class="btns">
+                <button class="opt-btn active" data-val="10">10 x 10</button>
+                <button class="opt-btn" data-val="15">15 x 15</button>
+            </div>
+        </div>
+        <button id="start-btn">START</button>
+    </div>
+
+    <div id="overlay">
+        <h1>GAME OVER</h1>
+        <div class="sub">Score: <span id="final-score">0</span></div>
+        <div class="btn-row">
+            <button class="ov-btn" id="retry-btn">RETRY</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Web Audio API SFX ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function sfx(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const g = audioCtx.createGain();
+            g.connect(audioCtx.destination);
+
+            if (type === 'move') {
+                const o = audioCtx.createOscillator();
+                o.type = 'square'; o.frequency.setValueAtTime(220, now);
+                o.frequency.exponentialRampToValueAtTime(280, now + 0.04);
+                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                o.connect(g); o.start(now); o.stop(now + 0.05);
+            }
+            else if (type === 'rotate') {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine'; o.frequency.setValueAtTime(400, now);
+                o.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+                g.gain.setValueAtTime(0.08, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                o.connect(g); o.start(now); o.stop(now + 0.1);
+            }
+            else if (type === 'drop') {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine'; o.frequency.setValueAtTime(150, now);
+                o.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                g.gain.setValueAtTime(0.15, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                o.connect(g); o.start(now); o.stop(now + 0.2);
+            }
+            else if (type === 'clear') {
+                [523, 659, 784, 1047].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sine'; o.frequency.setValueAtTime(freq, now + i * 0.06);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.1, now + i * 0.06);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.06); o.stop(now + i * 0.06 + 0.2);
+                });
+            }
+            else if (type === 'tetris') {
+                [523, 659, 784, 1047, 1319].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'square'; o.frequency.setValueAtTime(freq, now + i * 0.08);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.08, now + i * 0.08);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.3);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.3);
+                });
+            }
+            else if (type === 'grid_rotate') {
+                const o = audioCtx.createOscillator();
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(100, now);
+                o.frequency.exponentialRampToValueAtTime(300, now + 0.4);
+                g.gain.setValueAtTime(0.1, now); g.gain.linearRampToValueAtTime(0.001, now + 0.4);
+                o.connect(g); o.start(now); o.stop(now + 0.4);
+            }
+            else if (type === 'gameover') {
+                [400, 350, 280, 200, 150].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sawtooth'; o.frequency.setValueAtTime(freq, now + i * 0.18);
+                    const gn = audioCtx.createGain();
+                    gn.gain.setValueAtTime(0.08, now + i * 0.18);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.3);
+                    o.connect(gn); gn.connect(audioCtx.destination);
+                    o.start(now + i * 0.18); o.stop(now + i * 0.18 + 0.3);
+                });
+            }
+        }
+
+        // --- Game Logic ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const UI = {
+            score: document.getElementById('score'),
+            lines: document.getElementById('lines'),
+            level: document.getElementById('level'),
+            menu: document.getElementById('start-menu'),
+            overlay: document.getElementById('overlay'),
+            finalScore: document.getElementById('final-score'),
+            startBtn: document.getElementById('start-btn'),
+            retryBtn: document.getElementById('retry-btn'),
+            optBtns: document.querySelectorAll('.opt-btn')
+        };
+
+        // Grid config
+        let GRID_SIZE = 10;
+        let BLOCK_SIZE = 40; // 40px per block
+
+        // Game State
+        let grid = [];
+        let activePiece = null;
+        let score = 0, lines = 0, level = 1;
+        let state = 'MENU'; // MENU, PLAYING, ROTATING, GRAVITY, GAMEOVER
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+
+        // Pieces Definitions
+        const PIECES = [
+            { shape: [[1,1,1,1]], color: '#00e5ff' }, // I
+            { shape: [[1,1],[1,1]], color: '#ffd600' }, // O
+            { shape: [[0,1,0],[1,1,1]], color: '#d500f9' }, // T
+            { shape: [[0,1,1],[1,1,0]], color: '#76ff03' }, // S
+            { shape: [[1,1,0],[0,1,1]], color: '#ff1744' }, // Z
+            { shape: [[1,0,0],[1,1,1]], color: '#2979ff' }, // J
+            { shape: [[0,0,1],[1,1,1]], color: '#ff9100' }  // L
+        ];
+
+        // UI Handlers
+        UI.optBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                UI.optBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                GRID_SIZE = parseInt(btn.dataset.val);
+            });
+        });
+
+        UI.startBtn.addEventListener('click', startGame);
+        UI.retryBtn.addEventListener('click', startGame);
+
+        function startGame() {
+            UI.menu.style.display = 'none';
+            UI.overlay.classList.remove('show');
+            
+            // Setup canvas
+            BLOCK_SIZE = GRID_SIZE === 10 ? 50 : 36;
+            canvas.width = GRID_SIZE * BLOCK_SIZE;
+            canvas.height = GRID_SIZE * BLOCK_SIZE;
+            canvas.style.transform = `rotate(0deg)`;
+
+            // Reset state
+            grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+            score = 0; lines = 0; level = 1;
+            updateUI();
+            
+            dropInterval = 1000;
+            state = 'PLAYING';
+            spawnPiece();
+            
+            lastTime = performance.now();
+            requestAnimationFrame(update);
+        }
+
+        function updateUI() {
+            UI.score.innerText = score;
+            UI.lines.innerText = lines;
+            UI.level.innerText = level;
+            dropInterval = Math.max(150, 1000 - (level - 1) * 100);
+        }
+
+        function spawnPiece() {
+            const p = PIECES[Math.floor(Math.random() * PIECES.length)];
+            activePiece = {
+                matrix: p.shape,
+                color: p.color,
+                x: Math.floor(GRID_SIZE / 2) - Math.floor(p.shape[0].length / 2),
+                y: 0
+            };
+            if (collide()) {
+                state = 'GAMEOVER';
+                UI.finalScore.innerText = score;
+                UI.overlay.classList.add('show');
+                sfx('gameover');
+            }
+        }
+
+        function collide() {
+            const m = activePiece.matrix;
+            for (let y = 0; y < m.length; y++) {
+                for (let x = 0; x < m[y].length; x++) {
+                    if (m[y][x]) {
+                        let nx = activePiece.x + x;
+                        let ny = activePiece.y + y;
+                        if (nx < 0 || nx >= GRID_SIZE || ny >= GRID_SIZE || (ny >= 0 && grid[ny][nx])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge() {
+            const m = activePiece.matrix;
+            for (let y = 0; y < m.length; y++) {
+                for (let x = 0; x < m[y].length; x++) {
+                    if (m[y][x]) {
+                        let ny = activePiece.y + y;
+                        if (ny >= 0) {
+                            grid[ny][activePiece.x + x] = activePiece.color;
+                        }
+                    }
+                }
+            }
+        }
+
+        function rotateMatrix(matrix) {
+            return matrix[0].map((val, index) => matrix.map(row => row[index]).reverse());
+        }
+
+        function pieceDrop() {
+            activePiece.y++;
+            if (collide()) {
+                activePiece.y--;
+                merge();
+                sfx('drop');
+                clearLines();
+                if (state === 'PLAYING') spawnPiece();
+            }
+            dropCounter = 0;
+        }
+
+        function pieceMove(dir) {
+            activePiece.x += dir;
+            if (collide()) {
+                activePiece.x -= dir;
+            } else {
+                sfx('move');
+            }
+        }
+
+        function pieceRotate() {
+            const orig = activePiece.matrix;
+            activePiece.matrix = rotateMatrix(activePiece.matrix);
+            // Wall kick
+            const origX = activePiece.x;
+            let offset = 1;
+            while (collide()) {
+                activePiece.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > activePiece.matrix[0].length) {
+                    activePiece.matrix = orig;
+                    activePiece.x = origX;
+                    return;
+                }
+            }
+            sfx('rotate');
+        }
+
+        function hardDrop() {
+            while (!collide()) {
+                activePiece.y++;
+            }
+            activePiece.y--;
+            merge();
+            sfx('drop');
+            clearLines();
+            if (state === 'PLAYING') spawnPiece();
+            dropCounter = 0;
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                if (grid[y].every(cell => cell !== null)) {
+                    grid.splice(y, 1);
+                    grid.unshift(Array(GRID_SIZE).fill(null));
+                    linesCleared++;
+                    y++; // re-check same row
+                }
+            }
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                score += [0, 100, 300, 500, 800][linesCleared] * level;
+                level = Math.floor(lines / 10) + 1;
+                updateUI();
+                sfx(linesCleared >= 4 ? 'tetris' : 'clear');
+            }
+        }
+
+        // --- Grid Rotation & Gravity Mechanics ---
+        
+        let visualRotation = 0;
+
+        function rotateGrid(dir) {
+            if (state !== 'PLAYING') return;
+            state = 'ROTATING';
+            sfx('grid_rotate');
+            
+            // Visual rotation
+            visualRotation += dir === 1 ? 90 : -90;
+            canvas.style.transform = `rotate(${visualRotation}deg)`;
+            
+            // Wait for CSS animation
+            setTimeout(() => {
+                // Instantly remove CSS transform and update internal matrix to match visually
+                canvas.style.transition = 'none';
+                visualRotation = 0;
+                canvas.style.transform = `rotate(0deg)`;
+                
+                // Rotate the internal grid array
+                let newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (dir === 1) { // Right
+                            newGrid[x][GRID_SIZE - 1 - y] = grid[y][x];
+                        } else { // Left
+                            newGrid[GRID_SIZE - 1 - x][y] = grid[y][x];
+                        }
+                    }
+                }
+                grid = newGrid;
+
+                // Adjust active piece so it stays visually in same place but its coordinates update
+                if (activePiece) {
+                    if (dir === 1) { // Right
+                        activePiece.matrix = rotateMatrix(activePiece.matrix); // CW
+                        let newX = GRID_SIZE - 1 - activePiece.y - activePiece.matrix[0].length + 1;
+                        let newY = activePiece.x;
+                        activePiece.x = newX;
+                        activePiece.y = newY;
+                    } else { // Left
+                        // rotate CCW
+                        activePiece.matrix = rotateMatrix(rotateMatrix(rotateMatrix(activePiece.matrix))); 
+                        let newX = activePiece.y;
+                        let newY = GRID_SIZE - 1 - activePiece.x - activePiece.matrix.length + 1;
+                        activePiece.x = newX;
+                        activePiece.y = newY;
+                    }
+
+                    // Push in bounds if out
+                    if (activePiece.x < 0) activePiece.x = 0;
+                    if (activePiece.x + activePiece.matrix[0].length > GRID_SIZE) 
+                        activePiece.x = GRID_SIZE - activePiece.matrix[0].length;
+                    
+                    // If it collides after rotation, just nudge it up
+                    while(collide()) {
+                        activePiece.y--;
+                        if(activePiece.y < -5) {
+                            // Can't fix
+                            break;
+                        }
+                    }
+                }
+
+                // Restore transition
+                setTimeout(() => {
+                    canvas.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                    state = 'GRAVITY';
+                }, 20);
+
+            }, 400); // Wait for CSS
+        }
+
+        let gravityTimer = 0;
+        function applyGravity(dt) {
+            gravityTimer += dt;
+            if (gravityTimer > 50) { // drop blocks every 50ms
+                gravityTimer = 0;
+                let moved = false;
+                
+                // Sweep from bottom to top
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    for (let y = GRID_SIZE - 2; y >= 0; y--) {
+                        if (grid[y][x] !== null && grid[y+1][x] === null) {
+                            grid[y+1][x] = grid[y][x];
+                            grid[y][x] = null;
+                            moved = true;
+                        }
+                    }
+                }
+
+                if (!moved) {
+                    // Done falling
+                    state = 'PLAYING';
+                    clearLines();
+                    // If activePiece was somehow destroyed or lost, respawn (failsafe)
+                    if(!activePiece) spawnPiece();
+                } else {
+                    // Optional tiny tick sound
+                    // sfx('move');
+                }
+            }
+        }
+
+        // --- Render ---
+        function drawBlock(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            // inner glow / bevel
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, 4);
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, 4, BLOCK_SIZE);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(x * BLOCK_SIZE + BLOCK_SIZE - 4, y * BLOCK_SIZE, 4, BLOCK_SIZE);
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE + BLOCK_SIZE - 4, BLOCK_SIZE, 4);
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=GRID_SIZE; i++) {
+                ctx.beginPath(); ctx.moveTo(i*BLOCK_SIZE, 0); ctx.lineTo(i*BLOCK_SIZE, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i*BLOCK_SIZE); ctx.lineTo(canvas.width, i*BLOCK_SIZE); ctx.stroke();
+            }
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x]) drawBlock(x, y, grid[y][x]);
+                }
+            }
+            if (activePiece && (state === 'PLAYING' || state === 'ROTATING' || state === 'GRAVITY')) {
+                for (let y = 0; y < activePiece.matrix.length; y++) {
+                    for (let x = 0; x < activePiece.matrix[y].length; x++) {
+                        if (activePiece.matrix[y][x]) {
+                            drawBlock(activePiece.x + x, activePiece.y + y, activePiece.color);
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Main Loop ---
+        function update(time = 0) {
+            const dt = time - lastTime;
+            lastTime = time;
+
+            if (state === 'PLAYING') {
+                dropCounter += dt;
+                if (dropCounter > dropInterval) {
+                    pieceDrop();
+                }
+            } else if (state === 'GRAVITY') {
+                applyGravity(dt);
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // Input
+        document.addEventListener('keydown', e => {
+            if (state !== 'PLAYING') return;
+
+            switch (e.code) {
+                case 'KeyA': pieceMove(-1); break;
+                case 'KeyD': pieceMove(1); break;
+                case 'KeyW': pieceRotate(); break;
+                case 'KeyS': pieceDrop(); break;
+                case 'Space': hardDrop(); break;
+                case 'KeyQ': rotateGrid(-1); break; // CCW
+                case 'KeyE': rotateGrid(1); break; // CW
+            }
+        });
+
+    </script>
+</body>
+</html>

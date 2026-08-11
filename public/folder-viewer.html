@@ -380,7 +380,20 @@
     <script>
         let folderData = null;
         const urlParams = new URLSearchParams(window.location.search);
-        const jsonPath = urlParams.get('path');
+        // Accept either the dicom_info.json path or a bare folder name. The upload page used to
+        // link here with ?folder=<name>, which this page never read - so the button just bounced
+        // back to the home page. Tolerating both means a stale link or bookmark still works.
+        const folderParam = urlParams.get('folder');
+        let jsonPath = urlParams.get('path');
+        if (!jsonPath && folderParam) {
+            // Written without regexes so it reads plainly: strip any leading and trailing
+            // slashes, make sure it sits under uploads/, then point at the folder's manifest.
+            let base = folderParam;
+            while (base.endsWith('/')) base = base.slice(0, -1);
+            while (base.startsWith('/')) base = base.slice(1);
+            if (!base.startsWith('uploads/')) base = 'uploads/' + base;
+            jsonPath = '/' + base + '/dicom_info.json';
+        }
 
         async function loadFolderData() {
             if (!jsonPath) {

@@ -11,6 +11,7 @@ import { convertToMpr } from '../converters/mpr.js';
 import { showDicomInfo } from '../utils/dicomInfo.js';
 import { buildVolumeData } from '../utils/volumeBuilder.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
+import { findDicomFiles } from '../utils/dicomFiles.js';
 import { PUBLIC_DIR } from '../config.js';
 import { DicomMetaDictionary, DicomMessage } from '../utils/dicomHelpers.js';
 import { yieldToEventLoop } from '../utils/pixelData.js';
@@ -22,22 +23,6 @@ const gc = typeof global.gc === 'function' ? global.gc : null;
 function logMemory(label) {
     const mem = process.memoryUsage();
     console.log(`[MEM ${label}] RSS: ${Math.round(mem.rss / 1024 / 1024)} MB | Heap: ${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)} MB`);
-}
-
-// Recursively find all .dcm files in a directory tree
-async function findDcmFilesRecursive(dir) {
-    const results = [];
-    const items = await fs.promises.readdir(dir, { withFileTypes: true });
-    for (const item of items) {
-        const fullPath = path.join(dir, item.name);
-        if (item.isDirectory()) {
-            const nested = await findDcmFilesRecursive(fullPath);
-            results.push(...nested);
-        } else if (item.name.toLowerCase().endsWith('.dcm')) {
-            results.push(fullPath);
-        }
-    }
-    return results;
 }
 
 /**
@@ -71,8 +56,8 @@ async function processFileForJpg(filePath, rawBuffer, dcmjsDataset, errors) {
 export async function processDirectory(dirPath) {
     const errors = [];
 
-    // Recursively collect all DICOM files from all subdirectories
-    const dicomFiles = await findDcmFilesRecursive(dirPath);
+    // Recursively collect all DICOM files from all subdirectories, extensionless ones included
+    const dicomFiles = await findDicomFiles(dirPath);
 
     console.log(`Found ${dicomFiles.length} DICOM files to process (recursive scan of ${dirPath})`);
 
@@ -131,7 +116,9 @@ export async function processDirectory(dirPath) {
     // Run all 5 volume converters, then clean up temp file
     const vtiPath = path.join(dirPath, 'volume.vti');
     const nrrdPath = path.join(dirPath, 'volume.nrrd');
-    const niftiPath = path.join(dirPath, 'volume.nii');
+    // .nii.gz because the file is gzipped: the extension is what tells 3D Slicer, FSL and the web
+    // viewer to inflate it. The Unity reader sniffs the magic bytes and does not care either way.
+    const niftiPath = path.join(dirPath, 'volume.nii.gz');
     const stlPath = path.join(dirPath, 'model.stl');
     const vtkLegacyPath = path.join(dirPath, 'volume.vtk');
     let vtiResult = null, nrrdResult = null, niftiResult = null, stlResult = null, vtkResult = null, mprResult = null;

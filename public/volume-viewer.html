@@ -296,6 +296,40 @@
             }
         }
 
+        // NIfTI datatype codes -> typed array. The datatype at header offset 70 used to be ignored
+        // and float32 assumed, which throws a RangeError on an int16 volume.
+        const NIFTI_TYPES = {
+            2: Uint8Array, 4: Int16Array, 8: Int32Array,
+            16: Float32Array, 64: Float64Array, 256: Int8Array,
+            512: Uint16Array, 768: Uint32Array,
+        };
+
+        function niftiVoxels(buffer, datatype, byteOffset, count) {
+            const ArrayType = NIFTI_TYPES[datatype];
+            if (!ArrayType) throw new Error('Unsupported NIfTI datatype: ' + datatype);
+
+            const needed = count * ArrayType.BYTES_PER_ELEMENT;
+            if (buffer.byteLength < byteOffset + needed)
+                throw new Error('NIfTI file is truncated: need ' + needed + ' data bytes, have ' +
+                    (buffer.byteLength - byteOffset));
+
+            // Copied rather than viewed: vox_offset is 352, which is not an 8-byte boundary, and a
+            // Float64Array view would throw on a misaligned offset.
+            return new ArrayType(buffer.slice(byteOffset, byteOffset + needed));
+        }
+
+        // Inflates a gzipped buffer, detected by magic bytes rather than by file extension - so this
+        // covers volume.nii.gz and equally a gzip-bodied volume.nii.
+        async function inflateIfGzipped(buffer) {
+            const head = new Uint8Array(buffer, 0, Math.min(2, buffer.byteLength));
+            if (head[0] !== 0x1f || head[1] !== 0x8b) return buffer;
+
+            const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+            const inflated = await new Response(stream).arrayBuffer();
+            console.log('Inflated gzip: ' + buffer.byteLength + ' -> ' + inflated.byteLength + ' bytes');
+            return inflated;
+        }
+
         async function fetchWithProgress(url) {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -304,7 +338,7 @@
             if (!contentLength || !response.body) {
                 const buffer = await response.arrayBuffer();
                 updateProgress(100, buffer.byteLength, buffer.byteLength);
-                return buffer;
+                return inflateIfGzipped(buffer);
             }
 
             const total = parseInt(contentLength, 10);
@@ -326,7 +360,7 @@
                 buffer.set(chunk, offset);
                 offset += chunk.length;
             }
-            return buffer.buffer;
+            return inflateIfGzipped(buffer.buffer);
         }
 
         // ============================================================
@@ -344,11 +378,11 @@
         // --- NRRD ---
         async function loadNrrd(url) {
             const buffer = await fetchWithProgress(url);
-            const { header, data } = parseNrrd(buffer);
+            const { header, data } = await parseNrrd(buffer);
             return createVtkImage(header, data);
         }
 
-        function parseNrrd(buffer) {
+        async function parseNrrd(buffer) {
             const decoder = new TextDecoder();
             let headerSize = 0;
             const view = new Uint8Array(buffer);
@@ -400,7 +434,18 @@
                 origin = info['space origin'].replace(/[()]/g, '').split(',').map(Number);
             }
 
-            const dataBuffer = buffer.slice(headerSize);
+            // The encoding field used to be ignored entirely, so a gzip-encoded NRRD was read as
+            // though the compressed bytes were voxels - garbage, with no error. Note only the data
+            // section is compressed in NRRD; the header is always plain text.
+            const encoding = (info['encoding'] || 'raw').toLowerCase();
+            let dataBuffer = buffer.slice(headerSize);
+            if (encoding === 'gzip' || encoding === 'gz') {
+                dataBuffer = await new Response(
+                    new Blob([dataBuffer]).stream().pipeThrough(new DecompressionStream('gzip'))
+                ).arrayBuffer();
+            } else if (encoding !== 'raw') {
+                throw new Error('Unsupported NRRD encoding: ' + encoding);
+            }
             let typedData;
             if (type === 'float' || type === 'double') {
                 typedData = new Float32Array(dataBuffer);
@@ -449,7 +494,8 @@
             const vox_offset = view.getFloat32(108, true);
             const dataOffset = Math.floor(vox_offset);
             const numVoxels = dimX * dimY * dimZ;
-            const pixelData = new Float32Array(buffer, dataOffset, numVoxels);
+            const datatype = view.getInt16(70, true);
+            const pixelData = niftiVoxels(buffer, datatype, dataOffset, numVoxels);
 
             return createVtkImage(
                 { sizes: [dimX, dimY, dimZ], spacing: [spacingX, spacingY, spacingZ], origin: [originX, originY, originZ] },
@@ -478,6 +524,7 @@
             const lines = headerStr.split('\n');
 
             let dimensions = null, origin = null, spacing = null, pointData = null;
+            let scalarType = 'float';
 
             for (const line of lines) {
                 const trimmed = line.trim();
@@ -490,6 +537,9 @@
                 } else if (trimmed.startsWith('SPACING')) {
                     const parts = trimmed.split(/\s+/);
                     spacing = [parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])];
+                } else if (trimmed.startsWith('SCALARS')) {
+                    // "SCALARS <name> <type>"
+                    scalarType = (trimmed.split(/\s+/)[2] || 'float').toLowerCase();
                 } else if (trimmed.startsWith('POINT_DATA')) {
                     const parts = trimmed.split(/\s+/);
                     pointData = parseInt(parts[1]);
@@ -500,7 +550,16 @@
                 throw new Error('Invalid VTK file: missing required header fields');
             }
 
-            const pixelData = new Float32Array(buffer.slice(headerEnd, headerEnd + pointData * 4));
+            // The stride comes from the SCALARS type. Hardcoding 4 bytes silently rendered half a
+            // short volume as noise, because slice() clamps instead of throwing.
+            const VTK_TYPES = {
+                float: Float32Array, double: Float64Array, short: Int16Array,
+                unsigned_short: Uint16Array, int: Int32Array,
+                unsigned_char: Uint8Array, char: Int8Array,
+            };
+            const ScalarType = VTK_TYPES[scalarType] || Float32Array;
+            const pixelData = new ScalarType(
+                buffer.slice(headerEnd, headerEnd + pointData * ScalarType.BYTES_PER_ELEMENT));
 
             return createVtkImage(
                 { sizes: dimensions, spacing: spacing, origin: origin },
@@ -530,7 +589,9 @@
 
         function detectFormat(url, explicitFormat) {
             if (explicitFormat) return explicitFormat.toLowerCase();
-            const ext = url.split('.').pop().toLowerCase().split('?')[0];
+            // Strip a trailing .gz first, or volume.nii.gz detects as "gz" and nothing matches.
+            const clean = url.toLowerCase().split('?')[0].replace(/\.gz$/, '');
+            const ext = clean.split('.').pop();
             const map = { vti: 'vti', nrrd: 'nrrd', nii: 'nifti', vtk: 'vtk' };
             return map[ext] || null;
         }

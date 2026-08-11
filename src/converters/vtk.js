@@ -1,12 +1,16 @@
 import fs from 'fs';
-import { appendVolumeToFile } from '../utils/volumeBuilder.js';
+import { appendVolumeToFile, resolveOutputDtype, describeDtype } from '../utils/volumeStream.js';
 
 export async function convertToVtk(volume, outputPath) {
     console.log('Converting DICOM to VTK legacy...');
 
-    const { tempFilePath, dimensions, spacing, origin } = volume;
+    const { dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
     const totalVoxels = rows * columns * depth;
+
+    // The legacy format has no compression, so int16 is the only saving available here.
+    const dtype = resolveOutputDtype(volume);
+    console.log('VTK data type:', describeDtype(volume, dtype));
 
     const vtkContent = `# vtk DataFile Version 3.0
 converted from DICOM
@@ -16,12 +20,12 @@ DIMENSIONS ${columns} ${rows} ${depth}
 ORIGIN ${origin.join(' ')}
 SPACING ${spacing.join(' ')}
 POINT_DATA ${totalVoxels}
-SCALARS intensity float
+SCALARS intensity ${dtype === 'int16' ? 'short' : 'float'}
 LOOKUP_TABLE default
 `;
 
     fs.writeFileSync(outputPath, vtkContent);
-    appendVolumeToFile(tempFilePath, outputPath);
+    await appendVolumeToFile(volume, outputPath, dtype);
 
     console.log(`Successfully converted to VTK: ${outputPath}`);
     return outputPath;

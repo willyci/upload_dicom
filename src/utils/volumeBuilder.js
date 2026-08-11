@@ -95,6 +95,16 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         const rows = dataSet.uint16('x00280010');
         const columns = dataSet.uint16('x00280011');
 
+        // Not every valid DICOM file is an image. A DICOMDIR, a structured report or a presentation
+        // state parses happily but has no Rows/Columns, and stacking one as a slice would poison the
+        // volume's dimensions - especially if it sorted first.
+        if (!rows || !columns) {
+            console.warn(`Skipping non-image DICOM (no Rows/Columns): ${path.basename(filePath)}`);
+            buf = null;
+            dataSet = null;
+            continue;
+        }
+
         // WindowCenter (0028,1050) / WindowWidth (0028,1051): the radiologist's own greyscale
         // window, in rescaled units. Kept here so the derived images can use it instead of
         // guessing a window from the data's extremes.
@@ -154,6 +164,14 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
     const tempFilePath = path.join(os.tmpdir(), `dicom_vol_${Date.now()}_${process.pid}.raw`);
     const fd = fs.openSync(tempFilePath, 'w');
 
+    // Gathered while every voxel is being touched anyway, and used afterwards to decide whether the
+    // outputs can be int16 instead of float32. Measuring beats predicting from the header: a series
+    // can carry a fractional slope, and 16-bit unsigned stored values can exceed int16 once the
+    // intercept is applied.
+    let min = Infinity;
+    let max = -Infinity;
+    let allIntegral = true;
+
     try {
         const sliceSize = rows * columns;
         const sliceFloat = new Float32Array(sliceSize);
@@ -199,12 +217,29 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
             sliceFloat.fill(0);
             if (slope === 1 && intercept === 0) {
                 for (let i = 0; i < count; i++) {
-                    sliceFloat[i] = pixelData[i];
+                    const value = pixelData[i];
+                    sliceFloat[i] = value;
+                    if (value < min) min = value;
+                    if (value > max) max = value;
                 }
             } else {
                 for (let i = 0; i < count; i++) {
-                    sliceFloat[i] = pixelData[i] * slope + intercept;
+                    const value = pixelData[i] * slope + intercept;
+                    sliceFloat[i] = value;
+                    if (value < min) min = value;
+                    if (value > max) max = value;
+                    // (v|0) !== v catches fractions and NaN, and anything beyond +/-2^31 - which
+                    // fails the range test anyway. A fractional RescaleSlope (PET, SUV-scaled MR)
+                    // clears this on the first voxel and the outputs stay float32.
+                    if ((value | 0) !== value) allIntegral = false;
                 }
+            }
+
+            // The padding written for a slice whose pixel data could not be read, and any unfilled
+            // tail, are zeros - so they widen the range but never break integrality.
+            if (count < sliceSize) {
+                if (min > 0) min = 0;
+                if (max < 0) max = 0;
             }
 
             if (z === 0) {
@@ -237,36 +272,22 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
     if (gc) gc();
     logMemory('volume-build-done');
 
+    if (!Number.isFinite(min)) { min = 0; max = 0; }
+    const stats = { min, max, allIntegral };
+    console.log(`Volume values: ${min}..${max}, ${allIntegral ? 'all integral' : 'non-integral present'}`);
+
     return {
         tempFilePath,
         dimensions: { rows, columns, depth },
         spacing,
         origin,
         window,
+        stats,
         cleanup() {
             try { fs.unlinkSync(tempFilePath); } catch {}
         }
     };
 }
 
-/**
- * Stream-copy volume data from temp file to output file (append mode).
- * Uses a fixed 4 MB buffer — never loads the full volume into memory.
- */
-export function appendVolumeToFile(tempFilePath, outputPath) {
-    const CHUNK = 4 * 1024 * 1024;
-    const buf = Buffer.alloc(CHUNK);
-    const srcFd = fs.openSync(tempFilePath, 'r');
-    const dstFd = fs.openSync(outputPath, 'a');
-    try {
-        let position = 0;
-        let bytesRead;
-        while ((bytesRead = fs.readSync(srcFd, buf, 0, CHUNK, position)) > 0) {
-            fs.writeSync(dstFd, buf, 0, bytesRead);
-            position += bytesRead;
-        }
-    } finally {
-        fs.closeSync(srcFd);
-        fs.closeSync(dstFd);
-    }
-}
+// The volume payload is written to output files by src/utils/volumeStream.js, which also narrows
+// float32 to int16 on the way out. It replaced a byte-copying appendVolumeToFile that lived here.

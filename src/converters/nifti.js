@@ -1,11 +1,19 @@
 import fs from 'fs';
-import { appendVolumeToFile } from '../utils/volumeBuilder.js';
+import zlib from 'zlib';
+import { pipeline } from 'stream/promises';
+import { createVoxelStream, resolveOutputDtype, describeDtype, BYTES_PER_VOXEL } from '../utils/volumeStream.js';
+
+const DT_FLOAT32 = 16;
+const DT_INT16 = 4;
 
 export async function convertToNifti(volume, outputPath) {
     console.log('Converting DICOM to NIfTI...');
 
-    const { tempFilePath, dimensions, spacing, origin } = volume;
+    const { dimensions, spacing, origin } = volume;
     const { rows, columns, depth } = dimensions;
+
+    const dtype = resolveOutputDtype(volume);
+    console.log('NIfTI data type:', describeDtype(volume, dtype));
 
     // Create NIfTI-1 header (348 bytes)
     const header = Buffer.alloc(348);
@@ -32,8 +40,8 @@ export async function convertToNifti(volume, outputPath) {
     header.writeFloatLE(0, 60);
     header.writeFloatLE(0, 64);
     header.writeInt16LE(0, 68);
-    header.writeInt16LE(16, 70); // datatype = float32
-    header.writeInt16LE(32, 72); // bitpix
+    header.writeInt16LE(dtype === 'int16' ? DT_INT16 : DT_FLOAT32, 70);
+    header.writeInt16LE(BYTES_PER_VOXEL[dtype] * 8, 72);   // bitpix
     header.writeInt16LE(0, 74);
 
     // pixdim[8]
@@ -46,7 +54,11 @@ export async function convertToNifti(volume, outputPath) {
     header.writeFloatLE(0, 100);
     header.writeFloatLE(0, 104);
 
-    header.writeFloatLE(352, 108); // vox_offset
+    header.writeFloatLE(352, 108); // vox_offset - into the decompressed stream, so gzip does not change it
+
+    // Identity scaling on purpose: the voxels already carry rescaled units (Hounsfield for CT), and
+    // the Unity viewer's NIfTI reader parses scl_slope/scl_inter but never applies them. Expressing
+    // the rescale here instead of in the data would silently mis-window everything in the headset.
     header.writeFloatLE(1.0, 112); // scl_slope
     header.writeFloatLE(0.0, 116); // scl_inter
     header.writeInt16LE(0, 120);
@@ -96,14 +108,16 @@ export async function convertToNifti(volume, outputPath) {
     header.write('', 328, 16, 'ascii');
     header.write('n+1\0', 344, 4, 'ascii'); // magic
 
-    fs.writeFileSync(outputPath, header);
+    // Unlike NRRD, a gzipped NIfTI compresses the WHOLE file - header, extension and voxels all go
+    // through one gzip stream, which is what every NIfTI reader expects from a .nii.gz.
+    const gzip = zlib.createGzip({ level: 6 });
+    const written = pipeline(gzip, fs.createWriteStream(outputPath));
 
-    // 4-byte extension (all zeros)
-    const extension = Buffer.alloc(4, 0);
-    fs.appendFileSync(outputPath, extension);
+    gzip.write(header);
+    gzip.write(Buffer.alloc(4, 0));   // 4-byte extension, all zeros
 
-    // Stream volume data from temp file
-    appendVolumeToFile(tempFilePath, outputPath);
+    await pipeline(createVoxelStream(volume, dtype), gzip);
+    await written;
 
     console.log('Successfully wrote NIfTI file:', outputPath);
     return outputPath;

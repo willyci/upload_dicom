@@ -150,7 +150,7 @@ function setProgress(pct, msg) {
 }
 
 // ── NRRD Parser ──
-function parseNRRD(buffer) {
+async function parseNRRD(buffer) {
     const bytes = new Uint8Array(buffer);
     // Find header/data boundary (double newline)
     let headerEnd = -1;
@@ -182,8 +182,16 @@ function parseNRRD(buffer) {
         }
     }
 
-    // Read raw float32 data
-    const dataBytes = buffer.slice(headerEnd);
+    // Only the data section is compressed in a gzip-encoded NRRD; the header stays plain text.
+    const encoding = (header.encoding || 'raw').toLowerCase();
+    let dataBytes = buffer.slice(headerEnd);
+    if (encoding === 'gzip' || encoding === 'gz') {
+        dataBytes = await new Response(
+            new Blob([dataBytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+        ).arrayBuffer();
+    } else if (encoding !== 'raw') {
+        throw new Error('Unsupported NRRD encoding: ' + encoding);
+    }
     let data;
     const type = header.type || 'float';
     if (type === 'float' || type === 'float32') {
@@ -359,7 +367,7 @@ async function main() {
         const buffer = await resp.arrayBuffer();
         setProgress(40, 'Parsing NRRD...');
 
-        const parsed = parseNRRD(buffer);
+        const parsed = await parseNRRD(buffer);
         volData = parsed.data;
         dims = parsed.dims;
         spacing = parsed.spacing;

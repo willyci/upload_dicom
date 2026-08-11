@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "dicom-processor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A Node.js application for processing DICOM files, converting them to JPG, VTI, NRRD, NIfTI, STL, and VTK formats, and providing viewers for the converted files.",
   "main": "src/app.js",
   "scripts": {

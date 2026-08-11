@@ -24,7 +24,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">📊 DICOM Processor V1.9</div>
+                <div class="logo">📊 DICOM Processor V2.1</div>
                 <nav>
                     <ul>
                         <li><a href="/">Home</a></li>
@@ -53,9 +53,9 @@
                     <div class="upload-icon">📁</div>
                     <h3>Drop files here</h3>
                     <p style="color: var(--text-muted); margin-bottom: var(--spacing-lg);">
-                        ZIP archives, .dcm files, or use the buttons below
+                        ZIP archives, or DICOM files with or without a .dcm extension
                     </p>
-                    <input type="file" id="fileInput" name="files" accept=".zip,.dcm" multiple style="display: none;">
+                    <input type="file" id="fileInput" name="files" multiple style="display: none;">
                     <input type="file" id="folderInput" name="files" webkitdirectory style="display: none;">
                     <div class="flex gap-sm justify-center flex-wrap">
                         <button type="button" class="btn btn-primary"
@@ -147,6 +147,28 @@
             }
         });
 
+        // Letters only, and short: '.jpg', '.json'. Deliberately does not match '.12345', which is
+        // the tail of a UID-named file such as 1.2.840.113619.2.55.3.12345 rather than a file type.
+        const TYPE_SUFFIX = /\.[a-z]{1,5}$/;
+
+        // Mirrors the server's rule in src/utils/dicomFiles.js: trust a .dcm/.zip name, reject a
+        // real type suffix without reading anything, and otherwise look for the Part-10 'DICM'
+        // magic at byte 128. The server checks again authoritatively; this only avoids uploading
+        // the obvious junk that comes with a whole-folder selection.
+        async function looksLikeDicom(file) {
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.zip') || name.endsWith('.dcm') || name.endsWith('.dicom')) return true;
+            if (name === 'dicomdir') return false;
+            if (TYPE_SUFFIX.test(name)) return false;
+
+            try {
+                const head = new Uint8Array(await file.slice(128, 132).arrayBuffer());
+                return String.fromCharCode(...head) === 'DICM';
+            } catch {
+                return false;
+            }
+        }
+
         // Handle file upload
         async function handleUpload(files) {
             if (!files || files.length === 0) {
@@ -154,20 +176,15 @@
                 return;
             }
 
-            // Filter to only .zip and .dcm files (skip others client-side for folder uploads)
-            const validFiles = [];
-            const skippedCount = { count: 0 };
-            for (const file of files) {
-                const name = file.name.toLowerCase();
-                if (name.endsWith('.zip') || name.endsWith('.dcm')) {
-                    validFiles.push(file);
-                } else {
-                    skippedCount.count++;
-                }
-            }
+            // Which of the selected files are worth uploading. Names are only a hint: plenty of
+            // exports carry no extension at all, or are named after the SOP instance UID, so
+            // anything without a recognisable file-type suffix has its bytes checked instead.
+            const checks = await Promise.all(Array.from(files).map(looksLikeDicom));
+            const validFiles = Array.from(files).filter((_, i) => checks[i]);
+            const skippedCount = { count: files.length - validFiles.length };
 
             if (validFiles.length === 0) {
-                alert('No .zip or .dcm files found in the selection');
+                alert('No DICOM or .zip files found in the selection');
                 return;
             }
 
@@ -287,7 +304,7 @@
                         ${result.mprPaths && result.mprPaths[0] ? `<a href="/mpr-viewer.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🔬 MPR Viewer</a>
                         <a href="/mpr-browser.html?info=${encodeURIComponent(result.mprPaths[0])}" target="_blank" class="btn btn-secondary">🖼 MPR Browser</a>` : ''}
                         <a href="/slice-vr-viewer.html?folder=/uploads/${encodeURIComponent(result.folder)}" target="_blank" class="btn btn-secondary">Slice VR</a>
-                        <a href="/folder-viewer.html?folder=${encodeURIComponent(result.folder)}" target="_blank" class="btn btn-primary">Browse Files</a>
+                        <a href="/folder-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
             `;

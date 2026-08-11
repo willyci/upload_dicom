@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invaders 3D</title>
+    <meta name="description" content="3D Space Invaders on a 10x10x10 grid. Defend Earth in three dimensions.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #080818; font-family: 'Segoe UI', Arial, sans-serif; color: #fff; }
+        canvas { display: block; }
+
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.65); padding: 15px 20px;
+            border-radius: 10px; border: 1px solid rgba(100,150,255,0.15);
+            backdrop-filter: blur(6px);
+        }
+        #ui h1 { font-size: 20px; margin-bottom: 10px; letter-spacing: 4px; color: #4af; }
+        .stat { font-size: 14px; margin: 5px 0; color: #99a; }
+        .stat span { color: #fff; font-weight: bold; font-size: 18px; float: right; margin-left: 20px; }
+
+        #controls-hint {
+            position: absolute; bottom: 20px; left: 20px;
+            background: rgba(0,0,0,0.65); padding: 12px 18px;
+            border-radius: 10px; border: 1px solid rgba(100,150,255,0.15);
+            backdrop-filter: blur(6px); font-size: 12px; color: #667; line-height: 1.8;
+        }
+        #controls-hint span { color: #99a; }
+
+        /* ── Start menu ── */
+        #start-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            backdrop-filter: blur(4px); background: rgba(0,0,0,0.6); z-index: 10;
+        }
+        #start-menu h1 {
+            font-size: 52px; letter-spacing: 8px; color: #4af;
+            text-shadow: 0 0 40px rgba(68,170,255,0.3); margin-bottom: 10px;
+        }
+        #start-menu .subtitle { font-size: 15px; color: #667; letter-spacing: 4px; margin-bottom: 40px; }
+
+        .option-group { margin-bottom: 22px; text-align: center; }
+        .option-group label { display: block; font-size: 13px; color: #667; letter-spacing: 3px; margin-bottom: 10px; text-transform: uppercase; }
+        .option-group .btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .opt-btn {
+            font-size: 15px; padding: 10px 24px; cursor: pointer;
+            background: transparent; color: #99a; border: 1.5px solid #334;
+            border-radius: 8px; font-family: inherit; letter-spacing: 1px;
+            transition: all 0.15s; min-width: 70px;
+        }
+        .opt-btn:hover { border-color: #4af; color: #4af; }
+        .opt-btn.active { border-color: #4af; color: #fff; background: rgba(68,170,255,0.15); }
+
+        #start-btn {
+            margin-top: 16px; font-size: 18px; padding: 14px 56px; cursor: pointer;
+            background: transparent; color: #4af; border: 2px solid #4af;
+            border-radius: 10px; letter-spacing: 4px; transition: all 0.2s; font-family: inherit;
+        }
+        #start-btn:hover { background: #4af; color: #000; }
+
+        /* ── Overlays ── */
+        #overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75); justify-content: center; align-items: center;
+            flex-direction: column; backdrop-filter: blur(4px); z-index: 10;
+        }
+        #overlay.show { display: flex; }
+        #overlay h1 { font-size: 52px; color: #f44; text-shadow: 0 0 40px rgba(255,50,50,0.4); margin-bottom: 8px; letter-spacing: 6px; }
+        #overlay h1.win { color: #4af; text-shadow: 0 0 40px rgba(68,170,255,0.4); }
+        #overlay .sub { font-size: 18px; color: #aab; margin-bottom: 30px; }
+        #overlay .btn-row { display: flex; gap: 14px; }
+        .ov-btn {
+            font-size: 16px; padding: 12px 36px; cursor: pointer; background: transparent;
+            border: 2px solid #4af; border-radius: 8px; letter-spacing: 3px;
+            transition: all 0.2s; font-family: inherit; color: #4af;
+        }
+        .ov-btn:hover { background: #4af; color: #000; }
+
+        /* ── Pause menu ── */
+        #pause-menu {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); justify-content: center; align-items: center;
+            flex-direction: column; backdrop-filter: blur(6px); z-index: 10;
+        }
+        #pause-menu.show { display: flex; }
+        #pause-menu h1 { font-size: 48px; color: #4af; letter-spacing: 8px; text-shadow: 0 0 40px rgba(68,170,255,0.3); margin-bottom: 36px; }
+        #pause-menu .btn-col { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+        .pause-btn {
+            font-size: 16px; padding: 14px 48px; cursor: pointer; min-width: 220px;
+            background: transparent; color: #4af; border: 2px solid #4af;
+            border-radius: 10px; letter-spacing: 3px; transition: all 0.2s; font-family: inherit;
+        }
+        .pause-btn:hover { background: #4af; color: #000; }
+        .pause-btn.secondary { border-color: #556; color: #889; }
+        .pause-btn.secondary:hover { background: #556; color: #fff; }
+
+        /* ── Wave banner ── */
+        #wave-banner {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 42px; letter-spacing: 8px; color: #4af;
+            text-shadow: 0 0 40px rgba(68,170,255,0.5);
+            opacity: 0; pointer-events: none; z-index: 5;
+            transition: opacity 0.4s;
+        }
+        #wave-banner.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <h1>INVADERS 3D</h1>
+    <div class="stat">SCORE <span id="score">0</span></div>
+    <div class="stat">LIVES <span id="lives">5</span></div>
+    <div class="stat">WAVE <span id="wave">1</span></div>
+    <div class="stat">ALIENS <span id="alien-count">0</span></div>
+</div>
+
+<div id="controls-hint">
+    <span>A / D</span> — move left/right &nbsp;|&nbsp; <span>W / S</span> — move forward/back<br>
+    <span>SPACE</span> — fire &nbsp;|&nbsp; <span>P / Esc</span> — pause<br>
+    <span>Mouse drag</span> — orbit camera
+</div>
+
+<div id="wave-banner">WAVE 1</div>
+
+<!-- Start menu -->
+<div id="start-menu">
+    <h1>INVADERS 3D</h1>
+    <div class="subtitle">10 × 10 × 10 GRID</div>
+
+    <div class="option-group">
+        <label>Difficulty</label>
+        <div class="btns">
+            <button class="opt-btn" data-diff="easy">EASY</button>
+            <button class="opt-btn active" data-diff="normal">NORMAL</button>
+            <button class="opt-btn" data-diff="hard">HARD</button>
+        </div>
+    </div>
+
+    <div class="option-group">
+        <label>Alien Columns</label>
+        <div class="btns">
+            <button class="opt-btn" data-cols="3">3</button>
+            <button class="opt-btn active" data-cols="5">5</button>
+            <button class="opt-btn" data-cols="8">8</button>
+        </div>
+    </div>
+
+    <button id="start-btn">LAUNCH</button>
+</div>
+
+<!-- Game-over / win overlay -->
+<div id="overlay">
+    <h1 id="ov-title">GAME OVER</h1>
+    <div class="sub" id="ov-sub">Score: 0</div>
+    <div class="btn-row">
+        <button class="ov-btn" id="ov-restart">PLAY AGAIN</button>
+    </div>
+</div>
+
+<!-- Pause menu -->
+<div id="pause-menu">
+    <h1>PAUSED</h1>
+    <div class="btn-col">
+        <button class="pause-btn" id="pause-resume">RESUME</button>
+        <button class="pause-btn secondary" id="pause-menu-btn">MAIN MENU</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Audio ──────────────────────────────────────────────────────────────────
+let audioCtx = null;
+function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playSound(type) {
+    try {
+        ensureAudio();
+        const now = audioCtx.currentTime;
+        const g = audioCtx.createGain();
+        g.connect(audioCtx.destination);
+        if (type === 'shoot') {
+            const o = audioCtx.createOscillator();
+            o.type = 'square'; o.frequency.setValueAtTime(880, now);
+            o.frequency.exponentialRampToValueAtTime(220, now + 0.15);
+            g.gain.setValueAtTime(0.15, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            o.connect(g); o.start(now); o.stop(now + 0.15);
+        } else if (type === 'explode') {
+            const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.25, audioCtx.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.08));
+            const ns = audioCtx.createBufferSource(); ns.buffer = buf;
+            const gn = audioCtx.createGain();
+            gn.gain.setValueAtTime(0.3, now); gn.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            ns.connect(gn); gn.connect(audioCtx.destination); ns.start(now);
+        } else if (type === 'bunker') {
+            const o = audioCtx.createOscillator();
+            o.type = 'sawtooth'; o.frequency.setValueAtTime(200, now);
+            o.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+            g.gain.setValueAtTime(0.2, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            o.connect(g); o.start(now); o.stop(now + 0.12);
+        } else if (type === 'playerHit') {
+            [400, 300, 200].forEach((f, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(f, now + i * 0.12);
+                const gn = audioCtx.createGain();
+                gn.gain.setValueAtTime(0.2, now + i * 0.12); gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.2);
+                o.connect(gn); gn.connect(audioCtx.destination);
+                o.start(now + i * 0.12); o.stop(now + i * 0.12 + 0.2);
+            });
+        } else if (type === 'wave') {
+            [523, 659, 784, 1047].forEach((f, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine'; o.frequency.setValueAtTime(f, now + i * 0.07);
+                const gn = audioCtx.createGain();
+                gn.gain.setValueAtTime(0.14, now + i * 0.07); gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.2);
+                o.connect(gn); gn.connect(audioCtx.destination);
+                o.start(now + i * 0.07); o.stop(now + i * 0.07 + 0.2);
+            });
+        } else if (type === 'gameover') {
+            [400, 350, 280, 200, 150].forEach((f, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(f, now + i * 0.18);
+                const gn = audioCtx.createGain();
+                gn.gain.setValueAtTime(0.1, now + i * 0.18); gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.3);
+                o.connect(gn); gn.connect(audioCtx.destination);
+                o.start(now + i * 0.18); o.stop(now + i * 0.18 + 0.3);
+            });
+        }
+    } catch (e) {}
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────
+const GRID = 10;
+const CELL = 1.2;          // world units per grid cell
+const HALF = GRID / 2 * CELL;
+
+// Layers (Y index, 0-based from bottom)
+const LAYER_CANNON  = 0;
+const LAYER_BUNKER  = 1;
+const LAYER_ALIEN_START = 9;  // top layer
+
+let difficulty = 'normal';
+let alienCols = 5;
+
+// Per-difficulty params
+const DIFF = {
+    easy:   { alienSpeed: 900,  bombRate: 4000, alienRows: 2, speedUp: 0.85, descentEvery: 5 },
+    normal: { alienSpeed: 600,  bombRate: 2500, alienRows: 3, speedUp: 0.80, descentEvery: 4 },
+    hard:   { alienSpeed: 350,  bombRate: 1500, alienRows: 4, speedUp: 0.75, descentEvery: 3 },
+};
+
+// ── Three.js scene ─────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080818);
+scene.fog = new THREE.Fog(0x080818, 30, 80);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 12, 22);
+camera.lookAt(0, 5, 0);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x334466, 0.8));
+const dirLight = new THREE.DirectionalLight(0xaaccff, 1.2);
+dirLight.position.set(10, 20, 10);
+dirLight.castShadow = true;
+scene.add(dirLight);
+const ptLight = new THREE.PointLight(0x44aaff, 1.5, 40);
+ptLight.position.set(0, 15, 0);
+scene.add(ptLight);
+
+// ── Grid cage (wireframe) ──────────────────────────────────────────────────
+function buildGrid() {
+    const mat = new THREE.LineBasicMaterial({ color: 0x1a2a4a, transparent: true, opacity: 0.4 });
+    const group = new THREE.Group();
+    const size = GRID * CELL;
+
+    // Horizontal floor lines — 11 lines define 10 cells per axis
+    for (let i = 0; i <= GRID; i++) {
+        const x = -HALF + i * CELL;
+        const g1 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(x, 0, -HALF), new THREE.Vector3(x, 0, HALF)
+        ]);
+        group.add(new THREE.Line(g1, mat));
+        const g2 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-HALF, 0, x), new THREE.Vector3(HALF, 0, x)
+        ]);
+        group.add(new THREE.Line(g2, mat));
+    }
+    // Vertical pillars at corners
+    const corners = [[-HALF,-HALF],[-HALF,HALF],[HALF,-HALF],[HALF,HALF]];
+    corners.forEach(([cx, cz]) => {
+        const g = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(cx, 0, cz), new THREE.Vector3(cx, size, cz)
+        ]);
+        group.add(new THREE.Line(g, mat));
+    });
+    // Horizontal rings at layer intervals
+    [0, size/3, 2*size/3, size].forEach(y => {
+        const pts = [
+            new THREE.Vector3(-HALF, y, -HALF), new THREE.Vector3(HALF, y, -HALF),
+            new THREE.Vector3(HALF, y, HALF), new THREE.Vector3(-HALF, y, HALF),
+            new THREE.Vector3(-HALF, y, -HALF),
+        ];
+        const g = new THREE.BufferGeometry().setFromPoints(pts);
+        group.add(new THREE.Line(g, mat));
+    });
+    scene.add(group);
+}
+buildGrid();
+
+// ── Stars ──────────────────────────────────────────────────────────────────
+(function buildStars() {
+    const geo = new THREE.BufferGeometry();
+    const pts = [];
+    for (let i = 0; i < 600; i++) {
+        pts.push((Math.random()-0.5)*150, (Math.random()-0.5)*150, (Math.random()-0.5)*150);
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.6 })));
+})();
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function gridToWorld(gx, gy, gz) {
+    return new THREE.Vector3(
+        -HALF + (gx + 0.5) * CELL,
+        (gy + 0.5) * CELL,
+        -HALF + (gz + 0.5) * CELL
+    );
+}
+
+// ── Materials ──────────────────────────────────────────────────────────────
+const MAT = {
+    cannon:  new THREE.MeshPhongMaterial({ color: 0x44aaff, emissive: 0x001133, shininess: 80 }),
+    laser:   new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00aaaa }),
+    bunker:  new THREE.MeshPhongMaterial({ color: 0x44ff88, emissive: 0x003311, shininess: 40 }),
+    bunkerD: new THREE.MeshPhongMaterial({ color: 0xffaa22, emissive: 0x221100, shininess: 40 }),
+    bomb:    new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x440000 }),
+    alienA:  new THREE.MeshPhongMaterial({ color: 0xff44aa, emissive: 0x220022, shininess: 60 }),
+    alienB:  new THREE.MeshPhongMaterial({ color: 0xaa44ff, emissive: 0x110022, shininess: 60 }),
+    alienC:  new THREE.MeshPhongMaterial({ color: 0xff8822, emissive: 0x221100, shininess: 60 }),
+    ufo:     new THREE.MeshPhongMaterial({ color: 0xffee00, emissive: 0x221100, shininess: 100 }),
+};
+
+// Shared geometries
+const GEO_CUBE    = new THREE.BoxGeometry(CELL * 0.85, CELL * 0.85, CELL * 0.85);
+const GEO_PYRAMID = new THREE.ConeGeometry(CELL * 0.55, CELL * 0.95, 4);
+const GEO_LASER   = new THREE.CylinderGeometry(0.06, 0.06, CELL * 0.9, 6);
+const GEO_BOMB    = new THREE.SphereGeometry(0.18, 8, 8);
+
+// ── Game state ─────────────────────────────────────────────────────────────
+let score = 0, lives = 3, wave = 1;
+let gameRunning = false;
+let paused = false;
+let waveClearPending = false;
+
+// Entities
+let cannon = null;          // { mesh, gx, gz }
+let cannonGX = 5, cannonGZ = 5;
+let lasers = [];            // { mesh, gx, gz, gy, dir }
+let bombs  = [];            // { mesh, gx, gz, gy }
+let aliens = [];            // { mesh, gx, gz, gy, alive, type, hp }
+let bunkers= [];            // { mesh, gx, gz, hp }
+let ufo    = null;          // { mesh, gx, gy, gz } or null
+let particles = [];         // { mesh, vel, life }
+
+// Alien movement
+let alienMoveTimer = 0;
+let alienMovePeriod = 600;
+let alienDescentCounter = 0;
+const ALIEN_DIRS = [
+    { dx: -1, dz:  0 },
+    { dx:  1, dz:  0 },
+    { dx:  0, dz: -1 },
+    { dx:  0, dz:  1 },
+];
+let bombTimer = 0;
+let bombPeriod = 3000;
+let ufoTimer = 0;
+let ufoPeriod = 15000;
+
+// ── Particle explosion ─────────────────────────────────────────────────────
+const GEO_PART = new THREE.SphereGeometry(0.1, 4, 4);
+function spawnExplosion(pos, color) {
+    for (let i = 0; i < 10; i++) {
+        const mat = new THREE.MeshBasicMaterial({ color });
+        const m = new THREE.Mesh(GEO_PART, mat);
+        m.position.copy(pos);
+        scene.add(m);
+        const vel = new THREE.Vector3(
+            (Math.random()-0.5)*4, Math.random()*4, (Math.random()-0.5)*4
+        );
+        particles.push({ mesh: m, vel, life: 0.6 + Math.random() * 0.4 });
+    }
+}
+
+// ── Cannon ─────────────────────────────────────────────────────────────────
+function buildCannon() {
+    if (cannon) scene.remove(cannon.mesh);
+    const group = new THREE.Group();
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(CELL*0.7, CELL*0.5, CELL*0.7), MAT.cannon);
+    group.add(body);
+    // Barrel
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, CELL*0.6, 8), MAT.cannon);
+    barrel.position.y = CELL * 0.45;
+    group.add(barrel);
+    // Glow ring
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.04, 8, 16), new THREE.MeshBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.5 }));
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = CELL * 0.7;
+    group.add(ring);
+
+    const wp = gridToWorld(cannonGX, LAYER_CANNON, cannonGZ);
+    group.position.copy(wp);
+    scene.add(group);
+    cannon = { mesh: group, gx: cannonGX, gz: cannonGZ };
+}
+
+function moveCannon(dx, dz) {
+    const nx = cannonGX + dx, nz = cannonGZ + dz;
+    if (nx < 0 || nx >= GRID || nz < 0 || nz >= GRID) return;
+    cannonGX = nx; cannonGZ = nz;
+    const wp = gridToWorld(cannonGX, LAYER_CANNON, cannonGZ);
+    cannon.mesh.position.copy(wp);
+}
+
+// ── Bunkers ────────────────────────────────────────────────────────────────
+// 4 rows at z=2,4,6,8 — bunker count by difficulty, positions random each game
+const BUNKER_COUNT = { easy: 20, normal: 10, hard: 6 };
+const BUNKER_ROWS  = [2, 4, 6, 8];
+
+function buildBunkers() {
+    bunkers.forEach(b => scene.remove(b.mesh));
+    bunkers = [];
+
+    // Build pool of all 40 candidate cells (4 rows × 10 columns), then shuffle
+    const pool = [];
+    BUNKER_ROWS.forEach(gz => {
+        for (let gx = 0; gx < GRID; gx++) pool.push({ gx, gz });
+    });
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    pool.slice(0, BUNKER_COUNT[difficulty]).forEach(({ gx, gz }) => {
+        const mat = MAT.bunker.clone();
+        mat.transparent = true;
+        mat.opacity = 1.0;
+        const mesh = new THREE.Mesh(GEO_PYRAMID, mat);
+        mesh.rotation.y = Math.PI / 4;
+        const wp = gridToWorld(gx, LAYER_BUNKER, gz);
+        mesh.position.copy(wp);
+        scene.add(mesh);
+        bunkers.push({ mesh, gx, gz, hp: 3 });
+    });
+}
+
+// ── Aliens ─────────────────────────────────────────────────────────────────
+function alienMat(type) {
+    if (type === 0) return MAT.alienA;
+    if (type === 1) return MAT.alienB;
+    return MAT.alienC;
+}
+
+function buildAlienMesh(type) {
+    const group = new THREE.Group();
+    const mat = alienMat(type);
+    const Y = new THREE.Vector3(0, 1, 0);
+
+    // Helper: cylinder oriented from point a to point b
+    function seg(ax, ay, az, bx, by, bz, ra, rb) {
+        const a = new THREE.Vector3(ax, ay, az);
+        const b = new THREE.Vector3(bx, by, bz);
+        const len = a.distanceTo(b);
+        const geo = new THREE.CylinderGeometry(ra, rb, len, 5);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(a.clone().lerp(b, 0.5));
+        mesh.quaternion.setFromUnitVectors(Y, b.clone().sub(a).normalize());
+        group.add(mesh);
+    }
+
+    // ── Shell (flattened sphere) ──
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), mat);
+    shell.scale.set(1.0, 0.55, 1.15);
+    group.add(shell);
+
+    // ── Eye stalks + eyeballs ──
+    [-0.13, 0.13].forEach(ex => {
+        seg(ex, 0.14, -0.22,  ex, 0.28, -0.26,  0.025, 0.022);
+        const eyeball = new THREE.Mesh(
+            new THREE.SphereGeometry(0.065, 7, 6),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        eyeball.position.set(ex, 0.3, -0.27);
+        group.add(eyeball);
+        const pupil = new THREE.Mesh(
+            new THREE.SphereGeometry(0.034, 5, 5),
+            new THREE.MeshBasicMaterial({ color: 0x000022 })
+        );
+        pupil.position.set(ex, 0.3, -0.33);
+        group.add(pupil);
+    });
+
+    // ── 3 legs per side — two segments each (upper + lower, bent at knee) ──
+    // [body_z, knee_z, tip_z]
+    const LEG_Z = [
+        [-0.18, -0.22, -0.26],
+        [ 0.00,  0.00,  0.00],
+        [ 0.18,  0.22,  0.26],
+    ];
+    [-1, 1].forEach(s => {
+        LEG_Z.forEach(([bz, kz, tz]) => {
+            const bx = s * 0.27, by = -0.03;
+            const kx = s * 0.46, ky =  0.10;   // knee rises outward
+            const tx = s * 0.56, ty = -0.26;   // tip drops below body
+            seg(bx, by, bz,  kx, ky, kz,  0.030, 0.025);  // upper
+            seg(kx, ky, kz,  tx, ty, tz,  0.025, 0.014);  // lower
+        });
+    });
+
+    return group;
+}
+
+function spawnAliens() {
+    aliens.forEach(a => scene.remove(a.mesh));
+    aliens = [];
+    const cfg = DIFF[difficulty];
+    const rows = cfg.alienRows;
+
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < alienCols; col++) {
+            const gx = Math.floor((GRID - alienCols) / 2) + col;
+            const gz = 2 + row;
+            const gy = LAYER_ALIEN_START - row;
+            const type = row % 3;
+            const mesh = buildAlienMesh(type);
+            const wp = gridToWorld(gx, gy, gz);
+            mesh.position.copy(wp);
+            scene.add(mesh);
+            const hp = type === 2 ? 2 : 1;
+            aliens.push({ mesh, gx, gz, gy, alive: true, type, hp });
+        }
+    }
+}
+
+// ── UFO ────────────────────────────────────────────────────────────────────
+function spawnUFO() {
+    if (ufo) return;
+    const mesh = new THREE.Group();
+    const saucer = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 6), MAT.ufo);
+    saucer.scale.y = 0.35;
+    mesh.add(saucer);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshPhongMaterial({ color: 0x88ffcc, transparent: true, opacity: 0.8 }));
+    dome.position.y = 0.15;
+    mesh.add(dome);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 6, 16), new THREE.MeshBasicMaterial({ color: 0xffee00, transparent: true, opacity: 0.5 }));
+    glow.rotation.x = Math.PI/2; mesh.add(glow);
+
+    const gy = LAYER_ALIEN_START;
+    const gz = 0;
+    const gx = 0;
+    const wp = gridToWorld(gx, gy, gz);
+    mesh.position.copy(wp);
+    scene.add(mesh);
+    ufo = { mesh, gx, gz, gy, dir: 1, t: 0 };
+}
+
+function removeUFO() {
+    if (!ufo) return;
+    scene.remove(ufo.mesh);
+    ufo = null;
+}
+
+// ── Firing ─────────────────────────────────────────────────────────────────
+let canFire = true;
+let fireCD = 0;
+
+function fireLaser() {
+    if (!canFire) return;
+    canFire = false; fireCD = 0.25;
+    playSound('shoot');
+    const mesh = new THREE.Mesh(GEO_LASER, MAT.laser.clone());
+    const startY = LAYER_BUNKER + 1;  // spawn above bunker layer so shields never block the shot
+    const wp = gridToWorld(cannonGX, startY, cannonGZ);
+    mesh.position.copy(wp);
+    scene.add(mesh);
+    lasers.push({ mesh, gx: cannonGX, gz: cannonGZ, gy: startY });
+}
+
+function dropBomb() {
+    const alive = aliens.filter(a => a.alive);
+    if (alive.length === 0) return;
+    // 30% of alive aliens fire simultaneously; guarantee at least 1
+    const shooters = alive.filter(() => Math.random() < 0.30);
+    if (shooters.length === 0) shooters.push(alive[Math.floor(Math.random() * alive.length)]);
+    shooters.forEach(a => {
+        const mesh = new THREE.Mesh(GEO_BOMB, MAT.bomb.clone());
+        const wp = gridToWorld(a.gx, a.gy - 1, a.gz);
+        mesh.position.copy(wp);
+        scene.add(mesh);
+        bombs.push({ mesh, gx: a.gx, gz: a.gz, gy: a.gy - 1 });
+    });
+}
+
+// ── Movement logic ─────────────────────────────────────────────────────────
+function moveAliens() {
+    const alive = aliens.filter(a => a.alive);
+    if (alive.length === 0) return;
+
+    // Pick a random direction; try all 4 until one keeps every alien in bounds
+    const shuffled = [...ALIEN_DIRS].sort(() => Math.random() - 0.5);
+    for (const { dx, dz } of shuffled) {
+        const valid = alive.every(a =>
+            a.gx + dx >= 0 && a.gx + dx < GRID &&
+            a.gz + dz >= 0 && a.gz + dz < GRID
+        );
+        if (valid) {
+            alive.forEach(a => {
+                a.gx += dx;
+                a.gz += dz;
+                a.mesh.position.copy(gridToWorld(a.gx, a.gy, a.gz));
+            });
+            break;
+        }
+    }
+
+    // Descend one layer every N moves
+    alienDescentCounter++;
+    if (alienDescentCounter >= DIFF[difficulty].descentEvery) {
+        alienDescentCounter = 0;
+        alive.forEach(a => {
+            a.gy -= 1;
+            a.mesh.position.copy(gridToWorld(a.gx, a.gy, a.gz));
+        });
+        if (Math.min(...alive.map(a => a.gy)) <= LAYER_BUNKER) endGame(false);
+    }
+}
+
+function moveUFO(dt) {
+    if (!ufo) return;
+    ufo.t += dt;
+    const speed = 2; // grid cells per second
+    const dx = ufo.dir * speed * dt;
+    const nx = ufo.mesh.position.x + dx * CELL;
+    ufo.mesh.position.x = nx;
+    ufo.gx = Math.round((nx + HALF) / CELL);
+    if (ufo.gx < 0 || ufo.gx >= GRID) removeUFO();
+}
+
+// ── Collision detection ────────────────────────────────────────────────────
+function checkLaserCollisions() {
+    for (let li = lasers.length - 1; li >= 0; li--) {
+        const laser = lasers[li];
+        let hit = false;
+
+        // vs aliens
+        for (let ai = aliens.length - 1; ai >= 0; ai--) {
+            const a = aliens[ai];
+            if (!a.alive) continue;
+            if (a.gx === laser.gx && a.gz === laser.gz && a.gy === laser.gy) {
+                a.hp--;
+                if (a.hp <= 0) {
+                    a.alive = false;
+                    spawnExplosion(a.mesh.position.clone(), a.type === 0 ? 0xff44aa : a.type === 1 ? 0xaa44ff : 0xff8822);
+                    scene.remove(a.mesh);
+                    playSound('explode');
+                    const pts = a.type === 2 ? 30 : a.type === 1 ? 20 : 10;
+                    addScore(pts * wave);
+                } else {
+                    // Flash on hit
+                    a.mesh.children.forEach(c => { if (c.material) c.material.emissive.setHex(0xffffff); });
+                    setTimeout(() => {
+                        if (a.alive) a.mesh.children.forEach(c => { if (c.material) c.material.emissive.setHex(0x110022); });
+                    }, 120);
+                }
+                hit = true; break;
+            }
+        }
+
+        if (!hit && ufo) {
+            if (Math.abs(ufo.mesh.position.x - laser.mesh.position.x) < CELL * 0.6 &&
+                Math.abs(ufo.mesh.position.z - laser.mesh.position.z) < CELL * 0.6 &&
+                laser.gy === ufo.gy) {
+                spawnExplosion(ufo.mesh.position.clone(), 0xffee00);
+                addScore(100 * wave);
+                playSound('explode');
+                removeUFO();
+                hit = true;
+            }
+        }
+
+        // vs bunkers
+        if (!hit) {
+            for (let bi = bunkers.length - 1; bi >= 0; bi--) {
+                const b = bunkers[bi];
+                if (b.gx === laser.gx && b.gz === laser.gz && laser.gy === LAYER_BUNKER) {
+                    b.hp--;
+                    playSound('bunker');
+                    if (b.hp <= 0) {
+                        spawnExplosion(b.mesh.position.clone(), 0x44ff88);
+                        scene.remove(b.mesh);
+                        bunkers.splice(bi, 1);
+                    } else {
+                        b.mesh.material.opacity = b.hp / 3;
+                    }
+                    hit = true; break;
+                }
+            }
+        }
+
+        // Hit top of grid
+        if (!hit && laser.gy >= GRID) hit = true;
+
+        if (hit) {
+            scene.remove(laser.mesh);
+            lasers.splice(li, 1);
+        }
+    }
+}
+
+function checkBombCollisions() {
+    for (let bi = bombs.length - 1; bi >= 0; bi--) {
+        const bomb = bombs[bi];
+        let hit = false;
+
+        // vs cannon
+        if (bomb.gx === cannonGX && bomb.gz === cannonGZ && bomb.gy === LAYER_CANNON) {
+            playSound('playerHit');
+            lives--;
+            document.getElementById('lives').textContent = lives;
+            spawnExplosion(cannon.mesh.position.clone(), 0x44aaff);
+            if (lives <= 0) { endGame(false); return; }
+            // Flicker cannon
+            cannon.mesh.visible = false;
+            setTimeout(() => { if (cannon) cannon.mesh.visible = true; }, 500);
+            hit = true;
+        }
+
+        // vs bunkers
+        if (!hit) {
+            for (let ki = bunkers.length - 1; ki >= 0; ki--) {
+                const b = bunkers[ki];
+                if (b.gx === bomb.gx && b.gz === bomb.gz && bomb.gy === LAYER_BUNKER) {
+                    b.hp--;
+                    playSound('bunker');
+                    if (b.hp <= 0) {
+                        spawnExplosion(b.mesh.position.clone(), 0x44ff88);
+                        scene.remove(b.mesh);
+                        bunkers.splice(ki, 1);
+                    } else {
+                        b.mesh.material.opacity = b.hp / 3;
+                    }
+                    hit = true; break;
+                }
+            }
+        }
+
+        if (!hit && bomb.gy < 0) hit = true;
+
+        if (hit) {
+            scene.remove(bomb.mesh);
+            bombs.splice(bi, 1);
+        }
+    }
+}
+
+// ── Score ──────────────────────────────────────────────────────────────────
+function addScore(pts) {
+    score += pts;
+    document.getElementById('score').textContent = score;
+}
+
+// ── Wave management ────────────────────────────────────────────────────────
+function livesForWave(w) {
+    if (w === 1) return 5;
+    if (w === 2) return 4;
+    return 3;
+}
+
+function nextWave() {
+    wave++;
+    lives = livesForWave(wave);
+    document.getElementById('wave').textContent = wave;
+    document.getElementById('lives').textContent = lives;
+    const cfg = DIFF[difficulty];
+    alienMovePeriod = Math.max(150, Math.floor(alienMovePeriod * cfg.speedUp));
+    bombPeriod      = Math.max(800, Math.floor(bombPeriod      * cfg.speedUp));
+    alienDescentCounter = 0;
+    buildBunkers();
+    spawnAliens();
+    updateAlienCount();
+    showWaveBanner(wave);
+    playSound('wave');
+}
+
+let waveTimeout = null;
+function showWaveBanner(n) {
+    const el = document.getElementById('wave-banner');
+    el.textContent = `WAVE ${n}`;
+    el.classList.add('show');
+    if (waveTimeout) clearTimeout(waveTimeout);
+    waveTimeout = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function updateAlienCount() {
+    document.getElementById('alien-count').textContent = aliens.filter(a => a.alive).length;
+}
+
+// ── Game start / end ───────────────────────────────────────────────────────
+function startGame() {
+    score = 0; wave = 1; lives = livesForWave(1);
+    document.getElementById('score').textContent = 0;
+    document.getElementById('lives').textContent = lives;
+    document.getElementById('wave').textContent = 1;
+    document.getElementById('overlay').classList.remove('show');
+
+    const cfg = DIFF[difficulty];
+    alienMovePeriod = cfg.alienSpeed;
+    bombPeriod = cfg.bombRate;
+    alienDescentCounter = 0;
+    alienMoveTimer = 0; bombTimer = 0; ufoTimer = 0;
+    fireCD = 0; canFire = true;
+
+    // Clear old entities
+    lasers.forEach(l => scene.remove(l.mesh)); lasers = [];
+    bombs.forEach(b => scene.remove(b.mesh));  bombs  = [];
+    particles.forEach(p => scene.remove(p.mesh)); particles = [];
+    removeUFO();
+
+    cannonGX = 5; cannonGZ = 5;
+    buildCannon();
+    buildBunkers();
+    spawnAliens();
+    updateAlienCount();
+    showWaveBanner(1);
+    playSound('wave');
+
+    gameRunning = true;
+    paused = false;
+    waveClearPending = false;
+    document.getElementById('start-menu').style.display = 'none';
+    document.getElementById('pause-menu').classList.remove('show');
+}
+
+function endGame(win) {
+    gameRunning = false;
+    playSound(win ? 'wave' : 'gameover');
+    const ov = document.getElementById('overlay');
+    const title = document.getElementById('ov-title');
+    const sub = document.getElementById('ov-sub');
+    title.textContent = win ? 'YOU WIN!' : 'GAME OVER';
+    title.className = win ? 'win' : '';
+    sub.textContent = `Score: ${score}`;
+    ov.classList.add('show');
+}
+
+// ── Camera orbit ───────────────────────────────────────────────────────────
+let isDragging = false, prevMX = 0, prevMY = 0;
+let camTheta = 0, camPhi = 0.45, camR = 26;
+
+renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevMX = e.clientX; prevMY = e.clientY; });
+renderer.domElement.addEventListener('mouseup',   () => isDragging = false);
+renderer.domElement.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = (e.clientX - prevMX) * 0.005;
+    const dy = (e.clientY - prevMY) * 0.005;
+    prevMX = e.clientX; prevMY = e.clientY;
+    camTheta -= dx;
+    camPhi = Math.max(0.1, Math.min(1.4, camPhi + dy));
+});
+renderer.domElement.addEventListener('wheel', e => {
+    camR = Math.max(10, Math.min(50, camR + e.deltaY * 0.02));
+});
+
+// Touch orbit
+renderer.domElement.addEventListener('touchstart', e => { if (e.touches.length === 1) { isDragging = true; prevMX = e.touches[0].clientX; prevMY = e.touches[0].clientY; } });
+renderer.domElement.addEventListener('touchend', () => isDragging = false);
+renderer.domElement.addEventListener('touchmove', e => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const dx = (e.touches[0].clientX - prevMX) * 0.005;
+    const dy = (e.touches[0].clientY - prevMY) * 0.005;
+    prevMX = e.touches[0].clientX; prevMY = e.touches[0].clientY;
+    camTheta -= dx; camPhi = Math.max(0.1, Math.min(1.4, camPhi + dy));
+}, { passive: true });
+
+// ── Keyboard ───────────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (!gameRunning) return;
+    if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+    if (e.code === 'Space' && !paused) { e.preventDefault(); fireLaser(); }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let moveCooldown = 0;
+const MOVE_REPEAT = 0.15; // seconds between repeated moves
+
+function handleMovement(dt) {
+    moveCooldown -= dt;
+    if (moveCooldown > 0) return;
+    let moved = false;
+    if (keys['KeyA'] || keys['ArrowLeft'])  { moveCannon(-1, 0); moved = true; }
+    if (keys['KeyD'] || keys['ArrowRight']) { moveCannon( 1, 0); moved = true; }
+    if (keys['KeyW'] || keys['ArrowUp'])    { moveCannon(0, -1); moved = true; }
+    if (keys['KeyS'] || keys['ArrowDown'])  { moveCannon(0,  1); moved = true; }
+    if (moved) moveCooldown = MOVE_REPEAT;
+}
+
+function togglePause() {
+    paused = !paused;
+    document.getElementById('pause-menu').classList.toggle('show', paused);
+}
+
+// ── UI buttons ─────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-diff]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-diff]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active'); difficulty = btn.dataset.diff;
+    });
+});
+document.querySelectorAll('[data-cols]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-cols]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active'); alienCols = parseInt(btn.dataset.cols);
+    });
+});
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('ov-restart').addEventListener('click', () => {
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('start-menu').style.display = 'flex';
+});
+document.getElementById('pause-resume').addEventListener('click', togglePause);
+document.getElementById('pause-menu-btn').addEventListener('click', () => {
+    paused = false; gameRunning = false;
+    document.getElementById('pause-menu').classList.remove('show');
+    document.getElementById('start-menu').style.display = 'flex';
+});
+
+// ── Resize ──────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Main loop ──────────────────────────────────────────────────────────────
+let lastTime = 0;
+// Laser step timer (lasers move one cell per step)
+let laserTimer = 0;
+const LASER_STEP = 0.07; // seconds per cell
+let bombStepTimer = 0;
+const BOMB_STEP = 0.18;
+
+function animate(ts) {
+    requestAnimationFrame(animate);
+    const dt = Math.min((ts - lastTime) / 1000, 0.1);
+    lastTime = ts;
+
+    // Camera orbit
+    const cx = camR * Math.sin(camTheta) * Math.cos(camPhi);
+    const cy = camR * Math.sin(camPhi);
+    const cz = camR * Math.cos(camTheta) * Math.cos(camPhi);
+    camera.position.set(cx, cy + 5, cz);
+    camera.lookAt(0, 5, 0);
+
+    if (!gameRunning || paused) { renderer.render(scene, camera); return; }
+
+    // Fire cooldown
+    if (!canFire) { fireCD -= dt; if (fireCD <= 0) canFire = true; }
+
+    handleMovement(dt);
+
+    // Laser step
+    laserTimer += dt;
+    if (laserTimer >= LASER_STEP) {
+        laserTimer = 0;
+        for (let i = lasers.length - 1; i >= 0; i--) {
+            lasers[i].gy++;
+            const wp = gridToWorld(lasers[i].gx, lasers[i].gy, lasers[i].gz);
+            lasers[i].mesh.position.copy(wp);
+        }
+        checkLaserCollisions();
+    }
+
+    // Bomb step
+    bombStepTimer += dt;
+    if (bombStepTimer >= BOMB_STEP) {
+        bombStepTimer = 0;
+        for (let i = bombs.length - 1; i >= 0; i--) {
+            bombs[i].gy--;
+            const wp = gridToWorld(bombs[i].gx, bombs[i].gy, bombs[i].gz);
+            bombs[i].mesh.position.copy(wp);
+        }
+        checkBombCollisions();
+    }
+
+    // Alien movement timer
+    alienMoveTimer += dt * 1000;
+    if (alienMoveTimer >= alienMovePeriod) {
+        alienMoveTimer = 0;
+        moveAliens();
+        updateAlienCount();
+    }
+
+    // Bomb drop timer
+    bombTimer += dt * 1000;
+    if (bombTimer >= bombPeriod) {
+        bombTimer = 0;
+        dropBomb();
+    }
+
+    // UFO timer
+    ufoTimer += dt * 1000;
+    if (ufoTimer >= ufoPeriod && !ufo) {
+        ufoTimer = 0;
+        spawnUFO();
+    }
+    moveUFO(dt);
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.vel.y -= 6 * dt;
+        p.mesh.material.opacity = Math.max(0, p.life / 0.8);
+        p.mesh.material.transparent = true;
+        if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+    }
+
+    // Alien pulsing animation
+    const pulse = 0.92 + 0.08 * Math.sin(ts * 0.003);
+    aliens.forEach(a => { if (a.alive) a.mesh.scale.setScalar(pulse); });
+
+    // UFO wobble
+    if (ufo) ufo.mesh.position.y = gridToWorld(0, ufo.gy, 0).y + Math.sin(ts * 0.004) * 0.15;
+
+    // Laser glow pulse
+    lasers.forEach(l => { l.mesh.material.emissiveIntensity = 0.5 + 0.5 * Math.sin(ts * 0.01); });
+
+    // Check wave clear — guard flag prevents re-entry until spawnAliens populates the array
+    if (!waveClearPending && aliens.length > 0 && aliens.filter(a => a.alive).length === 0) {
+        waveClearPending = true;
+        lasers.forEach(l => scene.remove(l.mesh)); lasers = [];
+        bombs.forEach(b => scene.remove(b.mesh));  bombs  = [];
+        nextWave();
+        waveClearPending = false;
+    }
+
+    renderer.render(scene, camera);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
