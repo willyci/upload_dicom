@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import unzipper from 'unzipper';
-import { UPLOADS_DIR } from '../config.js';
+import { UPLOADS_DIR, UPLOAD_LIMITS } from '../config.js';
 import { processDirectory } from '../services/processor.js';
 import { removePathBeforeUploads } from '../utils/paths.js';
 import { findDicomFiles, isDicomFile } from '../utils/dicomFiles.js';
@@ -11,7 +11,7 @@ import { getProcessingStatus } from '../utils/progress.js';
 
 const upload = multer({
     dest: UPLOADS_DIR,
-    limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB per file
+    limits: { fileSize: UPLOAD_LIMITS.maxFileBytes, files: UPLOAD_LIMITS.maxFiles },
 });
 
 const router = express.Router();
@@ -102,20 +102,33 @@ export async function buildUploadsIndex() {
     return folders;
 }
 
-const uploadMiddleware = upload.array('files', 200);
+const uploadMiddleware = upload.array('files', UPLOAD_LIMITS.maxFiles);
 
 const handleUpload = (req, res, next) => {
     uploadMiddleware(req, res, (err) => {
         if (err instanceof multer.MulterError) {
-            if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'File is too large. Maximum size is 2GB.' 
-                });
-            }
-            return res.status(400).json({ 
-                success: false, 
-                message: `Upload error: ${err.message}` 
+            // Multer's own wording is close to useless here: exceeding the file count reports
+            // itself as "Unexpected field", which sounds like a form-encoding bug rather than a
+            // limit that was deliberately set.
+            const explain = {
+                LIMIT_FILE_SIZE: `A file is larger than the ${Math.round(UPLOAD_LIMITS.maxFileBytes / 1073741824)} GB limit.`,
+                LIMIT_FILE_COUNT: `Too many files in one upload. The limit is ${UPLOAD_LIMITS.maxFiles}.`,
+                LIMIT_UNEXPECTED_FILE: `Too many files in one upload. The limit is ${UPLOAD_LIMITS.maxFiles} ` +
+                    'per request - put the series in a ZIP and upload that instead.',
+                LIMIT_PART_COUNT: 'Too many parts in the upload.',
+                LIMIT_FIELD_COUNT: 'Too many form fields in the upload.',
+            };
+
+            console.error(`[FAIL upload] ${err.code}: ${err.message}`);
+            return res.status(400).json({
+                success: false,
+                message: explain[err.code] || `Upload error: ${err.message}`,
+                code: err.code,
+                phase: 'upload',
+                limits: UPLOAD_LIMITS,
+                hint: 'The server stops reading the request as soon as a limit is hit, so a large ' +
+                    'upload can surface as a lost connection or a 502 from the proxy rather than ' +
+                    'this message. Check the file count before retrying.',
             });
         } else if (err) {
             return res.status(500).json({ 
@@ -173,8 +186,8 @@ router.post('/upload', handleUpload, async (req, res, next) => {
                     let fileCount = 0;
                     let totalSize = 0;
                     // Limit total extracted size (e.g., 512MB) and file count to prevent OOM
-                    const MAX_EXTRACTED_SIZE = 512 * 1024 * 1024; 
-                    const MAX_FILE_COUNT = 1000;
+                    const MAX_EXTRACTED_SIZE = UPLOAD_LIMITS.maxExtractedBytes;
+                    const MAX_FILE_COUNT = UPLOAD_LIMITS.maxZipEntries;
                     let aborted = false;
 
                     fs.createReadStream(file.path)
@@ -424,6 +437,12 @@ router.get('/list-uploads', async (req, res) => {
         console.error('Error listing uploads:', error);
         res.status(500).json({ error: 'Error listing uploads' });
     }
+});
+
+// Served so the upload page can check a selection before sending it, rather than discovering a
+// limit halfway through a 253 MB request.
+router.get('/upload-limits', (req, res) => {
+    res.json(UPLOAD_LIMITS);
 });
 
 router.get('/processing-status', (req, res) => {
