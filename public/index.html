@@ -252,15 +252,58 @@
                             loadUploads();
                         }, 1000);
                     } else {
-                        const error = JSON.parse(xhr.responseText);
-                        showUploadError(error.message || 'Upload failed');
+                        let error = null;
+                        try {
+                            error = JSON.parse(xhr.responseText);
+                        } catch {
+                            // A proxy timeout or a crash mid-response gives HTML or nothing at all;
+                            // showing the raw body beats reporting "undefined".
+                            showUploadError(`HTTP ${xhr.status} ${xhr.statusText || ''}`.trim(), {
+                                detail: (xhr.responseText || '(empty response body)').slice(0, 400),
+                                hint: 'The server did not return JSON. It may have crashed or been ' +
+                                    'restarted mid-request - check the server console.',
+                            });
+                            return;
+                        }
+
+                        showUploadError(error.message || `HTTP ${xhr.status}`, {
+                            status: xhr.status,
+                            phase: error.phase,
+                            type: error.type,
+                            code: error.code,
+                            stack: error.stack,
+                            warnings: error.warnings,
+                        });
                     }
                 });
 
                 xhr.addEventListener('error', () => {
                     stopStatusPolling();
                     fileListDiv.classList.add('hidden');
-                    showUploadError('Network error occurred');
+                    // status 0 with no body means the connection went away rather than the server
+                    // answering: it died, was restarted, or the request never arrived.
+                    showUploadError('The connection to the server was lost', {
+                        status: xhr.status,
+                        hint: 'Nothing was received, so this is not a processing error. Usual causes: ' +
+                            'the server crashed or restarted mid-upload (check its console for a stack ' +
+                            'trace or an out-of-memory kill), it is not running, or the upload exceeded ' +
+                            'a proxy timeout.',
+                    });
+                });
+
+                xhr.addEventListener('abort', () => {
+                    stopStatusPolling();
+                    fileListDiv.classList.add('hidden');
+                    showUploadError('Upload cancelled');
+                });
+
+                xhr.addEventListener('timeout', () => {
+                    stopStatusPolling();
+                    fileListDiv.classList.add('hidden');
+                    showUploadError('The upload timed out', {
+                        hint: 'Large series can take minutes to convert. The server keeps working, so ' +
+                            'check the Uploads list before retrying.',
+                    });
                 });
 
                 xhr.open('POST', '/upload');
@@ -272,9 +315,101 @@
             }
         }
 
+        const escapeHtml = s => String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        // One problem, rendered with everything the server told us about it. The old UI showed only
+        // a single sentence, so "Cannot read properties of undefined" arrived with no stage, no file
+        // and no idea what to do next.
+        function renderProblem(p) {
+            const bits = [];
+            if (p.file) bits.push(`<code>${escapeHtml(p.file)}</code>`);
+            if (p.dimensions) bits.push(`volume ${escapeHtml(p.dimensions)}`);
+            if (p.spacingMm) bits.push(`spacing ${escapeHtml(p.spacingMm)} mm`);
+            if (p.valueRange) bits.push(`values ${escapeHtml(p.valueRange)}`);
+            if (p.code) bits.push(`code <code>${escapeHtml(p.code)}</code>`);
+
+            const stack = (p.stack || []).length
+                ? `<details style="margin-top: 4px;">
+                       <summary style="cursor: pointer; font-size: 0.75rem; color: var(--text-muted);">where</summary>
+                       <pre style="margin: 4px 0 0; font-size: 0.7rem; color: var(--text-muted); white-space: pre-wrap;">${p.stack.map(escapeHtml).join('\n')}</pre>
+                   </details>`
+                : '';
+
+            return `<li style="margin-bottom: var(--spacing-sm);">
+                <strong>${escapeHtml(p.phase || 'unknown stage')}</strong>
+                ${p.type && p.type !== 'Error' ? `<span style="color: var(--text-muted);">(${escapeHtml(p.type)})</span>` : ''}
+                &mdash; ${escapeHtml(p.message)}
+                ${bits.length ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${bits.join(' &middot; ')}</div>` : ''}
+                ${p.hint ? `<div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(p.hint)}</div>` : ''}
+                ${stack}
+            </li>`;
+        }
+
+        // Groups repeats: 400 slices failing for one reason is one line with a count, not 400 lines.
+        function renderProblemList(problems, colour) {
+            const groups = new Map();
+            for (const p of problems) {
+                const key = (p.phase || '') + '|' + (p.message || '');
+                if (!groups.has(key)) groups.set(key, { ...p, files: [] });
+                if (p.file) groups.get(key).files.push(p.file);
+            }
+
+            const items = [...groups.values()].map(g => {
+                const many = g.files.length > 1;
+                const shown = { ...g, file: many ? `${g.files.length} files, e.g. ${g.files[0]}` : g.files[0] };
+                return renderProblem(shown);
+            });
+
+            return `<ul style="margin: 0; padding-left: 1.1rem; color: ${colour};">${items.join('')}</ul>`;
+        }
+
+        function renderSummary(s) {
+            if (!s) return '';
+            const rows = [
+                ['DICOM files found', s.dicomFilesFound],
+                ['Images converted', `${s.imagesConverted}${s.imagesFailed ? ` (${s.imagesFailed} failed)` : ''}`],
+                s.volume ? ['Volume', `${s.volume.dimensions} @ ${s.volume.spacingMm} mm`] : null,
+                s.volume ? ['Value range', s.volume.valueRange] : null,
+                ['Outputs missing', s.outputsMissing?.length ? s.outputsMissing.join(', ') : 'none'],
+                s.timings ? ['Time', `${s.timings.totalSeconds}s, peak ${s.timings.peakMemoryMb} MB`] : null,
+            ].filter(Boolean);
+
+            const slowest = s.timings?.stages?.slice().sort((a, b) => b.seconds - a.seconds)[0];
+            if (slowest) rows.push(['Slowest stage', `${slowest.name} (${slowest.seconds}s)`]);
+
+            return `<details style="margin-top: var(--spacing-md);">
+                <summary style="cursor: pointer; color: var(--text-secondary); font-size: 0.875rem;">Run details</summary>
+                <table style="margin-top: var(--spacing-sm); font-size: 0.8rem; color: var(--text-secondary); border-collapse: collapse;">
+                    ${rows.map(([k, v]) => `<tr><td style="padding: 2px 12px 2px 0; color: var(--text-muted);">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join('')}
+                </table>
+            </details>`;
+        }
+
+        function problemPanels(result) {
+            let html = '';
+            if (result.errors?.length) {
+                html += `<div class="card" style="background: rgba(239, 68, 68, 0.1); border-color: var(--error); margin-top: var(--spacing-md);">
+                    <h4 style="color: var(--error); margin: 0 0 var(--spacing-sm);">${result.errors.length} error${result.errors.length > 1 ? 's' : ''}</h4>
+                    ${renderProblemList(result.errors, 'var(--text-secondary)')}
+                </div>`;
+            }
+            if (result.warnings?.length) {
+                html += `<div class="card" style="background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; margin-top: var(--spacing-md);">
+                    <h4 style="color: #f59e0b; margin: 0 0 var(--spacing-sm);">${result.warnings.length} warning${result.warnings.length > 1 ? 's' : ''}</h4>
+                    ${renderProblemList(result.warnings, 'var(--text-secondary)')}
+                </div>`;
+            }
+            return html;
+        }
+
         function showUploadSuccess(result) {
             uploadProgress.classList.add('hidden');
             uploadResult.classList.remove('hidden');
+
+            // A green tick with 400 failed slices behind it was the worst part of the old UI.
+            const hasProblems = (result.errors?.length || 0) > 0 ||
+                (result.summary?.outputsMissing?.length || 0) > 0;
 
             let skippedHtml = '';
             if (result.skipped && result.skipped.length > 0) {
@@ -282,13 +417,17 @@
             }
 
             uploadResult.innerHTML = `
-                <div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success);">
-                    <h3 style="color: var(--success); margin-bottom: var(--spacing-md);">✓ Processing Complete</h3>
+                <div class="card" style="background: ${hasProblems ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; border-color: ${hasProblems ? '#f59e0b' : 'var(--success)'};">
+                    <h3 style="color: ${hasProblems ? '#f59e0b' : 'var(--success)'}; margin-bottom: var(--spacing-md);">${hasProblems ? '⚠ Completed with problems' : '✓ Processing Complete'}</h3>
                     <div class="flex gap-md" style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
                         <span>📁 Folder: ${result.folder}</span>
                         <span>📄 Files: ${result.processedFiles.length}</span>
                     </div>
+                    ${result.summary?.outputsMissing?.length
+                        ? `<p style="color: #f59e0b; margin-bottom: var(--spacing-md);">Not produced: ${result.summary.outputsMissing.join(', ')} &mdash; the links below for those will not work.</p>`
+                        : ''}
                     ${skippedHtml}
+                    ${renderSummary(result.summary)}
                     <div class="flex gap-sm flex-wrap">
                         <a href="/json-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-secondary">📄 JSON</a>
                         <a href="/babylon-vr.html?file=${encodeURIComponent(result.nrrdPaths[0])}" target="_blank" class="btn btn-secondary">🧊 Babylon VR</a>
@@ -307,18 +446,37 @@
                         <a href="/folder-viewer.html?path=${encodeURIComponent(result.jsonPath)}" target="_blank" class="btn btn-primary">Browse Files</a>
                     </div>
                 </div>
+                ${problemPanels(result)}
             `;
             fileInput.value = '';
             folderInput.value = '';
         }
 
-        function showUploadError(message) {
+        function showUploadError(message, info = {}) {
             uploadProgress.classList.add('hidden');
             uploadResult.classList.remove('hidden');
+
+            const meta = [];
+            if (info.status) meta.push(`HTTP ${info.status}`);
+            if (info.phase) meta.push(`stage: ${info.phase}`);
+            if (info.type && info.type !== 'Error') meta.push(info.type);
+            if (info.code) meta.push(`code ${info.code}`);
+
             uploadResult.innerHTML = `
                 <div class="card" style="background: rgba(239, 68, 68, 0.1); border-color: var(--error);">
                     <h3 style="color: var(--error);">✗ Upload Failed</h3>
-                    <p style="color: var(--text-secondary);">${message}</p>
+                    <p style="color: var(--text-secondary); margin-bottom: var(--spacing-sm);">${escapeHtml(message)}</p>
+                    ${meta.length ? `<p style="color: var(--text-muted); font-size: 0.8rem;">${escapeHtml(meta.join(' · '))}</p>` : ''}
+                    ${info.hint ? `<p style="color: var(--text-secondary); font-size: 0.875rem;">${escapeHtml(info.hint)}</p>` : ''}
+                    ${(info.stack || []).length ? `<details style="margin-top: var(--spacing-sm);">
+                        <summary style="cursor: pointer; font-size: 0.8rem; color: var(--text-muted);">where it failed</summary>
+                        <pre style="margin: 4px 0 0; font-size: 0.72rem; color: var(--text-muted); white-space: pre-wrap;">${info.stack.map(escapeHtml).join('\n')}</pre>
+                    </details>` : ''}
+                    ${info.detail ? `<details style="margin-top: var(--spacing-sm);">
+                        <summary style="cursor: pointer; font-size: 0.8rem; color: var(--text-muted);">server response</summary>
+                        <pre style="margin: 4px 0 0; font-size: 0.72rem; color: var(--text-muted); white-space: pre-wrap;">${escapeHtml(info.detail)}</pre>
+                    </details>` : ''}
+                    ${info.warnings?.length ? renderProblemList(info.warnings, 'var(--text-secondary)') : ''}
                 </div>
             `;
         }

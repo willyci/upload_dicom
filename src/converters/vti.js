@@ -1,6 +1,7 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import { createVoxelStream, resolveOutputDtype, describeDtype, BYTES_PER_VOXEL } from '../utils/volumeStream.js';
+import { yieldToEventLoop } from '../utils/pixelData.js';
 
 /**
  * VTK XML image data, with the voxels as zlib-compressed appended raw blocks.
@@ -96,6 +97,11 @@ export async function convertToVti(volume, outputPath) {
             }
 
             pending = offset === 0 ? pending : Buffer.from(pending.subarray(offset));
+
+            // deflateSync blocks the thread, and there are hundreds of blocks per volume. Without
+            // this the HTTP server - including /processing-status, which the upload page polls -
+            // goes unresponsive for the whole VTI stage.
+            await yieldToEventLoop();
         }
 
         if (pending.length > 0)

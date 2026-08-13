@@ -415,6 +415,24 @@
                 }
             };
 
+            // Slices are not square in the real world: in-plane pixels here are 0.9 mm while the
+            // slice spacing is 2.5 mm, so a sagittal image of 284 x 512 pixels is 710 x 462 mm of
+            // patient. Drawn at its pixel aspect it comes out squashed along the slice axis, which is
+            // what "object-fit: contain" alone gives you. Each plane is therefore sized by its
+            // physical aspect and the bitmap stretched to fill it.
+            const [sx, sy, sz] = info.spacing || [1, 1, 1];
+            const physicalAspect = {
+                axial: (info.axial.width * sx) / (info.axial.height * sy),
+                sagittal: (info.sagittal.width * sz) / (info.sagittal.height * sy),
+                coronal: (info.coronal.width * sx) / (info.coronal.height * sz),
+            };
+
+            for (const plane of ['axial', 'sagittal', 'coronal']) {
+                const img = els[plane].img;
+                img.style.aspectRatio = String(physicalAspect[plane]);
+                img.style.objectFit = 'fill';
+            }
+
             // Setup sliders
             els.axial.slider.max = info.axial.count - 1;
             els.axial.slider.value = state.axial;
@@ -430,7 +448,9 @@
                 const e = els[plane];
 
                 e.val.textContent = `${idx}/${planeInfo.count - 1}`;
-                e.info.textContent = `${planeInfo.width} x ${planeInfo.height}`;
+                e.info.textContent = `${planeInfo.width} x ${planeInfo.height} px  ` +
+                    `(${Math.round(planeInfo.width * (plane === 'sagittal' ? sz : sx))} x ` +
+                    `${Math.round(planeInfo.height * (plane === 'coronal' ? sz : sy))} mm)`;
 
                 const url = imgUrl(plane, idx);
                 try {

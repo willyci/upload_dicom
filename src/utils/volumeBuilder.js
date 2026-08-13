@@ -51,6 +51,80 @@ function computeSliceSpacing(sortedSlices, fallback) {
 }
 
 /**
+ * Reduces a set of slices to one stack of distinct positions.
+ *
+ * A single series can contain several acquisitions covering the same anatomy - a pre/post contrast
+ * pair is the common case - and DICOM gives them the same SeriesInstanceUID. Stacked together they
+ * make a volume with twice the slices and none of the height: 501 slices at 2.5 mm reads as 1252 mm
+ * of patient where the positions only span 707 mm, so the body comes out stretched, with the two
+ * acquisitions interleaved slice by slice through the overlap.
+ *
+ * Does nothing at all unless two slices genuinely share a position, so ordinary single-acquisition
+ * series are untouched.
+ */
+function selectOneStack(slices, notes) {
+    const positionKey = s => s.position.map(v => v.toFixed(3)).join(',');
+
+    const distinct = new Set(slices.map(positionKey));
+    if (distinct.size === slices.length)
+        return slices;
+
+    const note = `${slices.length} slices occupy only ${distinct.size} distinct positions - ` +
+        'this series holds more than one acquisition';
+    console.warn(note);
+    notes.push({ phase: 'volume build', message: note });
+
+    // Prefer the acquisition with the most slices, and on a tie the one spanning the most anatomy.
+    const byAcquisition = new Map();
+    for (const slice of slices) {
+        if (!byAcquisition.has(slice.acquisition)) byAcquisition.set(slice.acquisition, []);
+        byAcquisition.get(slice.acquisition).push(slice);
+    }
+
+    const span = group => {
+        const zs = group.map(s => s.zPosition);
+        return Math.max(...zs) - Math.min(...zs);
+    };
+
+    const candidates = [...byAcquisition.entries()]
+        .sort((a, b) => b[1].length - a[1].length || span(b[1]) - span(a[1]));
+
+    for (const [acquisition, group] of candidates) {
+        console.log(`  acquisition ${acquisition || '(unnumbered)'}: ${group.length} slices, ` +
+            `${span(group).toFixed(1)} mm span`);
+    }
+
+    let chosen = candidates[0][1];
+    if (candidates.length > 1) {
+        const chose = `Using acquisition ${candidates[0][0] || '(unnumbered)'} ` +
+            `(${chosen.length} slices, ${span(chosen).toFixed(1)} mm) and ignoring ` +
+            `${slices.length - chosen.length} slices from the other ${candidates.length - 1}. ` +
+            'Every slice still gets its own JPG; only the volume is built from one acquisition.';
+        console.warn(chose);
+        notes.push({ phase: 'volume build', message: chose });
+    }
+
+    // Belt and braces: if positions still collide - a series with genuinely duplicated files, or no
+    // AcquisitionNumber to separate them by - keep the first at each position.
+    const seen = new Set();
+    const unique = [];
+    for (const slice of chosen) {
+        const key = positionKey(slice);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(slice);
+    }
+
+    if (unique.length !== chosen.length) {
+        const dropped = `Dropped ${chosen.length - unique.length} further slices sharing a position`;
+        console.warn(dropped);
+        notes.push({ phase: 'volume build', message: dropped });
+    }
+
+    return unique;
+}
+
+/**
  * Build volume data from DICOM files and write to a temp file on disk.
  * Only one slice (~1 MB) is held in memory at a time.
  *
@@ -61,7 +135,13 @@ function computeSliceSpacing(sortedSlices, fallback) {
  * @returns {{ tempFilePath, dimensions, spacing, origin, cleanup() }}
  */
 export async function buildVolumeData(dicomFiles, onSliceParsed) {
-    const slices = [];
+    // Reassigned once the metadata pass is done: overlapping acquisitions are filtered out.
+    let slices = [];
+
+    // Non-fatal problems worth telling the user about: skipped files, blanked slices, a second
+    // acquisition being ignored. These used to reach only the server console, so an upload could
+    // quietly drop half its input and still report success.
+    const notes = [];
 
     logMemory('volume-start');
 
@@ -75,7 +155,12 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         try {
             dataSet = dicomParser.parseDicom(buf);
         } catch (e) {
-            console.warn(`Skipping unparseable DICOM: ${path.basename(filePath)}: ${e.message}`);
+            // Not every thrown value carries a message - dicom-parser can reject a file with one
+            // that is undefined, which produced the useless note "could not be parsed: undefined".
+            const reason = e?.message || (typeof e === 'string' ? e : e?.name) || 'no reason given';
+            console.warn(`Skipping unparseable DICOM: ${path.basename(filePath)}: ${reason}`);
+            notes.push({ phase: 'volume build', file: path.basename(filePath),
+                message: 'Skipped - could not be parsed as DICOM: ' + reason });
             buf = null;
             continue;
         }
@@ -100,6 +185,8 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         // volume's dimensions - especially if it sorted first.
         if (!rows || !columns) {
             console.warn(`Skipping non-image DICOM (no Rows/Columns): ${path.basename(filePath)}`);
+            notes.push({ phase: 'volume build', file: path.basename(filePath),
+                message: 'Skipped - valid DICOM but carries no image (no Rows/Columns), such as a DICOMDIR' });
             buf = null;
             dataSet = null;
             continue;
@@ -119,7 +206,11 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
             columns,
             zPosition: position[2],
             windowCenter,
-            windowWidth
+            windowWidth,
+            // (0020,0012) AcquisitionNumber. One series can hold several acquisitions covering the
+            // same anatomy - a pre/post contrast pair, for instance - and they must not be stacked
+            // into one volume.
+            acquisition: dataSet.string('x00200012') || '',
         });
 
         // Release references so GC can reclaim the buffer
@@ -139,6 +230,7 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         throw new Error('No DICOM files found');
     }
 
+    slices = selectOneStack(slices, notes);
     slices.sort((a, b) => a.zPosition - b.zPosition);
 
     const rows = slices[0].rows;
@@ -188,6 +280,8 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
                 pixelData = extractPixelData(dataset);
             } catch (e) {
                 console.warn(`Failed to extract pixel data for slice ${z}:`, e.message);
+                notes.push({ phase: 'volume build', file: path.basename(slice.filePath),
+                    message: `Slice ${z} written as blank - pixel data could not be extracted: ${e.message}` });
                 sliceFloat.fill(0);
                 fs.writeSync(fd, Buffer.from(sliceFloat.buffer, sliceFloat.byteOffset, sliceFloat.byteLength));
                 // Still let caller do JPG/bump even if pixel extraction failed for volume
@@ -214,7 +308,11 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
             const intercept = firstNumber(dataset.RescaleIntercept, 0);
             const count = Math.min(pixelData.length, sliceSize);
 
-            sliceFloat.fill(0);
+            // Only needed when the pixel data is short of a full slice: otherwise the loop below
+            // overwrites every element anyway, and this was 262,144 dead writes per slice.
+            if (count < sliceSize)
+                sliceFloat.fill(0);
+
             if (slope === 1 && intercept === 0) {
                 for (let i = 0; i < count; i++) {
                     const value = pixelData[i];
@@ -283,6 +381,7 @@ export async function buildVolumeData(dicomFiles, onSliceParsed) {
         origin,
         window,
         stats,
+        notes,
         cleanup() {
             try { fs.unlinkSync(tempFilePath); } catch {}
         }

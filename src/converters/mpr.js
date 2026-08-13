@@ -37,22 +37,13 @@ function sampleIndices(depth) {
  * min/max. A single hot voxel - a metal implant, a marker, noise - used to stretch the window
  * over the whole range and leave the anatomy squeezed into the bottom third of the greyscale.
  *
- * Two passes over the samples: one for the bounds, one to histogram them, since the value range
- * is not known in advance.
+ * One pass over the samples: the value range comes from volume.stats, which was gathered while the
+ * temp file was written, so the bounds no longer need a pass of their own.
  */
-function computeWindow(srcFd, readBuf, sliceSize, depth) {
+function computeWindow(volume, srcFd, readBuf, sliceSize, depth) {
     const indices = sampleIndices(depth);
     const sliceFloat = new Float32Array(sliceSize);
-    let min = Infinity, max = -Infinity;
-
-    for (const z of indices) {
-        loadSlice(srcFd, readBuf, z, sliceFloat, sliceSize);
-        for (let i = 0; i < sliceSize; i++) {
-            const v = sliceFloat[i];
-            if (v < min) min = v;
-            if (v > max) max = v;
-        }
-    }
+    const { min, max } = volume.stats;
 
     if (!(max > min)) {
         return { windowCenter: min, windowWidth: 1 };
@@ -101,7 +92,7 @@ function resolveWindow(volume, srcFd, readBuf, sliceSize, depth) {
         return { windowCenter: declared.center, windowWidth: declared.width, windowSource: 'dicom' };
     }
 
-    const { windowCenter, windowWidth } = computeWindow(srcFd, readBuf, sliceSize, depth);
+    const { windowCenter, windowWidth } = computeWindow(volume, srcFd, readBuf, sliceSize, depth);
     console.log(`MPR window from data (1-99 percentile): center=${windowCenter.toFixed(1)}, width=${windowWidth.toFixed(1)}`);
     return { windowCenter, windowWidth, windowSource: 'percentile' };
 }
@@ -125,9 +116,17 @@ function pad3(n) {
 /**
  * Write a grayscale Uint8 buffer as a JPG using the provided canvas.
  */
+/**
+ * Assigning canvas.width or .height reallocates and clears the Cairo surface, so only do it when the
+ * size actually changes - consecutive slices of one plane all share dimensions.
+ */
+function resizeCanvas(canvas, width, height) {
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+}
+
 function writeJpg(canvas, ctx, data, width, height, outputPath) {
-    canvas.width = width;
-    canvas.height = height;
+    resizeCanvas(canvas, width, height);
     const imageData = ctx.createImageData(width, height);
     let pixelIndex = 0;
     for (let i = 0; i < width * height; i++) {
@@ -143,51 +142,62 @@ function writeJpg(canvas, ctx, data, width, height, outputPath) {
 }
 
 /**
- * Generate a bump map from a grayscale Uint8 slice and write as JPG.
- * Computes x/y gradients -> normal map -> normalize to full 0-255 range.
+ * Bump map from a greyscale Uint8 slice: x gradient, normalised to the full 0-255 range.
+ *
+ * The gradient and its range are computed in one pass over a plain typed array. This used to write
+ * the whole RGBA surface into Cairo, read all of it back out with getImageData to find a min and a
+ * max, rewrite it and put it back - about 3 MB of native copying per image, for two numbers the
+ * gradient loop already had.
  */
 function writeBumpJpg(canvas, ctx, data, width, height, outputPath) {
-    canvas.width = width;
-    canvas.height = height;
-    const imageData = ctx.createImageData(width, height);
+    const gradient = new Uint8Array(width * height);
 
     for (let y = 1; y < height - 1; y++) {
+        const row = y * width;
         for (let x = 1; x < width - 1; x++) {
-            const idx = y * width + x;
+            const idx = row + x;
             const gx = data[idx + 1] - data[idx - 1];
-            const gy = data[idx + width] - data[idx - width];
 
-            const normalX = Math.floor(((gx / 255) + 1) * 127.5);
-            const normalY = Math.floor(((gy / 255) + 1) * 127.5);
+            // As before, only the x gradient survives: the old code also computed a y gradient into
+            // the green channel, then overwrote it during normalisation.
+            let value = Math.floor(((gx / 255) + 1) * 127.5);
+            if (value < 0) value = 0; else if (value > 255) value = 255;
 
-            const outIdx = idx * 4;
-            imageData.data[outIdx] = normalX;
-            imageData.data[outIdx + 1] = normalY;
-            imageData.data[outIdx + 2] = 255;
-            imageData.data[outIdx + 3] = 255;
+            gradient[idx] = value;
+        }
+    }
+
+    // Over the whole buffer, border included. The border is never written, so it contributes zeros
+    // and pins the minimum at 0 - which is what the old getImageData scan did, and skipping it
+    // stretched the contrast and made these files ~10% larger.
+    let min = 255, max = 0;
+    for (let i = 0; i < gradient.length; i++) {
+        const v = gradient[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+
+    resizeCanvas(canvas, width, height);
+    const imageData = ctx.createImageData(width, height);
+    const scale = max > min ? 255 / (max - min) : 0;
+
+    // Interior only, exactly as before. createImageData zeroes the buffer, so the one-pixel border
+    // stays fully transparent and flattens to black when the JPEG is written - the old code left it
+    // that way too, and filling it instead put a blue frame around every image.
+    for (let y = 1; y < height - 1; y++) {
+        const row = y * width;
+        for (let x = 1; x < width - 1; x++) {
+            const i = row + x;
+            const normalized = scale > 0 ? Math.round((gradient[i] - min) * scale) : gradient[i];
+            const out = i * 4;
+            imageData.data[out] = normalized;
+            imageData.data[out + 1] = normalized;
+            imageData.data[out + 2] = 255;
+            imageData.data[out + 3] = 255;
         }
     }
 
     ctx.putImageData(imageData, 0, 0);
-
-    // Normalize: stretch R channel to full 0-255 range
-    const outData = ctx.getImageData(0, 0, width, height);
-    let min = 255, max = 0;
-    for (let i = 0; i < outData.data.length; i += 4) {
-        const v = outData.data[i];
-        if (v < min) min = v;
-        if (v > max) max = v;
-    }
-    if (max > min) {
-        const scale = 255 / (max - min);
-        for (let i = 0; i < outData.data.length; i += 4) {
-            const normalized = Math.round((outData.data[i] - min) * scale);
-            outData.data[i] = normalized;
-            outData.data[i + 1] = normalized;
-            outData.data[i + 2] = 255;
-        }
-        ctx.putImageData(outData, 0, 0);
-    }
 
     const buffer = canvas.toBuffer('image/jpeg', { quality: 0.85 });
     fs.writeFileSync(outputPath, buffer);
@@ -360,7 +370,10 @@ export async function convertToMpr(volume, outputDir) {
 
     fs.writeFileSync(path.join(mprDir, 'mpr_info.json'), JSON.stringify(mprInfo, null, 2));
 
-    console.log(`MPR complete: ${depth} axial + ${columns} sagittal + ${rows} coronal = ${depth + columns + rows} images`);
+    // Counting the bump variants too: this used to report half the images it had just written.
+    const planeTotal = depth + columns + rows;
+    console.log(`MPR complete: ${depth} axial + ${columns} sagittal + ${rows} coronal = ` +
+        `${planeTotal} slices, ${planeTotal * 2} images including bump maps`);
 
     return mprDir;
 }

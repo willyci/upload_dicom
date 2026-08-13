@@ -345,6 +345,11 @@
                 return;
             }
 
+            // The server writes { files: [...] }; this page was written against an older shape
+            // where the JSON was a bare array, so it rejected every current dataset.
+            if (slices && !Array.isArray(slices) && Array.isArray(slices.files))
+                slices = slices.files;
+
             if (!Array.isArray(slices) || slices.length === 0) {
                 showError('No slices found in dicom_info.json');
                 return;

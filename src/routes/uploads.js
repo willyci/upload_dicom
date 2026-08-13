@@ -133,6 +133,10 @@ router.post('/upload', handleUpload, async (req, res, next) => {
     res.setTimeout(0);
 
     const tempFiles = []; // track temp files for cleanup
+
+    // Problems from the upload itself - skipped entries, non-DICOM files - as opposed to the ones
+    // the processor reports. Merged into one list in the response.
+    const uploadWarnings = [];
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -217,6 +221,11 @@ router.post('/upload', handleUpload, async (req, res, next) => {
 
                             if (writePath !== extractPath && !writePath.startsWith(extractPath + path.sep)) {
                                 console.warn(`Skipping ZIP entry that escapes the upload folder: ${relativePath}`);
+                                uploadWarnings.push({
+                                    phase: 'unzip',
+                                    file: relativePath,
+                                    message: 'Skipped - the entry path points outside the upload folder',
+                                });
                                 entry.autodrain();
                                 return;
                             }
@@ -278,7 +287,8 @@ router.post('/upload', handleUpload, async (req, res, next) => {
         }
 
         // Process extracted files
-        const { processedFiles, errors, aiAnalysis } = await processDirectory(extractPath + '/');
+        const { processedFiles, errors, warnings, summary, aiAnalysis } =
+            await processDirectory(extractPath + '/');
 
         // Create JSON file — include AI analysis at top level
         const jsonOutput = { files: processedFiles };
@@ -293,8 +303,15 @@ router.post('/upload', handleUpload, async (req, res, next) => {
         try {
             await buildUploadsIndex();
         } catch (indexError) {
-            console.error('Failed to update index.json:', indexError.message);
-            errors.push({ converter: 'index', error: indexError.message });
+            console.error('Failed to update index.json:', indexError);
+            errors.push({
+                phase: 'catalog',
+                file: 'index.json',
+                message: indexError.message,
+                type: indexError.constructor?.name,
+                hint: 'The dataset processed, but the catalog the viewers and the headset read was ' +
+                    'not refreshed. Open the Uploads list to rebuild it.',
+            });
         }
 
         // Clean up temp files
@@ -302,11 +319,25 @@ router.post('/upload', handleUpload, async (req, res, next) => {
             try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
         }
 
+        for (const name of skipped) {
+            uploadWarnings.push({
+                phase: 'upload',
+                file: name,
+                message: 'Skipped - not a ZIP and not recognisable as DICOM',
+            });
+        }
+
+        const allWarnings = [...uploadWarnings, ...(warnings || [])];
+
         const response = {
             success: true,
             folder: folderName,
             processedFiles: processedFiles,
-            errors: errors.length > 0 ? errors : undefined,
+            // Always present, even when empty, so the browser never has to guess whether the server
+            // simply forgot to report.
+            errors,
+            warnings: allWarnings,
+            summary,
             jsonPath: removePathBeforeUploads(jsonPath),
             vtiPaths: processedFiles.map(file => file.vtiPath),
             nrrdPaths: processedFiles.map(file => file.nrrdPath),
@@ -327,7 +358,19 @@ router.post('/upload', handleUpload, async (req, res, next) => {
             try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
         }
         console.error('Upload error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message,
+            // The bare message alone was rarely enough to act on: a TypeError from deep in a
+            // converter reads as gibberish without knowing where it came from.
+            type: error.constructor?.name,
+            code: error.code,
+            phase: 'upload',
+            stack: (error.stack || '').split('\n').slice(1, 5)
+                .map(line => line.trim().replace(/^at\s+/, ''))
+                .filter(line => !line.includes('node:internal')),
+            warnings: uploadWarnings,
+        });
     }
 });
 

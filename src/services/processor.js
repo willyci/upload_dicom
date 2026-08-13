@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import dicomParser from 'dicom-parser';
 import { convertToJpgFromDataset, generateBumpMap } from '../converters/jpg.js';
 import { convertToVti } from '../converters/vti.js';
 import { convertToNrrd } from '../converters/nrrd.js';
@@ -26,6 +25,78 @@ function logMemory(label) {
 }
 
 /**
+ * Per-stage wall clock, printed as one line per stage plus a summary.
+ *
+ * Without this there is no way to tell which stage a change actually helped: the counts are easy to
+ * reason about (files written, passes over the volume) but they are not the same as time.
+ */
+function createStageTimer() {
+    const stages = [];
+    let peakRss = 0;
+
+    return {
+        async run(name, work) {
+            const started = process.hrtime.bigint();
+            try {
+                return await work();
+            } finally {
+                const ms = Number(process.hrtime.bigint() - started) / 1e6;
+                const rss = process.memoryUsage().rss;
+                if (rss > peakRss) peakRss = rss;
+                stages.push({ name, ms });
+                console.log(`[TIME] ${name.padEnd(18)} ${(ms / 1000).toFixed(2)} s   RSS ${Math.round(rss / 1048576)} MB`);
+            }
+        },
+
+        report() {
+            const total = stages.reduce((sum, s) => sum + s.ms, 0);
+            console.log('\n[TIME] ---- stage summary ----');
+            for (const { name, ms } of [...stages].sort((a, b) => b.ms - a.ms))
+                console.log(`[TIME] ${name.padEnd(18)} ${(ms / 1000).toFixed(2)} s  ${(100 * ms / total).toFixed(1)}%`);
+            console.log(`[TIME] ${'total'.padEnd(18)} ${(total / 1000).toFixed(2)} s   peak RSS ${Math.round(peakRss / 1048576)} MB\n`);
+
+            // Handed back so it can travel to the browser: "which stage, and how long" is most of
+            // what you want to know when something failed or took surprisingly long.
+            return {
+                stages: stages.map(s => ({ name: s.name, seconds: +(s.ms / 1000).toFixed(2) })),
+                totalSeconds: +(total / 1000).toFixed(2),
+                peakMemoryMb: Math.round(peakRss / 1048576),
+            };
+        },
+    };
+}
+
+/**
+ * One failure, described well enough to act on: which stage, which file, what the runtime said, and
+ * the first few frames of where. Previously these carried only `error.message`, which for something
+ * like "Cannot read properties of undefined" tells the user nothing at all.
+ */
+function record(errors, phase, error, extra = {}) {
+    const entry = {
+        phase,
+        message: error?.message || String(error),
+        type: error?.constructor?.name || typeof error,
+        ...extra,
+    };
+
+    if (error?.code) entry.code = error.code;
+
+    if (error?.stack) {
+        // Just the frames from this codebase - node internals are noise here.
+        entry.stack = error.stack.split('\n').slice(1, 6)
+            .map(line => line.trim().replace(/^at\s+/, ''))
+            .filter(line => !line.includes('node:internal'))
+            .slice(0, 3);
+    }
+
+    errors.push(entry);
+    console.error(`[FAIL ${phase}]${extra.file ? ' ' + extra.file : ''}: ${entry.message}`);
+    if (entry.stack?.length) console.error('        at ' + entry.stack.join('\n        at '));
+
+    return entry;
+}
+
+/**
  * Process a single DICOM file for JPG + bump map + dicom info.
  * Reuses the already-parsed dcmjs dataset and raw buffer from the volume builder.
  */
@@ -34,20 +105,34 @@ async function processFileForJpg(filePath, rawBuffer, dcmjsDataset, errors) {
     let dicomInfo = null;
     let bumpMapPath = `${filePath}_bump.jpg`;
 
+    let rendered = null;
     try {
-        await convertToJpgFromDataset(dcmjsDataset, outputPath);
-        dicomInfo = showDicomInfo(filePath, dcmjsDataset);
+        rendered = await convertToJpgFromDataset(dcmjsDataset, outputPath);
+
+        // Everything except the pixels. showDicomInfo hands back the whole naturalized dataset, and
+        // this object is retained until the run finishes and then serialised into dicom_info.json -
+        // so keeping PixelData here held every slice's pixels in memory for the whole job, defeating
+        // the explicit releases in volumeBuilder. A shallow copy rather than a delete, because the
+        // caller still owns the original.
+        const info = showDicomInfo(filePath, dcmjsDataset);
+        if (info) {
+            const { PixelData, _vrMap, ...rest } = info;
+            dicomInfo = rest;
+        }
     } catch (error) {
-        console.error(`Error processing file ${path.basename(filePath)}:`, error.message);
-        errors.push({ converter: 'jpg', file: path.basename(filePath), error: error.message });
+        record(errors, 'jpg', error, { file: path.basename(filePath) });
         return null;
     }
 
     try {
-        const dataSet = dicomParser.parseDicom(rawBuffer);
-        await generateBumpMap(dataSet, bumpMapPath);
+        // Reuses the windowed image the JPEG was just made from. This used to parse the same buffer a
+        // third time, purely because the bump map was written against the dicom-parser API.
+        await generateBumpMap(rendered, bumpMapPath);
     } catch (bumpError) {
-        console.error(`Error generating bump map for ${path.basename(filePath)}:`, bumpError.message);
+        // Reported rather than only logged: this used to fail silently, so a folder could come back
+        // "successful" with no bump maps and no explanation.
+        record(errors, 'bump map', bumpError, { file: path.basename(filePath) });
+        bumpMapPath = null;
     }
 
     return { outputPath, bumpMapPath, dicomInfo };
@@ -55,6 +140,14 @@ async function processFileForJpg(filePath, rawBuffer, dcmjsDataset, errors) {
 
 export async function processDirectory(dirPath) {
     const errors = [];
+
+    // Non-fatal: things the user should know happened, but which did not stop the upload.
+    const warnings = [];
+
+    // Filled in once the volume exists, and attached to converter failures for context.
+    let volumeGeometry = null;
+
+    const timer = createStageTimer();
 
     // Recursively collect all DICOM files from all subdirectories, extensionless ones included
     const dicomFiles = await findDicomFiles(dirPath);
@@ -70,16 +163,20 @@ export async function processDirectory(dirPath) {
     let volume = null;
     try {
         setProcessingStatus('Building volume data...');
-        volume = await buildVolumeData(dicomFiles, async (filePath, rawBuffer, dcmjsDataset) => {
+        // Timed together because they are interleaved: the per-slice JPGs and bump maps are written
+        // from inside the volume build's own parse, which is the whole point of the callback.
+        volume = await timer.run('volume + jpgs', () => buildVolumeData(dicomFiles, async (filePath, rawBuffer, dcmjsDataset) => {
             setProcessingStatus(`Creating ${path.basename(filePath)}.jpg ...`);
             const result = await processFileForJpg(filePath, rawBuffer, dcmjsDataset, errors);
             if (result) {
                 jpgResults.set(filePath, result);
             }
-        });
+        }));
     } catch (error) {
-        console.error('Volume building failed:', error.message);
-        errors.push({ converter: 'volumeBuilder', error: error.message });
+        record(errors, 'volume build', error, {
+            file: `${dicomFiles.length} DICOM files`,
+            hint: 'Without a volume, none of the volume formats or MPR images can be produced.',
+        });
     }
 
     // Fallback: process any files that weren't handled by the callback
@@ -103,8 +200,11 @@ export async function processDirectory(dirPath) {
             dicomData = null;
             dcmjsDataset = null;
         } catch (error) {
-            console.error(`Error processing file ${path.basename(filePath)}:`, error.message);
-            errors.push({ converter: 'jpg', file: path.basename(filePath), error: error.message });
+            record(errors, 'parse', error, {
+                file: path.basename(filePath),
+                hint: 'The file could not be read as DICOM. It may be truncated, or use a compressed ' +
+                    'transfer syntax this server cannot decode.',
+            });
         }
 
         if (fi % 10 === 0) {
@@ -125,29 +225,52 @@ export async function processDirectory(dirPath) {
 
     if (volume) {
         try {
+            const { rows, columns, depth } = volume.dimensions;
+            // Attached to every converter failure: the same message means different things at
+            // 512x512x50 and 512x512x900, and "out of memory" is only actionable with the size.
+            const geometry = {
+                dimensions: `${columns} x ${rows} x ${depth}`,
+                voxels: columns * rows * depth,
+                spacingMm: volume.spacing.map(s => +Number(s).toFixed(4)).join(' x '),
+                valueRange: `${volume.stats.min} .. ${volume.stats.max}`,
+            };
+            volumeGeometry = geometry;
+
+            // Skipped files, blanked slices, an ignored second acquisition - collected during the
+            // build and previously visible only in the server console.
+            if (volume.notes?.length) warnings.push(...volume.notes);
+
+            const runConverter = async (phase, outputPath, work) => {
+                try {
+                    await timer.run(phase, work);
+                    return outputPath;
+                } catch (error) {
+                    record(errors, phase, error, {
+                        file: path.basename(outputPath),
+                        ...geometry,
+                    });
+                    return null;
+                }
+            };
+
             setProcessingStatus('Creating VTI file...');
-            try { await convertToVti(volume, vtiPath); vtiResult = vtiPath; }
-            catch (error) { console.error('VTI conversion failed:', error.message); errors.push({ converter: 'vti', error: error.message }); }
+            vtiResult = await runConverter('vti', vtiPath, () => convertToVti(volume, vtiPath));
 
             setProcessingStatus('Creating NRRD file...');
-            try { await convertToNrrd(volume, nrrdPath); nrrdResult = nrrdPath; }
-            catch (error) { console.error('NRRD conversion failed:', error.message); errors.push({ converter: 'nrrd', error: error.message }); }
+            nrrdResult = await runConverter('nrrd', nrrdPath, () => convertToNrrd(volume, nrrdPath));
 
             setProcessingStatus('Creating NIfTI file...');
-            try { await convertToNifti(volume, niftiPath); niftiResult = niftiPath; }
-            catch (error) { console.error('NIfTI conversion failed:', error.message); errors.push({ converter: 'nifti', error: error.message }); }
+            niftiResult = await runConverter('nifti', niftiPath, () => convertToNifti(volume, niftiPath));
 
             setProcessingStatus('Creating STL model...');
-            try { await convertToStl(volume, stlPath); stlResult = stlPath; }
-            catch (error) { console.error('STL conversion failed:', error.message); errors.push({ converter: 'stl', error: error.message }); }
+            stlResult = await runConverter('stl', stlPath, () => convertToStl(volume, stlPath));
 
             setProcessingStatus('Creating VTK file...');
-            try { await convertToVtk(volume, vtkLegacyPath); vtkResult = vtkLegacyPath; }
-            catch (error) { console.error('VTK conversion failed:', error.message); errors.push({ converter: 'vtk', error: error.message }); }
+            vtkResult = await runConverter('vtk', vtkLegacyPath, () => convertToVtk(volume, vtkLegacyPath));
 
             setProcessingStatus('Creating MPR slices...');
-            try { await convertToMpr(volume, dirPath); mprResult = path.join(dirPath, 'mpr'); }
-            catch (error) { console.error('MPR conversion failed:', error.message); errors.push({ converter: 'mpr', error: error.message }); }
+            const mprDir = path.join(dirPath, 'mpr');
+            mprResult = await runConverter('mpr', mprDir, () => convertToMpr(volume, dirPath));
         } finally {
             volume.cleanup();
             volume = null;
@@ -156,6 +279,7 @@ export async function processDirectory(dirPath) {
 
     setProcessingStatus('');
     logMemory('processing-done');
+    const timings = timer.report();
 
     // Build processedFiles in original file order
     const processedFiles = [];
@@ -190,5 +314,31 @@ export async function processDirectory(dirPath) {
         aiAnalysis = await analyzeDicom(jpgAbsPath, representative.dicomInfo);
     }
 
-    return { processedFiles, errors, aiAnalysis };
+    // Everything the browser needs to explain the outcome without reading the server log: what was
+    // found, what came out, which stage each failure was in, and how long the work took.
+    const outputs = {
+        vti: !!vtiResult,
+        nrrd: !!nrrdResult,
+        nifti: !!niftiResult,
+        stl: !!stlResult,
+        vtk: !!vtkResult,
+        mpr: !!mprResult,
+    };
+
+    const summary = {
+        dicomFilesFound: dicomFiles.length,
+        imagesConverted: processedFiles.length,
+        imagesFailed: dicomFiles.length - processedFiles.length,
+        volume: volumeGeometry,
+        outputs,
+        outputsMissing: Object.entries(outputs).filter(([, ok]) => !ok).map(([name]) => name),
+        timings,
+        aiAnalysis: aiAnalysis ? 'ran' : 'not available',
+    };
+
+    console.log(`[SUMMARY] ${summary.imagesConverted}/${summary.dicomFilesFound} images, ` +
+        `outputs missing: ${summary.outputsMissing.join(', ') || 'none'}, ` +
+        `${errors.length} error(s), ${warnings.length} warning(s)`);
+
+    return { processedFiles, errors, warnings, summary, aiAnalysis };
 }

@@ -83,8 +83,14 @@ function _convertDatasetToJpg(dataset, outputPath) {
     const ctx = canvas.getContext('2d');
     const imageData = ctx.createImageData(width, height);
 
+    // The windowed 8-bit image, kept so the bump map can be derived from it rather than from raw
+    // stored values. Gradients on windowed data are what mpr.js already uses, and they produce a far
+    // less noisy - and much smaller - JPEG.
+    let grey = null;
+
     if (samplesPerPixel === 1) {
         let pixelIndex = 0;
+        grey = new Uint8Array(width * height);
 
         const windowLow = windowCenter - windowWidth / 2;
         const windowHigh = windowCenter + windowWidth / 2;
@@ -106,6 +112,7 @@ function _convertDatasetToJpg(dataset, outputPath) {
 
             pixelValue = Math.max(0, Math.min(255, Math.round(pixelValue)));
 
+            grey[i] = pixelValue;
             imageData.data[pixelIndex++] = pixelValue;
             imageData.data[pixelIndex++] = pixelValue;
             imageData.data[pixelIndex++] = pixelValue;
@@ -144,56 +151,75 @@ function _convertDatasetToJpg(dataset, outputPath) {
     canvas.width = 1;
     canvas.height = 1;
 
-    return { windowCenter, windowWidth };
+    return { windowCenter, windowWidth, grey, width, height };
 }
 
-export async function generateBumpMap(dataSet, outputPath) {
-    const width = dataSet.uint16('x00280010');
-    const height = dataSet.uint16('x00280011');
-    const pixelData = new Int16Array(dataSet.byteArray.buffer, dataSet.elements.x7fe00010.dataOffset);
+/**
+ * Bump map from an already-windowed 8-bit image.
+ *
+ * Takes the grey buffer produced alongside the JPEG rather than re-reading the DICOM. That removes a
+ * third full parse of every slice, and fixes three faults in the old signature: it read Rows into
+ * `width` and Columns into `height` (transposed on any non-square slice), it built an unbounded
+ * `Int16Array` view over the file buffer regardless of BitsAllocated (and threw outright if the pixel
+ * offset happened to be odd), and it took gradients on raw stored values, which is why these files
+ * were 3.6x larger than the equivalent MPR bump maps for the same image.
+ *
+ * Also gone: the putImageData -> getImageData -> scan -> putImageData round-trip, ~3 MB of native
+ * surface copying per image, which existed only to find a min and a max the gradient loop already
+ * had in hand.
+ */
+export async function generateBumpMap(source, outputPath) {
+    const { grey, width, height } = source || {};
+    if (!grey || !width || !height)
+        throw new Error('Bump map needs a windowed greyscale image');
+
+    const gradient = new Uint8Array(width * height);
+
+    for (let y = 1; y < height - 1; y++) {
+        const row = y * width;
+        for (let x = 1; x < width - 1; x++) {
+            const idx = row + x;
+            const gx = grey[idx + 1] - grey[idx - 1];
+
+            // Matches the previous output: the red/green channels carry the normalised x gradient and
+            // blue is pinned to 255. The old code computed a y gradient too but then overwrote it
+            // during normalisation, so it never reached the file.
+            let value = Math.floor(((gx / 255) + 1) * 127.5);
+            if (value < 0) value = 0; else if (value > 255) value = 255;
+
+            gradient[idx] = value;
+        }
+    }
+
+    // Whole buffer, border included - the unwritten border contributes zeros and pins the minimum,
+    // which is what the old full-surface getImageData scan did.
+    let min = 255, max = 0;
+    for (let i = 0; i < gradient.length; i++) {
+        const v = gradient[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
 
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
     const imageData = ctx.createImageData(width, height);
+    const scale = max > min ? 255 / (max - min) : 0;
 
+    // Interior only: the border stays transparent and flattens to black, as it did before.
     for (let y = 1; y < height - 1; y++) {
+        const row = y * width;
         for (let x = 1; x < width - 1; x++) {
-            const idx = (y * width + x);
-
-            const gx = pixelData[idx + 1] - pixelData[idx - 1];
-            const gy = pixelData[idx + width] - pixelData[idx - width];
-
-            const normalX = Math.floor(((gx / 255) + 1) * 127.5);
-            const normalY = Math.floor(((gy / 255) + 1) * 127.5);
-
-            const outIdx = idx * 4;
-            imageData.data[outIdx] = normalX;
-            imageData.data[outIdx + 1] = normalY;
-            imageData.data[outIdx + 2] = 255;
-            imageData.data[outIdx + 3] = 255;
+            const i = row + x;
+            const normalized = scale > 0 ? Math.round((gradient[i] - min) * scale) : gradient[i];
+            const out = i * 4;
+            imageData.data[out] = normalized;
+            imageData.data[out + 1] = normalized;
+            imageData.data[out + 2] = 255;
+            imageData.data[out + 3] = 255;
         }
     }
 
     ctx.putImageData(imageData, 0, 0);
-
-    // Normalize: stretch pixel values to full 0-255 range
-    const outData = ctx.getImageData(0, 0, width, height);
-    let min = 255, max = 0;
-    for (let i = 0; i < outData.data.length; i += 4) {
-        const v = outData.data[i];
-        if (v < min) min = v;
-        if (v > max) max = v;
-    }
-    if (max > min) {
-        const scale = 255 / (max - min);
-        for (let i = 0; i < outData.data.length; i += 4) {
-            const normalized = Math.round((outData.data[i] - min) * scale);
-            outData.data[i] = normalized;
-            outData.data[i + 1] = normalized;
-            outData.data[i + 2] = 255;
-        }
-        ctx.putImageData(outData, 0, 0);
-    }
 
     const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
     fs.writeFileSync(outputPath, buffer);

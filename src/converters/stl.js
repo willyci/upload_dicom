@@ -280,31 +280,6 @@ const TRI_TABLE = [
     [-1]
 ];
 
-function interpolateVertex(p1, p2, v1, v2, threshold) {
-    if (Math.abs(threshold - v1) < 0.00001) return [...p1];
-    if (Math.abs(threshold - v2) < 0.00001) return [...p2];
-    if (Math.abs(v1 - v2) < 0.00001) return [...p1];
-    const mu = (threshold - v1) / (v2 - v1);
-    return [
-        p1[0] + mu * (p2[0] - p1[0]),
-        p1[1] + mu * (p2[1] - p1[1]),
-        p1[2] + mu * (p2[2] - p1[2])
-    ];
-}
-
-function computeNormal(v0, v1, v2) {
-    const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
-    const w = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
-    const n = [
-        u[1] * w[2] - u[2] * w[1],
-        u[2] * w[0] - u[0] * w[2],
-        u[0] * w[1] - u[1] * w[0]
-    ];
-    const len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-    if (len > 0) { n[0] /= len; n[1] /= len; n[2] /= len; }
-    return n;
-}
-
 /**
  * Read one slice from the volume temp file into a Float32Array.
  */
@@ -316,33 +291,58 @@ function loadSlice(srcFd, readBuf, z, target, sliceSize) {
 }
 
 /**
- * Compute iso-surface threshold by scanning the temp file one slice at a time.
+ * One half-resolution slice: full slices 2Z and 2Z+1, averaged over each 2x2x2 block of voxels.
+ *
+ * Averaging rather than sampling, so this is a genuine low-pass rather than a decimation that
+ * aliases thin structures in and out. Thin cortical bone survives: one bone voxel at ~1500 HU among
+ * seven of soft tissue still averages well above the 200 HU threshold.
  */
-function selectThresholdFromFile(tempFilePath, sliceSize, numSlices) {
+function loadHalfSlice(srcFd, readBuf, halfZ, target, full, halfWidth, halfHeight, scratchA, scratchB) {
+    const { nx, ny, nz, sliceSize } = full;
+
+    loadSlice(srcFd, readBuf, Math.min(2 * halfZ, nz - 1), scratchA, sliceSize);
+    loadSlice(srcFd, readBuf, Math.min(2 * halfZ + 1, nz - 1), scratchB, sliceSize);
+
+    for (let y = 0; y < halfHeight; y++) {
+        const y0 = 2 * y;
+        const y1 = Math.min(y0 + 1, ny - 1);
+        const rowA0 = y0 * nx;
+        const rowA1 = y1 * nx;
+        const out = y * halfWidth;
+
+        for (let x = 0; x < halfWidth; x++) {
+            const x0 = 2 * x;
+            const x1 = Math.min(x0 + 1, nx - 1);
+
+            target[out + x] = (
+                scratchA[rowA0 + x0] + scratchA[rowA0 + x1] +
+                scratchA[rowA1 + x0] + scratchA[rowA1 + x1] +
+                scratchB[rowA0 + x0] + scratchB[rowA0 + x1] +
+                scratchB[rowA1 + x0] + scratchB[rowA1 + x1]
+            ) * 0.125;
+        }
+    }
+}
+
+/**
+ * Iso-surface threshold.
+ *
+ * The min/max come from volume.stats, gathered while the temp file was being written - this used to
+ * re-read the whole volume to recompute them, then for CT return the constant on the next line. The
+ * mean pass below only runs for data that is not in Hounsfield units.
+ */
+function selectThreshold(volume, sliceSize, numSlices) {
+    const { min, max } = volume.stats;
+
+    // Hounsfield units: bone.
+    if (min < -500 && max > 500)
+        return 200;
+
     const sliceBytes = sliceSize * 4;
     const readBuf = Buffer.alloc(sliceBytes);
-    const srcFd = fs.openSync(tempFilePath, 'r');
-
-    let min = Infinity, max = -Infinity;
+    const srcFd = fs.openSync(volume.tempFilePath, 'r');
 
     try {
-        // First pass: find min/max
-        for (let s = 0; s < numSlices; s++) {
-            const bytesRead = fs.readSync(srcFd, readBuf, 0, sliceBytes, s * sliceBytes);
-            const count = bytesRead / 4;
-            const view = new Float32Array(readBuf.buffer, readBuf.byteOffset, count);
-            for (let i = 0; i < count; i++) {
-                if (view[i] < min) min = view[i];
-                if (view[i] > max) max = view[i];
-            }
-        }
-
-        // For CT data (Hounsfield units): use bone threshold
-        if (min < -500 && max > 500) {
-            return 200;
-        }
-
-        // Second pass: compute mean of non-background values
         let sum = 0, cnt = 0;
         const bgThreshold = min + (max - min) * 0.05;
 
@@ -365,107 +365,167 @@ function selectThresholdFromFile(tempFilePath, sliceSize, numSlices) {
     }
 }
 
+// One binary STL triangle is 50 bytes; batch them so the output is ~20,000 writes instead of one
+// syscall per triangle.
+const TRIANGLES_PER_FLUSH = 20000;
+
 /**
- * Slice-based marching cubes: only 2 slices (~2 MB) in memory at a time.
- * Writes each triangle directly to the output fd instead of collecting in an array.
+ * Slice-based marching cubes over a half-resolution volume: two half-slices in memory at a time.
+ *
+ * Half resolution is the reason this is fast. At full resolution a 512x512x127 volume is 32.9 M
+ * cubes, the overwhelming majority of them entirely inside or outside the surface and discarded
+ * immediately; halving each axis leaves an eighth of that, and an eighth of the triangles.
+ *
+ * The inner loop allocates nothing. It used to build a fresh 8-element array per cube - 32.9 M of
+ * them per run, nearly all thrown away one line later - plus nine more arrays per non-empty cube and
+ * three per triangle. That was the dominant source of GC pressure in the whole pipeline.
  */
-function marchingCubesStreaming(srcFd, dims, spacing, origin, threshold, sliceSize, outFd) {
-    const [nx, ny, nz] = dims;
-    const [sx, sy, sz] = spacing;
+function marchingCubesStreaming(srcFd, full, spacing, origin, threshold, outFd) {
+    // Half-resolution grid. Spacing doubles to keep the mesh in the same physical space.
+    const nx = Math.max(2, full.nx >> 1);
+    const ny = Math.max(2, full.ny >> 1);
+    const nz = Math.max(2, full.nz >> 1);
+    const sx = spacing[0] * 2, sy = spacing[1] * 2, sz = spacing[2] * 2;
     const [ox, oy, oz] = origin;
 
-    const sliceBytes = sliceSize * 4;
-    const readBuf = Buffer.alloc(sliceBytes);
-    let currentSlice = new Float32Array(sliceSize);
-    let nextSlice = new Float32Array(sliceSize);
-    const triBuf = Buffer.alloc(50); // reusable buffer for one binary STL triangle
+    const readBuf = Buffer.alloc(full.sliceSize * 4);
+    const scratchA = new Float32Array(full.sliceSize);
+    const scratchB = new Float32Array(full.sliceSize);
 
+    const halfSize = nx * ny;
+    let currentSlice = new Float32Array(halfSize);
+    let nextSlice = new Float32Array(halfSize);
+
+    // Preallocated working state, reused for every cube.
+    const edgeVerts = new Float32Array(36);   // 12 edges x 3 coordinates
+    const edgeSet = new Uint8Array(12);
+    const outBuf = Buffer.alloc(TRIANGLES_PER_FLUSH * 50);
+    let outOffset = 0;
     let triangleCount = 0;
 
-    // Load first slice
-    loadSlice(srcFd, readBuf, 0, currentSlice, sliceSize);
+    const flush = () => {
+        if (outOffset > 0) {
+            fs.writeSync(outFd, outBuf, 0, outOffset);
+            outOffset = 0;
+        }
+    };
+
+    // Writes the crossing point on edge `e` between two corners into edgeVerts.
+    const interp = (e, ax, ay, az, bx, by, bz, va, vb) => {
+        let mu;
+        if (Math.abs(threshold - va) < 0.00001) mu = 0;
+        else if (Math.abs(threshold - vb) < 0.00001) mu = 1;
+        else if (Math.abs(va - vb) < 0.00001) mu = 0;
+        else mu = (threshold - va) / (vb - va);
+
+        const o = e * 3;
+        edgeVerts[o] = ax + mu * (bx - ax);
+        edgeVerts[o + 1] = ay + mu * (by - ay);
+        edgeVerts[o + 2] = az + mu * (bz - az);
+        edgeSet[e] = 1;
+    };
+
+    loadHalfSlice(srcFd, readBuf, 0, currentSlice, full, nx, ny, scratchA, scratchB);
 
     for (let z = 0; z < nz - 1; z++) {
-        // Load next slice
-        loadSlice(srcFd, readBuf, z + 1, nextSlice, sliceSize);
+        loadHalfSlice(srcFd, readBuf, z + 1, nextSlice, full, nx, ny, scratchA, scratchB);
+
+        const z0 = oz + z * sz;
+        const z1 = oz + (z + 1) * sz;
 
         for (let y = 0; y < ny - 1; y++) {
+            const row = y * nx;
+            const rowNext = (y + 1) * nx;
+            const y0 = oy + y * sy;
+            const y1 = oy + (y + 1) * sy;
+
             for (let x = 0; x < nx - 1; x++) {
-                const v = [
-                    currentSlice[y * nx + x],
-                    currentSlice[y * nx + (x + 1)],
-                    currentSlice[(y + 1) * nx + (x + 1)],
-                    currentSlice[(y + 1) * nx + x],
-                    nextSlice[y * nx + x],
-                    nextSlice[y * nx + (x + 1)],
-                    nextSlice[(y + 1) * nx + (x + 1)],
-                    nextSlice[(y + 1) * nx + x]
-                ];
+                const v0 = currentSlice[row + x];
+                const v1 = currentSlice[row + x + 1];
+                const v2 = currentSlice[rowNext + x + 1];
+                const v3 = currentSlice[rowNext + x];
+                const v4 = nextSlice[row + x];
+                const v5 = nextSlice[row + x + 1];
+                const v6 = nextSlice[rowNext + x + 1];
+                const v7 = nextSlice[rowNext + x];
 
                 let cubeIndex = 0;
-                for (let i = 0; i < 8; i++) {
-                    if (v[i] >= threshold) cubeIndex |= (1 << i);
-                }
+                if (v0 >= threshold) cubeIndex |= 1;
+                if (v1 >= threshold) cubeIndex |= 2;
+                if (v2 >= threshold) cubeIndex |= 4;
+                if (v3 >= threshold) cubeIndex |= 8;
+                if (v4 >= threshold) cubeIndex |= 16;
+                if (v5 >= threshold) cubeIndex |= 32;
+                if (v6 >= threshold) cubeIndex |= 64;
+                if (v7 >= threshold) cubeIndex |= 128;
 
-                if (EDGE_TABLE[cubeIndex] === 0) continue;
-
-                const p = [
-                    [ox + x * sx,       oy + y * sy,       oz + z * sz],
-                    [ox + (x+1) * sx,   oy + y * sy,       oz + z * sz],
-                    [ox + (x+1) * sx,   oy + (y+1) * sy,   oz + z * sz],
-                    [ox + x * sx,       oy + (y+1) * sy,   oz + z * sz],
-                    [ox + x * sx,       oy + y * sy,       oz + (z+1) * sz],
-                    [ox + (x+1) * sx,   oy + y * sy,       oz + (z+1) * sz],
-                    [ox + (x+1) * sx,   oy + (y+1) * sy,   oz + (z+1) * sz],
-                    [ox + x * sx,       oy + (y+1) * sy,   oz + (z+1) * sz]
-                ];
-
-                const edgeVerts = new Array(12);
                 const edges = EDGE_TABLE[cubeIndex];
-                if (edges & 1)    edgeVerts[0]  = interpolateVertex(p[0], p[1], v[0], v[1], threshold);
-                if (edges & 2)    edgeVerts[1]  = interpolateVertex(p[1], p[2], v[1], v[2], threshold);
-                if (edges & 4)    edgeVerts[2]  = interpolateVertex(p[2], p[3], v[2], v[3], threshold);
-                if (edges & 8)    edgeVerts[3]  = interpolateVertex(p[3], p[0], v[3], v[0], threshold);
-                if (edges & 16)   edgeVerts[4]  = interpolateVertex(p[4], p[5], v[4], v[5], threshold);
-                if (edges & 32)   edgeVerts[5]  = interpolateVertex(p[5], p[6], v[5], v[6], threshold);
-                if (edges & 64)   edgeVerts[6]  = interpolateVertex(p[6], p[7], v[6], v[7], threshold);
-                if (edges & 128)  edgeVerts[7]  = interpolateVertex(p[7], p[4], v[7], v[4], threshold);
-                if (edges & 256)  edgeVerts[8]  = interpolateVertex(p[0], p[4], v[0], v[4], threshold);
-                if (edges & 512)  edgeVerts[9]  = interpolateVertex(p[1], p[5], v[1], v[5], threshold);
-                if (edges & 1024) edgeVerts[10] = interpolateVertex(p[2], p[6], v[2], v[6], threshold);
-                if (edges & 2048) edgeVerts[11] = interpolateVertex(p[3], p[7], v[3], v[7], threshold);
+                if (edges === 0) continue;
+
+                const x0 = ox + x * sx;
+                const x1 = ox + (x + 1) * sx;
+
+                edgeSet.fill(0);
+                if (edges & 1)    interp(0,  x0, y0, z0, x1, y0, z0, v0, v1);
+                if (edges & 2)    interp(1,  x1, y0, z0, x1, y1, z0, v1, v2);
+                if (edges & 4)    interp(2,  x1, y1, z0, x0, y1, z0, v2, v3);
+                if (edges & 8)    interp(3,  x0, y1, z0, x0, y0, z0, v3, v0);
+                if (edges & 16)   interp(4,  x0, y0, z1, x1, y0, z1, v4, v5);
+                if (edges & 32)   interp(5,  x1, y0, z1, x1, y1, z1, v5, v6);
+                if (edges & 64)   interp(6,  x1, y1, z1, x0, y1, z1, v6, v7);
+                if (edges & 128)  interp(7,  x0, y1, z1, x0, y0, z1, v7, v4);
+                if (edges & 256)  interp(8,  x0, y0, z0, x0, y0, z1, v0, v4);
+                if (edges & 512)  interp(9,  x1, y0, z0, x1, y0, z1, v1, v5);
+                if (edges & 1024) interp(10, x1, y1, z0, x1, y1, z1, v2, v6);
+                if (edges & 2048) interp(11, x0, y1, z0, x0, y1, z1, v3, v7);
 
                 const triList = TRI_TABLE[cubeIndex];
                 for (let i = 0; triList[i] !== -1; i += 3) {
-                    const a = edgeVerts[triList[i]];
-                    const b = edgeVerts[triList[i + 1]];
-                    const c = edgeVerts[triList[i + 2]];
-                    if (!a || !b || !c) continue;
+                    const ea = triList[i], eb = triList[i + 1], ec = triList[i + 2];
+                    if (!edgeSet[ea] || !edgeSet[eb] || !edgeSet[ec]) continue;
 
-                    // Write triangle directly to STL file
-                    const normal = computeNormal(a, b, c);
-                    let off = 0;
-                    triBuf.writeFloatLE(normal[0], off); off += 4;
-                    triBuf.writeFloatLE(normal[1], off); off += 4;
-                    triBuf.writeFloatLE(normal[2], off); off += 4;
-                    const verts = [a, b, c];
-                    for (let vi = 0; vi < 3; vi++) {
-                        triBuf.writeFloatLE(verts[vi][0], off); off += 4;
-                        triBuf.writeFloatLE(verts[vi][1], off); off += 4;
-                        triBuf.writeFloatLE(verts[vi][2], off); off += 4;
-                    }
-                    triBuf.writeUInt16LE(0, off);
-                    fs.writeSync(outFd, triBuf);
+                    const ax = edgeVerts[ea * 3], ay = edgeVerts[ea * 3 + 1], az = edgeVerts[ea * 3 + 2];
+                    const bx = edgeVerts[eb * 3], by = edgeVerts[eb * 3 + 1], bz = edgeVerts[eb * 3 + 2];
+                    const cx = edgeVerts[ec * 3], cy = edgeVerts[ec * 3 + 1], cz = edgeVerts[ec * 3 + 2];
+
+                    // Face normal, inline so nothing is allocated per triangle.
+                    const ux = bx - ax, uy = by - ay, uz = bz - az;
+                    const wx = cx - ax, wy = cy - ay, wz = cz - az;
+                    let nxx = uy * wz - uz * wy;
+                    let nyy = uz * wx - ux * wz;
+                    let nzz = ux * wy - uy * wx;
+                    const len = Math.sqrt(nxx * nxx + nyy * nyy + nzz * nzz);
+                    if (len > 0) { nxx /= len; nyy /= len; nzz /= len; }
+
+                    let off = outOffset;
+                    outBuf.writeFloatLE(nxx, off); off += 4;
+                    outBuf.writeFloatLE(nyy, off); off += 4;
+                    outBuf.writeFloatLE(nzz, off); off += 4;
+                    outBuf.writeFloatLE(ax, off); off += 4;
+                    outBuf.writeFloatLE(ay, off); off += 4;
+                    outBuf.writeFloatLE(az, off); off += 4;
+                    outBuf.writeFloatLE(bx, off); off += 4;
+                    outBuf.writeFloatLE(by, off); off += 4;
+                    outBuf.writeFloatLE(bz, off); off += 4;
+                    outBuf.writeFloatLE(cx, off); off += 4;
+                    outBuf.writeFloatLE(cy, off); off += 4;
+                    outBuf.writeFloatLE(cz, off); off += 4;
+                    outBuf.writeUInt16LE(0, off); off += 2;
+                    outOffset = off;
+
                     triangleCount++;
+                    if (outOffset + 50 > outBuf.length) flush();
                 }
             }
         }
 
-        // Swap: current becomes next for the next iteration
-        [currentSlice, nextSlice] = [nextSlice, currentSlice];
+        const swap = currentSlice;
+        currentSlice = nextSlice;
+        nextSlice = swap;
     }
 
-    return triangleCount;
+    flush();
+    return { triangleCount, dims: [nx, ny, nz], spacing: [sx, sy, sz] };
 }
 
 export async function convertToStl(volume, outputPath) {
@@ -475,8 +535,9 @@ export async function convertToStl(volume, outputPath) {
     const { rows, columns, depth } = dimensions;
     const sliceSize = rows * columns;
 
-    const threshold = selectThresholdFromFile(tempFilePath, sliceSize, depth);
-    console.log(`Using threshold: ${threshold.toFixed(1)}`);
+    const threshold = selectThreshold(volume, sliceSize, depth);
+    console.log(`Using threshold: ${threshold.toFixed(1)} ` +
+        `(values ${volume.stats.min}..${volume.stats.max})`);
 
     // Open output file: write 80-byte header + 4-byte placeholder count
     const outFd = fs.openSync(outputPath, 'w');
@@ -489,15 +550,17 @@ export async function convertToStl(volume, outputPath) {
 
     let triangleCount;
     try {
-        triangleCount = marchingCubesStreaming(
+        const result = marchingCubesStreaming(
             srcFd,
-            [columns, rows, depth],
+            { nx: columns, ny: rows, nz: depth, sliceSize },
             spacing,
             origin,
             threshold,
-            sliceSize,
             outFd
         );
+        triangleCount = result.triangleCount;
+        console.log(`Isosurface grid ${result.dims.join('x')} at spacing ` +
+            `${result.spacing.map(s => s.toFixed(3)).join(', ')} mm (half resolution)`);
     } finally {
         fs.closeSync(srcFd);
     }
