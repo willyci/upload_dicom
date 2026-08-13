@@ -1,12 +1,18 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import fs from 'fs';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const PROJECT_ROOT = path.resolve(__dirname, '..');
-export const UPLOADS_DIR = path.join(PROJECT_ROOT, 'public', 'uploads');
+export const UPLOADS_DIR = process.env.UPLOADS_DIR || process.env.UPLOAD_DIR || path.join(PROJECT_ROOT, 'public', 'uploads');
 export const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
+
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 /**
  * Upload limits, in one place and served to the browser at /upload-limits.

@@ -7,7 +7,7 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { PUBLIC_DIR } from './config.js';
+import { PUBLIC_DIR, UPLOADS_DIR } from './config.js';
 import uploadRoutes from './routes/uploads.js';
 
 // --- Crash handlers: catch silent deaths ---
@@ -33,6 +33,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 
 app.use(express.static(PUBLIC_DIR));
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/', uploadRoutes);
 
